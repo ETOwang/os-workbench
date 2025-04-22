@@ -1,0 +1,40 @@
+// When we test your kernel implementation, the framework
+// directory will be replaced. Any modifications you make
+// to its files (e.g., kernel.h) will be lost.
+
+// Note that some code requires data structure definitions
+// (such as `sem_t`) to compile, and these definitions are
+// not present in kernel.h.
+
+// Include these definitions in os.h.
+#ifndef __OS_H__
+#define __OS_H__
+#include <kernel.h>
+// 前向声明的结构体定义
+struct task
+{
+    Context *context;  // 上下文
+    const char *name;  // 任务名称
+    int id;            // 任务ID
+    void *stack;       // 任务栈
+    int status;        // 任务状态
+    int cpu;           // 运行的CPU
+    void *fence1;      // 用于检测栈溢出的栅栏
+    char stack_area[]; // 任务栈区域
+};
+struct spinlock
+{
+    int locked;       // 锁状态
+    const char *name; // 锁名称
+    int cpu;          // 持有锁的CPU
+    int intr_flags;   // 中断标志
+};
+struct semaphore
+{
+    int value;            // 信号量值
+    const char *name;     // 信号量名称
+    struct spinlock lock; // 信号量内部锁
+    // 以下可以根据需要添加更多字段，如等待队列等
+    void *queue; // 等待队列
+};
+#endif // __OS_H__

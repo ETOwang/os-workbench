@@ -37,4 +37,12 @@ struct semaphore
     // 以下可以根据需要添加更多字段，如等待队列等
     void *queue; // 等待队列
 };
+
+struct handler_record
+{
+    int seq;           // 处理器序列号
+    int event;         // 事件类型
+    handler_t handler; // 处理函数指针
+};
+typedef struct handler_record handler_record_t;
 #endif // __OS_H__

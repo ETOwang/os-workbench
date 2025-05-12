@@ -8,7 +8,7 @@ static void os_init()
     pmm->init();
     kmt->init();
     kmt->spin_init(&handler_lock, "handler_lock");
-    //dev->init();
+    dev->init();
 }
 
 static void os_run()

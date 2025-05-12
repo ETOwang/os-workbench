@@ -129,6 +129,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
+    printf("Create task %s at %p\n", name, task->context);
     kmt->spin_unlock(&task_lock);
     return 0; // 成功
 }

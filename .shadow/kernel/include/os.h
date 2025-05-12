@@ -27,7 +27,6 @@ struct spinlock
     int locked;       // 锁状态
     const char *name; // 锁名称
     int cpu;          // 持有锁的CPU
-    int intr_flags;   // 中断标志
 };
 struct semaphore
 {

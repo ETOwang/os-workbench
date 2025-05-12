@@ -2,12 +2,18 @@
 #include <os.h>
 #include <limits.h>
 #define MAX_CPU 32
+#define MAX_TASK 128
 // 任务链表
-// static task_t *task_head = NULL;
-// static spinlock_t task_lock;
+static spinlock_t task_lock;
 
-// 当前CPU上运行的任务
-// static task_t *current_tasks[MAX_CPU] = {0};
+static struct cpu
+{
+    int noff;
+    int intena;
+    task_t *current_task;
+} cpus[MAX_CPU];
+
+static task_t tasks[MAX_TASK];
 
 // 系统栈大小 (64KB)
 #define STACK_SIZE (1 << 16)
@@ -20,105 +26,79 @@
 #define TASK_RUNNING 2
 #define TASK_BLOCKED 3
 #define TASK_DEAD 4
+// 获取当前CPU上的任务
+static task_t *get_current_task()
+{
+    int cpu = cpu_current();
+    return cpus[cpu].current_task;
+}
 
-// // 初始化KMT模块
-// static void kmt_init()
-// {
-//     printf("KMT模块初始化\n");
-//     kmt_spin_init(&task_lock, "任务列表锁");
+// 设置当前CPU上的任务
+static void set_current_task(task_t *task)
+{
+    int cpu = cpu_current();
+    cpus[cpu].current_task = task;
+    if (task)
+        task->cpu = cpu;
+}
 
-//     // 注册中断处理器，用于任务调度
-//     os->on_irq(INT_MIN, EVENT_IRQ_TIMER, kmt_context_save);
-//     os->on_irq(INT_MAX, EVENT_IRQ_TIMER, kmt_schedule);
-//     os->on_irq(INT_MIN, EVENT_YIELD, kmt_context_save);
-//     os->on_irq(INT_MAX, EVENT_YIELD, kmt_schedule);
-// }
+// 保存上下文
+static Context *kmt_context_save(Event ev, Context *ctx)
+{
+    task_t *current = get_current_task();
+    if (current)
+    {
+        current->context = ctx;
+    }
+    return NULL; // 返回NULL表示需要继续调用其他中断处理函数
+}
 
-// // 获取当前CPU上的任务
-// static task_t *get_current_task()
-// {
-//     int cpu = cpu_current();
-//     return current_tasks[cpu];
-// }
+// 任务调度
+static Context *kmt_schedule(Event ev, Context *ctx)
+{
+    kmt->spin_lock(&task_lock);
 
-// // 设置当前CPU上的任务
-// static void set_current_task(task_t *task)
-// {
-//     int cpu = cpu_current();
-//     current_tasks[cpu] = task;
-//     if (task)
-//         task->cpu = cpu;
-// }
+    // 获取当前任务
+    task_t *current = get_current_task();
+    if (current)
+    {
+        current->status = TASK_READY; // 将当前任务状态设置为就绪
+    }
+    // 寻找下一个可运行的任务
+    task_t *next = NULL;
+    for (int i = 0; i < MAX_TASK; i++)
+    {
+        if (tasks[i].status == TASK_READY)
+        {
+            next = &tasks[i];
+            break;
+        }
+    }
+    if (next)
+    {
+        next->status = TASK_RUNNING;
+        set_current_task(next);
+        kmt->spin_unlock(&task_lock);
+        return next->context;
+    }
+    // 没有可运行的任务，保持当前任务运行
+    if (current)
+    {
+        current->status = TASK_RUNNING;
+    }
+    kmt->spin_unlock(&task_lock);
+    return ctx;
+}
 
-// // 保存上下文
-// static Context *kmt_context_save(Event ev, Context *ctx)
-// {
-//     task_t *current = get_current_task();
-//     if (current)
-//     {
-//         current->context = ctx;
-//     }
-//     return NULL; // 返回NULL表示需要继续调用其他中断处理函数
-// }
-
-// // 任务调度
-// static Context *kmt_schedule(Event ev, Context *ctx)
-// {
-//     kmt_spin_lock(&task_lock);
-
-//     // 获取当前任务
-//     task_t *current = get_current_task();
-
-//     // 寻找下一个可运行的任务
-//     task_t *next = NULL;
-//     task_t *iter = task_head;
-//     int ncpu = cpu_current();
-
-//     if (iter)
-//     {
-//         do
-//         {
-//             // 选择就绪且不在当前CPU上运行的任务
-//             if (iter->status == TASK_READY && iter->cpu != ncpu)
-//             {
-//                 next = iter;
-//                 break;
-//             }
-//             iter = iter->next;
-//         } while (iter != task_head);
-
-//         // 如果没找到合适的任务，再次遍历，选择任意就绪任务
-//         if (!next)
-//         {
-//             iter = task_head;
-//             do
-//             {
-//                 if (iter->status == TASK_READY)
-//                 {
-//                     next = iter;
-//                     break;
-//                 }
-//                 iter = iter->next;
-//             } while (iter != task_head);
-//         }
-//     }
-
-//     if (next)
-//     {
-//         next->status = TASK_RUNNING;
-//         set_current_task(next);
-//         kmt_spin_unlock(&task_lock);
-//         return next->context;
-//     }
-
-//     // 没有可运行的任务，保持当前任务运行
-//     if (current)
-//     {
-//         current->status = TASK_RUNNING;
-//     }
-//     kmt_spin_unlock(&task_lock);
-//     return ctx;
-// }
+// 初始化KMT模块
+static void kmt_init()
+{
+    printf("KMT模块初始化\n");
+    kmt->spin_init(&task_lock, "task_lock");
+    // 注册中断处理器，用于任务调度
+    os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);
+    os->on_irq(INT_MAX, EVENT_NULL, kmt_schedule);
+}
 
 // // 创建任务
 // static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), void *arg)
@@ -208,20 +188,40 @@ static void kmt_spin_init(spinlock_t *lk, const char *name)
     lk->locked = 0;
     lk->name = name;
     lk->cpu = -1;
-    lk->intr_flags = 0;
 }
 static bool holding(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
     return lk->locked && lk->cpu == cpu_current();
 }
+static void push_off()
+{
+    int cpu = cpu_current();
+    int old = ienabled();
+    iset(false);
+    if (cpus[cpu].noff == 0)
+    {
+        cpus[cpu].intena = old;
+    }
+    cpus[cpu].noff++;
+}
+
+static void pop_off()
+{
+    int cpu = cpu_current();
+    panic_on(cpus[cpu].noff == 0, "pop_off: no push_off");
+    cpus[cpu].noff--;
+    if (cpus[cpu].noff == 0)
+    {
+        iset(cpus[cpu].intena);
+    }
+}
 // 获取自旋锁
 static void kmt_spin_lock(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
     // 禁用中断并保存中断状态
-    bool intr_save = ienabled();
-    iset(false);
+    push_off();
     if (holding(lk))
     {
         panic("Spinlock is already held by current CPU");
@@ -231,7 +231,6 @@ static void kmt_spin_lock(spinlock_t *lk)
         ;
     // 记录锁持有信息
     lk->cpu = cpu_current();
-    lk->intr_flags = intr_save ? 1 : 0;
 }
 
 // 释放自旋锁
@@ -243,14 +242,9 @@ static void kmt_spin_unlock(spinlock_t *lk)
         panic("Spinlock is not held by current CPU");
     }
     lk->cpu = -1;
-    int intr_save = lk->intr_flags;
     // 释放锁
     atomic_xchg(&lk->locked, 0);
-    // 恢复中断状态
-    if (intr_save)
-    {
-        iset(true);
-    }
+    pop_off();
 }
 
 // // 初始化信号量
@@ -321,7 +315,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
 
 // 使用MODULE_DEF宏定义kmt模块
 MODULE_DEF(kmt) = {
-    //.init = kmt_init,
+    .init = kmt_init,
     //.create = kmt_create,
     //.teardown = kmt_teardown,
     .spin_init = kmt_spin_init,

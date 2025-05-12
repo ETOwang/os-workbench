@@ -189,6 +189,7 @@ void dev_input_task(void *args) {
     while ((key = io_read(AM_INPUT_KEYBRD)).keycode != 0) {
       input_keydown(in, key);
     }
+    printf("input keycode: %d\n", key.keycode);
     time = io_read(AM_TIMER_UPTIME).us;
     if ((time - known_time) / 1000 > 100 && is_empty(in->ptr)) {
       push_event(in->ptr, event(0, 0, 0));

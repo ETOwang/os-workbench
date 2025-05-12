@@ -272,7 +272,6 @@ void dev_tty_task(void *arg) {
 
   tty_mark_all(ttydev->ptr);
   tty_render(ttydev->ptr);
-  printf("(tty) Welcome to Nanos! Press Ctrl-c to exit.\n");
   uint64_t known_time = io_read(AM_TIMER_UPTIME).us;
 
   while (1) {

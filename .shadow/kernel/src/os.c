@@ -17,8 +17,10 @@ static void os_run()
     {
         putch(*s == '*' ? '0' + cpu_current() : *s);
     }
-    while (1)
-        ;
+    while (1){
+       printf("Hello World from CPU %d\n", cpu_current());
+    }
+    
 }
 static void os_on_irq(int seq, int event, handler_t handler)
 {

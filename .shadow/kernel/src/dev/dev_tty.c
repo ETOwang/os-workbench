@@ -266,14 +266,13 @@ devops_t tty_ops = {
 // ------------------------------------------------------------------
 
 void dev_tty_task(void *arg) {
-  printf("(tty) TTY task started.\n");
   device_t *in =     dev->lookup("input");
   device_t *ttydev = dev->lookup("tty1");
   device_t *fb =     dev->lookup("fb");
 
   tty_mark_all(ttydev->ptr);
   tty_render(ttydev->ptr);
-
+  printf("(tty) Welcome to Nanos! Press Ctrl-c to exit.\n");
   uint64_t known_time = io_read(AM_TIMER_UPTIME).us;
 
   while (1) {

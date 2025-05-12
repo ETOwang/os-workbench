@@ -6,6 +6,7 @@
 // 任务链表
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
+static task_t  monitor_task[MAX_CPU];
 static int task_index;
 static struct cpu
 {
@@ -28,7 +29,11 @@ static struct cpu
 static task_t *get_current_task()
 {
     int cpu = cpu_current();
-    return cpus[cpu].current_task;
+    task_t* cur=cpus[cpu].current_task;
+    if(cur==NULL){
+        cur=&monitor_task[cpu];
+    }
+    return cur;
 }
 
 // 设置当前CPU上的任务

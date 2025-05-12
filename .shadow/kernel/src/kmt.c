@@ -6,7 +6,7 @@
 // 任务链表
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
-static task_t  monitor_task[MAX_CPU];
+static task_t monitor_task[MAX_CPU];
 static int task_index;
 static struct cpu
 {
@@ -29,9 +29,10 @@ static struct cpu
 static task_t *get_current_task()
 {
     int cpu = cpu_current();
-    task_t* cur=cpus[cpu].current_task;
-    if(cur==NULL){
-        cur=&monitor_task[cpu];
+    task_t *cur = cpus[cpu].current_task;
+    if (cur == NULL)
+    {
+        cur = &monitor_task[cpu];
     }
     return cur;
 }
@@ -129,8 +130,15 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
+    for (int i = 0; i < MAX_TASK; i++)
+    {
+        if (tasks[i] == NULL)
+        {
+            tasks[i] = task;
+            break;
+        }
+    }
     kmt->spin_unlock(&task_lock);
-    printf("Create task %s at %p\n", name, task->context);
     return 0; // 成功
 }
 
@@ -147,6 +155,14 @@ static void kmt_teardown(task_t *task)
         pmm->free(task->stack);
     }
     task->status = TASK_DEAD;
+    for (int i = 0; i < MAX_TASK; i++)
+    {
+        if (tasks[i] == task)
+        {
+            tasks[i] = NULL;
+            break;
+        }
+    }
     kmt->spin_unlock(&task_lock);
 }
 

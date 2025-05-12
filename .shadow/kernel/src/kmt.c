@@ -5,16 +5,14 @@
 #define MAX_TASK 128
 // 任务链表
 static spinlock_t task_lock;
-
+static task_t *tasks[MAX_TASK];
+static int task_index;
 static struct cpu
 {
     int noff;
     int intena;
     task_t *current_task;
 } cpus[MAX_CPU];
-
-static task_t tasks[MAX_TASK];
-
 // 系统栈大小 (64KB)
 #define STACK_SIZE (1 << 16)
 
@@ -64,15 +62,19 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         current->status = TASK_READY; // 将当前任务状态设置为就绪
     }
-    // 寻找下一个可运行的任务
     task_t *next = NULL;
-    for (int i = 0; i < MAX_TASK; i++)
+    int cur = task_index + 1;
+    while (cur != task_index)
     {
-        if (tasks[i].status == TASK_READY)
+        cur = cur % MAX_TASK;
+        task_t *task = tasks[cur];
+        if (task->status == TASK_READY)
         {
-            next = &tasks[i];
+            task_index = cur;
+            next = task; // 找到下一个就绪任务
             break;
         }
+        cur++;
     }
     if (next)
     {
@@ -99,11 +101,7 @@ static void kmt_init()
     os->on_irq(INT_MAX, EVENT_NULL, kmt_schedule);
     for (int i = 0; i < MAX_TASK; i++)
     {
-        tasks[i].status = TASK_DEAD; // 初始化任务状态为死亡
-        tasks[i].context = NULL;
-        tasks[i].name = NULL;
-        tasks[i].cpu = -1;
-        tasks[i].id = i;
+        tasks[i] = NULL; // 初始化任务列表
     }
 }
 
@@ -213,71 +211,65 @@ static void kmt_spin_unlock(spinlock_t *lk)
     pop_off();
 }
 
-// // 初始化信号量
-// static void kmt_sem_init(sem_t *sem, const char *name, int value)
-// {
-//     if (!sem)
-//         return;
+// 初始化信号量
+static void kmt_sem_init(sem_t *sem, const char *name, int value)
+{
+    panic_on(sem == NULL, "Semaphore is NULL");
+    sem->value = value;
+    sem->name = name;
+    sem->wait_list = NULL;
+    kmt->spin_init(&sem->lock, name);
+}
 
-//     sem->value = value;
-//     sem->name = name;
-//     kmt_spin_init(&sem->lock, name);
+// 等待信号量
+static void kmt_sem_wait(sem_t *sem)
+{
+    panic_on(sem == NULL, "Semaphore is NULL");
+    kmt->spin_lock(&sem->lock); // 获得自旋锁
+    sem->value--;
+    if (sem->value < 0)
+    {
+        task_t *current = get_current_task();
+        current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞
+        // 将当前任务添加到等待队列
+        if (sem->wait_list == NULL)
+        {
+            sem->wait_list = current;
+        }
+        else
+        {
+            task_t *cur = sem->wait_list;
+            while (cur->next != NULL)
+            {
+                cur = cur->next;
+            }
+            cur->next = current;
+            current->next = NULL;
+        }
+        kmt->spin_unlock(&sem->lock);
+        // 让出CPU，等待信号量
+        yield();
+        return;
+    }
+    kmt->spin_unlock(&sem->lock);
+}
 
-//     // 初始化等待队列
-//     sem->queue = NULL; // 在实际实现中应该是一个队列结构
-// }
+// 释放信号量
+static void kmt_sem_signal(sem_t *sem)
+{
+    if (!sem)
+        return;
 
-// // 等待信号量
-// static void kmt_sem_wait(sem_t *sem)
-// {
-//     if (!sem)
-//         return;
-
-//     while (1)
-//     {
-//         kmt_spin_lock(&sem->lock);
-//         if (sem->value > 0)
-//         {
-//             sem->value--;
-//             kmt_spin_unlock(&sem->lock);
-//             break;
-//         }
-
-//         // 将当前任务设置为阻塞状态
-//         task_t *current = get_current_task();
-//         if (current)
-//         {
-//             current->status = TASK_BLOCKED;
-
-//             // 在实际实现中应将任务加入等待队列
-//             // sem->queue = ...
-//         }
-
-//         kmt_spin_unlock(&sem->lock);
-//         yield(); // 让出CPU
-
-//         // 被唤醒后再次尝试获取信号量
-//     }
-// }
-
-// // 释放信号量
-// static void kmt_sem_signal(sem_t *sem)
-// {
-//     if (!sem)
-//         return;
-
-//     kmt_spin_lock(&sem->lock);
-//     sem->value++;
-
-//     // 在实际实现中应该从等待队列中唤醒一个任务
-//     // 示例伪代码:
-//     // if (sem->queue) {
-//     //   task_t *task = dequeue(sem->queue);
-//     //   task->status = TASK_READY;
-//     // }
-
-//     kmt_spin_unlock(&sem->lock);
-// }
+    kmt->spin_lock(&sem->lock);
+    sem->value++;
+    task_t *cur = sem->wait_list;
+    while (cur)
+    {
+        cur->status = TASK_READY; // 将等待的任务状态设置为就绪
+        cur = cur->next;
+    }
+    kmt->spin_unlock(&sem->lock);
+}
 
 // 使用MODULE_DEF宏定义kmt模块
 MODULE_DEF(kmt) = {
@@ -287,7 +279,7 @@ MODULE_DEF(kmt) = {
     .spin_init = kmt_spin_init,
     .spin_lock = kmt_spin_lock,
     .spin_unlock = kmt_spin_unlock,
-    //.sem_init = kmt_sem_init,
-    //.sem_wait = kmt_sem_wait,
-    //.sem_signal = kmt_sem_signal,
+    .sem_init = kmt_sem_init,
+    .sem_wait = kmt_sem_wait,
+    .sem_signal = kmt_sem_signal,
 };

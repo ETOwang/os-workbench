@@ -20,6 +20,7 @@ struct task
     int status;        // 任务状态
     int cpu;           // 运行的CPU
     void *fence;       // 用于检测栈溢出的栅栏
+    task_t *next;      // 下一个任务
     char stack_area[]; // 任务栈区域
 };
 struct spinlock
@@ -30,11 +31,10 @@ struct spinlock
 };
 struct semaphore
 {
-    int value;            // 信号量值
-    const char *name;     // 信号量名称
-    struct spinlock lock; // 信号量内部锁
-    // 以下可以根据需要添加更多字段，如等待队列等
-    void *queue; // 等待队列
+    int value;         // 信号量值
+    const char *name;  // 信号量名称
+    spinlock_t lock;   // 信号量内部锁
+    task_t *wait_list; // 等待信号量的任务列表
 };
 
 struct handler_record

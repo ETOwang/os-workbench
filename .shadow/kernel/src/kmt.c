@@ -293,6 +293,7 @@ static void kmt_sem_signal(sem_t *sem)
         cur->status = TASK_READY; // 将等待的任务状态设置为就绪
         cur = cur->next;
     }
+    sem->wait_list=NULL;
     kmt->spin_unlock(&sem->lock);
 }
 

@@ -64,7 +64,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
 
     // 获取当前任务
     task_t *current = get_current_task();
-    if (current)
+    if (current->status==TASK_RUNNING)
     {
         current->status = TASK_READY; // 将当前任务状态设置为就绪
     }
@@ -90,12 +90,14 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         return next->context;
     }
     // 没有可运行的任务，保持当前任务运行
-    if (current)
+    if (current->status==TASK_READY)
     {
         current->status = TASK_RUNNING;
+        kmt->spin_unlock(&task_lock);
+        return ctx;
     }
     kmt->spin_unlock(&task_lock);
-    return ctx;
+    return monitor_task[cpu_current()].context; // 返回监视任务的上下文
 }
 
 // 初始化KMT模块

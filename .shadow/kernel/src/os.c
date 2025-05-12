@@ -13,14 +13,9 @@ static void os_init()
 
 static void os_run()
 {
-    for (const char *s = "Hello World from CPU #*\n"; *s; s++)
-    {
-        putch(*s == '*' ? '0' + cpu_current() : *s);
-    }
+    printf("Hello World from CPU #%d\n",cpu_current());
     yield();
-    while (1){
-        printf("Hello World from CPU %d\n", cpu_current());
-    }
+    while (1);
 }
 static void os_on_irq(int seq, int event, handler_t handler)
 {

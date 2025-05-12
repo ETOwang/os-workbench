@@ -282,9 +282,7 @@ static void kmt_sem_wait(sem_t *sem)
 // 释放信号量
 static void kmt_sem_signal(sem_t *sem)
 {
-    if (!sem)
-        return;
-
+    panic_on(sem == NULL, "Semaphore is NULL");
     kmt->spin_lock(&sem->lock);
     sem->value++;
     task_t *cur = sem->wait_list;

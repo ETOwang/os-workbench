@@ -47,7 +47,7 @@ static void os_on_irq(int seq, int event, handler_t handler)
 }
 static Context *os_trap(Event ev, Context *context)
 {
-    if(ev.cause!=EVENT_IRQ_TIMER){
+    if(ev.event!=EVENT_IRQ_TIMER){
          printf("os_trap: %s\n", ev.msg);
     }
   

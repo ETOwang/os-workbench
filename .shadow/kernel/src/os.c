@@ -8,7 +8,7 @@ static void os_init()
     pmm->init();
     kmt->init();
     kmt->spin_init(&handler_lock, "handler_lock");
-    dev->init();
+    //dev->init();
 }
 
 static void os_run()
@@ -50,7 +50,6 @@ static void os_on_irq(int seq, int event, handler_t handler)
 }
 static Context *os_trap(Event ev, Context *context)
 {
-    printf("os_trap: %s\n", ev.msg);
     kmt->spin_lock(&handler_lock);
     Context *next = NULL;
     for (int i = 0; i < handler_count; i++)

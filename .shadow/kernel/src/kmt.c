@@ -100,6 +100,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
 // 初始化KMT模块
 static void kmt_init()
 {
+    printf("KMT init\n");
     kmt->spin_init(&task_lock, "task_lock");
     // 注册中断处理器，用于任务调度
     os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);

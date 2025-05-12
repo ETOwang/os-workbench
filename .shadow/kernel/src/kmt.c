@@ -188,7 +188,6 @@ static void push_off()
     int cpu = cpu_current();
     int old = ienabled();
     iset(false);
-    printf("push_off: cpu %d\n", cpu);
     if (cpus[cpu].noff == 0)
     {
         cpus[cpu].intena = old;
@@ -199,7 +198,6 @@ static void push_off()
 static void pop_off()
 {
     int cpu = cpu_current();
-    printf("pop_off: cpu %d\n", cpu);
     panic_on(cpus[cpu].noff == 0, "pop_off: no push_off");
     cpus[cpu].noff--;
     if (cpus[cpu].noff == 0)
@@ -211,6 +209,7 @@ static void pop_off()
 static void kmt_spin_lock(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
+    printf("kmt_spin_lock: %s\n", lk->name);
     // 禁用中断并保存中断状态
     push_off();
     if (holding(lk))

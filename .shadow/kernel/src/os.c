@@ -14,7 +14,7 @@ static void os_init()
 static void os_run()
 {
     printf("Hello World from CPU #%d\n",cpu_current());
-    yield();
+    //yield();
     while (1);
 }
 static void os_on_irq(int seq, int event, handler_t handler)

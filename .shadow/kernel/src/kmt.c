@@ -81,7 +81,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         }
         cur++;
     }
-    task_index++;
     if (next)
     {
         next->status = TASK_RUNNING;

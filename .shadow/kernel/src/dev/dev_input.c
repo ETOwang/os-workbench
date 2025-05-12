@@ -86,7 +86,6 @@ static void input_keydown(device_t *dev, AM_INPUT_KEYBRD_T key) {
 }
 
 static Context *input_notify(Event ev, Context *context) {
-  printf("input notify: %d\n", ev.event);
   kmt->sem_signal(&sem_kbdirq);
   return NULL;
 }
@@ -184,7 +183,7 @@ static char keymap[256][2] = {
 void dev_input_task(void *args) {
   device_t *in = dev->lookup("input");
   uint32_t known_time = io_read(AM_TIMER_UPTIME).us;
-
+  printf("input task started.\n");
   while (1) {
     uint32_t time;
     AM_INPUT_KEYBRD_T key;

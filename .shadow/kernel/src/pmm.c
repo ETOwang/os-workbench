@@ -221,7 +221,6 @@ static void kfree(void *ptr)
 
 static void pmm_init()
 {
-    printf("PMM init\n");
     uintptr_t pmsize = ((uintptr_t)heap.end - (uintptr_t)heap.start);
     pgsize = pmsize / THREAD_NUM;
     for (size_t i = 0; i < THREAD_NUM; i++)

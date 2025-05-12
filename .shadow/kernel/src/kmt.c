@@ -285,13 +285,11 @@ static void kmt_sem_signal(sem_t *sem)
     panic_on(sem == NULL, "Semaphore is NULL");
     kmt->spin_lock(&sem->lock);
     sem->value++;
-    task_t *cur = sem->wait_list;
-    while (cur)
+    if(sem->wait_list)
     {
-        cur->status = TASK_READY; // 将等待的任务状态设置为就绪
-        cur = cur->next;
+        sem->wait_list->status= TASK_READY; // 将等待的任务状态设置为就绪
+        sem->wait_list=sem->wait_list->next;
     }
-    sem->wait_list=NULL;
     kmt->spin_unlock(&sem->lock);
 }
 

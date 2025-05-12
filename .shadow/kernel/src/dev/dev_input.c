@@ -186,7 +186,7 @@ void dev_input_task(void *args) {
   while (1) {
     uint32_t time;
     AM_INPUT_KEYBRD_T key;
-    while ((key = io_read(AM_INPUT_KEYBRD)).keycode != 0) {
+    while ((key = io_read(AM_INPUT_KEYBRD)).keycode == 0) {
       input_keydown(in, key);
     }
     printf("input keycode: %d\n", key.keycode);

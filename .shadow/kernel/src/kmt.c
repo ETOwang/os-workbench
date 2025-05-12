@@ -188,6 +188,7 @@ static void push_off()
     int cpu = cpu_current();
     int old = ienabled();
     iset(false);
+    printf("push_off: cpu %d\n", cpu);
     if (cpus[cpu].noff == 0)
     {
         cpus[cpu].intena = old;
@@ -198,6 +199,7 @@ static void push_off()
 static void pop_off()
 {
     int cpu = cpu_current();
+    printf("pop_off: cpu %d\n", cpu);
     panic_on(cpus[cpu].noff == 0, "pop_off: no push_off");
     cpus[cpu].noff--;
     if (cpus[cpu].noff == 0)

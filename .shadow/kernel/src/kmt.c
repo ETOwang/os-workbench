@@ -63,7 +63,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     kmt->spin_lock(&task_lock);
     // 获取当前任务
     task_t *current = get_current_task();
-    if (current->status==TASK_RUNNING)
+    if (current->status == TASK_RUNNING)
     {
         current->status = TASK_READY; // 将当前任务状态设置为就绪
     }
@@ -73,7 +73,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         cur = cur % MAX_TASK;
         task_t *task = tasks[cur];
-        if (task->status == TASK_READY)
+        if (task != NULL && task->status == TASK_READY)
         {
             task_index = cur;
             next = task; // 找到下一个就绪任务
@@ -90,7 +90,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         return next->context;
     }
     // 没有可运行的任务，保持当前任务运行
-    if (current->status==TASK_READY)
+    if (current->status == TASK_READY)
     {
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&task_lock);
@@ -208,8 +208,8 @@ static void pop_off()
 static void kmt_spin_lock(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
-    //printf("kmt_spin_lock: %s\n", lk->name);
-    // 禁用中断并保存中断状态
+    // printf("kmt_spin_lock: %s\n", lk->name);
+    //  禁用中断并保存中断状态
     push_off();
     if (holding(lk))
     {
@@ -285,10 +285,10 @@ static void kmt_sem_signal(sem_t *sem)
     panic_on(sem == NULL, "Semaphore is NULL");
     kmt->spin_lock(&sem->lock);
     sem->value++;
-    if(sem->wait_list)
+    if (sem->wait_list)
     {
-        sem->wait_list->status= TASK_READY; // 将等待的任务状态设置为就绪
-        sem->wait_list=sem->wait_list->next;
+        sem->wait_list->status = TASK_READY; // 将等待的任务状态设置为就绪
+        sem->wait_list = sem->wait_list->next;
     }
     kmt->spin_unlock(&sem->lock);
 }

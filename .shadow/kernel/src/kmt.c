@@ -60,6 +60,7 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 // 任务调度
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
+    printf("kmt_schedule: %s\n",ev.msg);
     kmt->spin_lock(&task_lock);
 
     // 获取当前任务
@@ -209,7 +210,7 @@ static void pop_off()
 static void kmt_spin_lock(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
-    printf("kmt_spin_lock: %s\n", lk->name);
+    //printf("kmt_spin_lock: %s\n", lk->name);
     // 禁用中断并保存中断状态
     push_off();
     if (holding(lk))

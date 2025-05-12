@@ -93,92 +93,58 @@ static Context *kmt_schedule(Event ev, Context *ctx)
 // 初始化KMT模块
 static void kmt_init()
 {
-    printf("KMT模块初始化\n");
     kmt->spin_init(&task_lock, "task_lock");
     // 注册中断处理器，用于任务调度
     os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);
     os->on_irq(INT_MAX, EVENT_NULL, kmt_schedule);
+    for (int i = 0; i < MAX_TASK; i++)
+    {
+        tasks[i].status = TASK_DEAD; // 初始化任务状态为死亡
+        tasks[i].context = NULL;
+        tasks[i].name = NULL;
+        tasks[i].cpu = -1;
+        tasks[i].id = i;
+    }
 }
 
-// // 创建任务
-// static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), void *arg)
-// {
-//     if (!task || !name || !entry)
-//         return -1;
+// 创建任务
+static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), void *arg)
+{
+    if (!task || !name || !entry)
+        return -1;
 
-//     // 分配栈空间
-//     task->stack = pmm->alloc(STACK_SIZE + sizeof(task->fence1));
-//     if (!task->stack)
-//         return -1;
+    kmt->spin_lock(&task_lock);
+    // 分配栈空间
+    task->stack = pmm->alloc(STACK_SIZE);
+    if (!task->stack)
+        return -1;
 
-//     // 设置栈底栅栏，用于检测栈溢出
-//     task->fence1 = (void *)FENCE_PATTERN;
+    // 设置栈底栅栏，用于检测栈溢出
+    task->fence = (void *)FENCE_PATTERN;
+    // 初始化任务上下文
+    Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
+    task->context = kcontext(stack_area, entry, arg);
+    task->name = name;
+    task->status = TASK_READY;
+    kmt->spin_unlock(&task_lock);
+    return 0; // 成功
+}
 
-//     // 初始化任务上下文
-//     Area stack_area = {
-//         .start = task->stack,
-//         .end = (void *)((uintptr_t)task->stack + STACK_SIZE)};
-//     task->context = kcontext(stack_area, entry, arg);
-//     task->name = name;
-//     task->status = TASK_READY;
-//     task->id = (int)((uintptr_t)task); // 使用指针地址作为唯一ID
-//     task->cpu = -1;                    // 初始未分配到CPU
+// 销毁任务
+static void kmt_teardown(task_t *task)
+{
+    if (!task)
+        return;
 
-//     // 添加到任务链表
-//     kmt_spin_lock(&task_lock);
-//     if (!task_head)
-//     {
-//         task_head = task;
-//         task->next = task;
-//         task->prev = task;
-//     }
-//     else
-//     {
-//         task->next = task_head;
-//         task->prev = task_head->prev;
-//         task_head->prev->next = task;
-//         task_head->prev = task;
-//     }
-//     kmt_spin_unlock(&task_lock);
-
-//     printf("创建任务: %s (ID: %d)\n", name, task->id);
-//     return 0; // 成功
-// }
-
-// // 销毁任务
-// static void kmt_teardown(task_t *task)
-// {
-//     if (!task)
-//         return;
-
-//     printf("销毁任务: %s\n", task->name);
-
-//     kmt_spin_lock(&task_lock);
-
-//     // 从任务链表中删除
-//     if (task->next == task)
-//     { // 只有一个任务
-//         task_head = NULL;
-//     }
-//     else
-//     {
-//         if (task_head == task)
-//         {
-//             task_head = task->next;
-//         }
-//         task->prev->next = task->next;
-//         task->next->prev = task->prev;
-//     }
-
-//     // 释放栈空间
-//     if (task->stack)
-//     {
-//         pmm->free(task->stack);
-//     }
-
-//     task->status = TASK_DEAD;
-//     kmt_spin_unlock(&task_lock);
-// }
+    kmt->spin_lock(&task_lock);
+    // 释放栈空间
+    if (task->stack)
+    {
+        pmm->free(task->stack);
+    }
+    task->status = TASK_DEAD;
+    kmt->spin_unlock(&task_lock);
+}
 
 // 初始化自旋锁
 static void kmt_spin_init(spinlock_t *lk, const char *name)
@@ -316,8 +282,8 @@ static void kmt_spin_unlock(spinlock_t *lk)
 // 使用MODULE_DEF宏定义kmt模块
 MODULE_DEF(kmt) = {
     .init = kmt_init,
-    //.create = kmt_create,
-    //.teardown = kmt_teardown,
+    .create = kmt_create,
+    .teardown = kmt_teardown,
     .spin_init = kmt_spin_init,
     .spin_lock = kmt_spin_lock,
     .spin_unlock = kmt_spin_unlock,

@@ -19,7 +19,7 @@ struct task
     void *stack;       // 任务栈
     int status;        // 任务状态
     int cpu;           // 运行的CPU
-    void *fence1;      // 用于检测栈溢出的栅栏
+    void *fence;       // 用于检测栈溢出的栅栏
     char stack_area[]; // 任务栈区域
 };
 struct spinlock

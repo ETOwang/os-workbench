@@ -66,13 +66,14 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         cnt++;
         task_t *cur = tasks[task_index];
+        printf("task_index: %d\n", task_index);
         if (cur != NULL && cur->status == TASK_READY)
         {
             cur->status = TASK_RUNNING;
             kmt->spin_unlock(&task_lock);
             return cur->context;
         }
-        printf("task_index: %d\n", task_index);
+        
         task_index = (task_index + 1) % MAX_TASK;
     }
     if (next)

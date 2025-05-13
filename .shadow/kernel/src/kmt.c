@@ -100,6 +100,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         return ctx;
     }
     kmt->spin_unlock(&task_lock);
+    printf("monitor_task: %s ,status: %d\n", monitor_task[cpu_current()].name,monitor_task[cpu_current()].status);
     return monitor_task[cpu_current()].context; // 返回监视任务的上下文
 }
 

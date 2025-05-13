@@ -119,7 +119,6 @@ static void kmt_init()
     // 注册中断处理器，用于任务调度
     os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);
     os->on_irq(INT_MAX, EVENT_NULL, kmt_schedule);
-
     // 初始化任务列表
     for (int i = 0; i < MAX_TASK; i++)
     {

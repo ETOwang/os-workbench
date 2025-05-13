@@ -50,10 +50,9 @@ static void set_current_task(task_t *task)
 static Context *kmt_context_save(Event ev, Context *ctx)
 {
     task_t *current = get_current_task();
-    if (current)
-    {
-        current->context = ctx;
-    }
+    panic_on(current == NULL, "Current task is NULL");
+    current->context = ctx;
+
     return NULL; // 返回NULL表示需要继续调用其他中断处理函数
 }
 
@@ -62,30 +61,30 @@ static Context *kmt_schedule(Event ev, Context *ctx)
 {
     kmt->spin_lock(&task_lock);
     // 获取当前任务
-    
+
     task_t *current = get_current_task();
-    printf("kmt_schedule: %s ,status: %d\n", current->name,current->status);
+    printf("kmt_schedule: %s ,status: %d\n", current->name, current->status);
     if (current->status == TASK_RUNNING)
     {
         current->status = TASK_READY; // 将当前任务状态设置为就绪
     }
     task_t *next = NULL;
-    int cnt=0;
-    while (cnt<MAX_TASK)
+    int cnt = 0;
+    while (cnt < MAX_TASK)
     {
         cnt++;
-        task_t* cur=tasks[task_index];
-        if (cur!=NULL&&cur->status == TASK_READY)
+        task_t *cur = tasks[task_index];
+        if (cur != NULL && cur->status == TASK_READY)
         {
             cur->status = TASK_RUNNING;
             kmt->spin_unlock(&task_lock);
-            return cur->context; 
+            return cur->context;
         }
-        task_index=(task_index+1)%MAX_TASK;
+        task_index = (task_index + 1) % MAX_TASK;
     }
     if (next)
     {
-        printf("kmt_schedule: %s ,status: %d\n", next->name,next->status);
+        printf("kmt_schedule: %s ,status: %d\n", next->name, next->status);
         next->status = TASK_RUNNING;
         set_current_task(next);
         kmt->spin_unlock(&task_lock);
@@ -94,7 +93,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有可运行的任务，保持当前任务运行
     if (current->status == TASK_READY)
     {
-        printf("kmt_schedule: %s ,status: %d\n", current->name,current->status);
+        printf("kmt_schedule: %s ,status: %d\n", current->name, current->status);
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&task_lock);
         return ctx;

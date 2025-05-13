@@ -254,6 +254,7 @@ static void kmt_sem_wait(sem_t *sem)
     sem->value--;
     if (sem->value < 0)
     {
+        printf("Semaphore %s is blocked\n", sem->name);
         task_t *current = get_current_task();
         current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞
         // 将当前任务添加到等待队列

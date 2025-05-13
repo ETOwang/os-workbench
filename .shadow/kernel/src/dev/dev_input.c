@@ -23,7 +23,6 @@ static void push_event(input_t *in, struct input_event ev) {
   in->rear = (in->rear + 1) % NEVENTS;
   panic_on(is_empty(in), "input queue full");
   kmt->spin_unlock(&in->lock);
-  printf("input event: ctrl=%d, alt=%d, data=%d\n", ev.ctrl, ev.alt, ev.data);
   kmt->sem_signal(&in->event_sem);
 }
 

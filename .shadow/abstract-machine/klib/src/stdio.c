@@ -4,21 +4,21 @@
 #include <stdarg.h>
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
-
+#define MAX_CPU 32
 // 添加一个简单的自旋锁实现，确保printf的线程安全
 static int print_lock = 0;
-static bool intena=true;
+static bool intena[MAX_CPU];
 static inline void print_lock_acquire()
 {
   bool cur=ienabled();
   iset(false);
   while (__sync_lock_test_and_set(&print_lock, 1));
-  intena=cur;
+  intena[cpu_current()]=cur;
 }
 
 static inline void print_lock_release()
 {
-  iset(intena);
+  iset(intena[cpu_current()]);
   __sync_lock_release(&print_lock);
 }
 

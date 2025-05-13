@@ -32,7 +32,6 @@ static task_t *get_current_task()
     task_t *cur = cpus[cpu].current_task;
     if (cur == NULL)
     {
-        printf("monitor_task_ptr: %p ", &monitor_task[cpu]);
         cur = &monitor_task[cpu];
     }
     return cur;
@@ -47,6 +46,13 @@ static void set_current_task(task_t *task)
     task->cpu = cpu;
 }
 
+static void reset_current_task()
+{
+    int cpu = cpu_current();
+    panic_on(cpus[cpu].current_task == NULL, "Current task is NULL");
+    cpus[cpu].current_task->cpu=-1;
+    cpus[cpu].current_task = NULL;
+}
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)
 {
@@ -64,7 +70,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 获取当前任务
 
     task_t *current = get_current_task();
-    printf("kmt_schedule: %s ,status: %d\n", current->name, current->status);
     if (current->status == TASK_RUNNING)
     {
         current->status = TASK_READY; // 将当前任务状态设置为就绪
@@ -100,6 +105,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         return ctx;
     }
     kmt->spin_unlock(&task_lock);
+    reset_current_task();
     return monitor_task[cpu_current()].context; // 返回监视任务的上下文
 }
 

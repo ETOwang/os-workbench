@@ -42,9 +42,9 @@ static void os_on_irq(int seq, int event, handler_t handler)
 }
 static Context *os_trap(Event ev, Context *context)
 {
+    printf("os_trap: event %s\n", ev.msg);
     kmt->spin_lock(&handler_lock);
     Context *next = NULL;
-    printf("os_trap: event %s\n", ev.msg);
     for (int i = 0; i < handler_count; i++)
     {
         if (handlers[i].event == EVENT_NULL || handlers[i].event == ev.event)

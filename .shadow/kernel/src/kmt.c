@@ -43,9 +43,9 @@ static void set_current_task(task_t *task)
     panic_on(task == NULL, "Task is NULL");
     int cpu = cpu_current();
     cpus[cpu].current_task = task;
-    kmt->spin_lock(&task_lock);
+    kmt->spin_lock(&task->lock);
     task->cpu = cpu;
-    kmt->spin_unlock(&task_lock);
+    kmt->spin_unlock(&task->lock);
 }
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)

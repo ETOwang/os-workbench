@@ -29,11 +29,10 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    // 如果当前没有任务，或者任务已死亡，则返回该CPU的监视任务
-    if (cur == NULL || cur->status == TASK_DEAD)
+    // 如果当前没有任务，则返回该CPU的监视任务
+    if (cur == NULL)
     {
         cur = &monitor_task[cpu];
-        cpus[cpu].current_task = cur; // 确保 current_task 指向一个活动任务
     }
     return cur;
 }
@@ -207,8 +206,8 @@ static void kmt_teardown(task_t *task)
     if (!task)
         return;
 
-    kmt->spin_lock(&task_lock);  // Acquire global scheduler lock
-    kmt->spin_lock(&task->lock); // Acquire lock for the task being torn down
+    kmt->spin_lock(&task_lock);   // Acquire global scheduler lock
+    kmt->spin_lock(&task->lock);  // Acquire lock for the task being torn down
 
     // Mark as dead first.
     task->status = TASK_DEAD;
@@ -223,14 +222,14 @@ static void kmt_teardown(task_t *task)
         }
     }
 
-    kmt->spin_unlock(&task->lock); // Release task's personal lock
-    kmt->spin_unlock(&task_lock);  // Release global scheduler lock
+    kmt->spin_unlock(&task->lock);  // Release task's personal lock
+    kmt->spin_unlock(&task_lock);   // Release global scheduler lock
 
     // Free task's stack
     if (task->stack)
     {
         pmm->free(task->stack);
-        task->stack = NULL;
+        task->stack = NULL; 
     }
 }
 

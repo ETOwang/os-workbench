@@ -127,6 +127,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
+        panic_on(get_current_task()!=current, "Current task is not the same as the one in CPU");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);

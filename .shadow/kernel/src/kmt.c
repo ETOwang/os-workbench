@@ -114,11 +114,11 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         next->status = TASK_RUNNING;
         set_current_task(next); // set_current_task is assumed to be correct (no internal locks)
 
-        // 如果选中的下一个任务不是原来的当前任务，则释放下一个任务的锁
-        if (next != current)
-        {
+        // // 如果选中的下一个任务不是原来的当前任务，则释放下一个任务的锁
+        // if (next != current)
+        // {
             kmt->spin_unlock(&next->lock);
-        }
+        //}
         // 总是释放原始当前任务的锁。
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);

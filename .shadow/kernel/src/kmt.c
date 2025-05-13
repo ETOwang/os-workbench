@@ -162,9 +162,7 @@ static void kmt_init()
         // 初始化监视任务
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
-        monitor_task[i].next = NULL;
         // 初始化监视任务的锁
-        kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock");
     }
 }
 

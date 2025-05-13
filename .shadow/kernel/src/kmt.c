@@ -32,6 +32,7 @@ static task_t *get_current_task()
     task_t *cur = cpus[cpu].current_task;
     if (cur == NULL)
     {
+        printf("monitor_task_ptr: %p ", &monitor_task[cpu]);
         cur = &monitor_task[cpu];
     }
     return cur;

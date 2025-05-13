@@ -135,9 +135,6 @@ static void kmt_init()
         // 初始化监视任务
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
-        monitor_task[i].name = "monitor_task";
-        monitor_task[i].next = NULL;
-        monitor_task[i].fence = (void *)FENCE_PATTERN;
         // 设置初始任务为当前CPU的任务
         cpus[i].current_task = &monitor_task[i];
     }

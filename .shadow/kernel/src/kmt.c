@@ -62,6 +62,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
 {
     kmt->spin_lock(&task_lock);
     // 获取当前任务
+    printf("kmt_schedule: %s\n", get_current_task()->name);
     task_t *current = get_current_task();
     if (current->status == TASK_RUNNING)
     {

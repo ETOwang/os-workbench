@@ -84,7 +84,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     }
     if (next)
     {
-        printf("switching to task %s\n", next->name);
         next->status = TASK_RUNNING;
         set_current_task(next);
         kmt->spin_unlock(&task_lock);
@@ -93,6 +92,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有可运行的任务，保持当前任务运行
     if (current->status == TASK_READY)
     {
+        printf("No runnable task, keep current task running\n");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&task_lock);
         return ctx;

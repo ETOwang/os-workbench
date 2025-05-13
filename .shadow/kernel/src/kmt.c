@@ -92,11 +92,11 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有可运行的任务，保持当前任务运行
     if (current->status == TASK_READY)
     {
-        printf("No runnable task, keep current task running\n");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&task_lock);
         return ctx;
     }
+    printf("No runnable task found, keeping current task running\n");
     kmt->spin_unlock(&task_lock);
     return monitor_task[cpu_current()].context; // 返回监视任务的上下文
 }

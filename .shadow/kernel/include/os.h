@@ -11,8 +11,15 @@
 #define __OS_H__
 #include <kernel.h>
 // 前向声明的结构体定义
+struct spinlock
+{
+    int locked;       // 锁状态
+    const char *name; // 锁名称
+    int cpu;          // 持有锁的CPU
+};
 struct task
 {
+    spinlock_t lock; // 任务锁
     Context *context;  // 上下文
     const char *name;  // 任务名称
     int id;            // 任务ID
@@ -22,12 +29,6 @@ struct task
     void *fence;       // 用于检测栈溢出的栅栏
     task_t *next;      // 下一个任务
     char stack_area[]; // 任务栈区域
-};
-struct spinlock
-{
-    int locked;       // 锁状态
-    const char *name; // 锁名称
-    int cpu;          // 持有锁的CPU
 };
 struct semaphore
 {

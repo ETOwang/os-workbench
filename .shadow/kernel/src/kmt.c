@@ -3,7 +3,6 @@
 #include <limits.h>
 #define MAX_CPU 32
 #define MAX_TASK 128
-// 任务链表
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
 static task_t monitor_task[MAX_CPU]; // 每个CPU上的监视任务（初始进程）
@@ -140,7 +139,6 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     if (!task || !name || !entry)
         return -1;
 
-    kmt->spin_lock(&task_lock);
     // 分配栈空间
     task->stack = pmm->alloc(STACK_SIZE);
     if (!task->stack)
@@ -153,6 +151,8 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
+    kmt->spin_init(&task->lock, name);
+    kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
     {
         if (tasks[i] == NULL)

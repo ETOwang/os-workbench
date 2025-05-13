@@ -107,7 +107,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 所有任务都不可运行，使用对应CPU的监视任务
     int cpu_id = cpu_current();
     monitor_task[cpu_id].status = TASK_RUNNING;
-    //set_current_task(&monitor_task[cpu_id]);
+    set_current_task(&monitor_task[cpu_id]);
     kmt->spin_unlock(&task_lock);
     return monitor_task[cpu_id].context;
 }
@@ -132,8 +132,6 @@ static void kmt_init()
         // 初始化监视任务
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
-        // 设置初始任务为当前CPU的任务
-        cpus[i].current_task = &monitor_task[i];
     }
 }
 

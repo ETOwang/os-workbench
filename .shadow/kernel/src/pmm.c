@@ -182,6 +182,7 @@ static void *kalloc(size_t size)
     if (!block)
     {
         kmt->spin_unlock(&thread_lock[tid]);
+        panic("No free block found");
         return NULL; // 没有足够的内存
     }
 
@@ -190,14 +191,11 @@ static void *kalloc(size_t size)
     {
         block = split_block(block, req_order);
     }
-
     // 标记为已使用
     block->free = 0;
     // 返回可用内存区域（跳过块头部）
     kmt->spin_unlock(&thread_lock[tid]);
     return (void *)((uintptr_t)block + sizeof(struct block_t));
-
-    return NULL;
 }
 
 static void kfree(void *ptr)

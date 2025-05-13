@@ -29,8 +29,8 @@
 
 #define panic_on(cond, s) \
   ({ if (cond) { \
-      putstr("AM Panic: "); putstr(s); \
-      putstr(" @ " __FILE__ ":" TOSTRING(__LINE__) "  \n"); \
+      printf("AM Panic: "); printf("%s",s);\
+      printf(" @ " __FILE__ ":" TOSTRING(__LINE__) "  \n"); \
       halt(1); \
     } })
 

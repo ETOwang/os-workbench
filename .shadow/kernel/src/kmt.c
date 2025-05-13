@@ -52,13 +52,13 @@ static Context *kmt_context_save(Event ev, Context *ctx)
     task_t *current = get_current_task();
     panic_on(current == NULL, "Current task is NULL");
     current->context = ctx;
-
     return NULL; // 返回NULL表示需要继续调用其他中断处理函数
 }
 
 // 任务调度
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
+    printf("monitor: %s ,status: %d\n", monitor_task[cpu_current()].name, monitor_task[cpu_current()].status);
     kmt->spin_lock(&task_lock);
     // 获取当前任务
 

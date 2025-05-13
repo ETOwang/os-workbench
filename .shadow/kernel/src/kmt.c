@@ -73,32 +73,36 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     int current_search_start_index = task_index; // Record the starting point of search
 
     // 尝试从普通任务队列中查找
-    for (int i = 0; i < MAX_TASK; ++i) 
+    for (int i = 0; i < MAX_TASK; ++i)
     {
         int check_idx = (current_search_start_index + i) % MAX_TASK;
         task_t *cur = tasks[check_idx];
-        
+
         if (cur == NULL)
         {
             continue;
         }
 
-        if (cur == current) {
+        if (cur == current)
+        {
             // Current task is already locked. Check its status.
-            if (current->status == TASK_READY) {
-                next = current; // Candidate: current task itself
+            if (current->status == TASK_READY)
+            {
+                next = current;                          // Candidate: current task itself
                 task_index = (check_idx + 1) % MAX_TASK; // Next schedule round starts after this task
                 break;
             }
             // If current is not ready, continue search. Its lock (current->lock) is already held.
-        } else {
+        }
+        else
+        {
             // For other tasks, acquire their lock to check status
             kmt->spin_lock(&cur->lock);
             if (cur->status == TASK_READY)
             {
-                next = cur; // Found a different ready task. Its lock (cur->lock) is now held.
+                next = cur;                              // Found a different ready task. Its lock (cur->lock) is now held.
                 task_index = (check_idx + 1) % MAX_TASK; // Next schedule round starts after this task
-                break; // Exit loop, next->lock (which is cur->lock) is held
+                break;                                   // Exit loop, next->lock (which is cur->lock) is held
             }
             kmt->spin_unlock(&cur->lock); // Release lock if not chosen
         }
@@ -111,7 +115,8 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         set_current_task(next); // set_current_task is assumed to be correct (no internal locks)
 
         // 如果选中的下一个任务不是原来的当前任务，则释放下一个任务的锁
-        if (next != current) {
+        if (next != current)
+        {
             kmt->spin_unlock(&next->lock);
         }
         // 总是释放原始当前任务的锁。
@@ -131,9 +136,10 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     kmt->spin_unlock(&current->lock);
     // 所有任务都不可运行，使用对应CPU的监视任务
     int cpu_id = cpu_current();
+    kmt->spin_lock(&monitor_task[cpu_id].lock); // 获取监视任务的锁
     monitor_task[cpu_id].status = TASK_RUNNING;
-    // 直接设置，不调用set_current_task
-    cpus[cpu_id].current_task = &monitor_task[cpu_id];
+    set_current_task(&monitor_task[cpu_id]);      // 设置当前任务为监视任务
+    kmt->spin_unlock(&monitor_task[cpu_id].lock); // 释放监视任务的锁
     kmt->spin_unlock(&task_lock);
     return monitor_task[cpu_id].context;
 }
@@ -157,7 +163,8 @@ static void kmt_init()
         // 初始化监视任务
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
-        // 初始化监视任务的锁
+        monitor_task[i].next = NULL;                                // 初始化 next 指针
+        kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock"); // 初始化监视任务的锁
     }
 }
 
@@ -337,9 +344,9 @@ static void kmt_sem_signal(sem_t *sem)
     sem->value++;
     if (sem->wait_list)
     {
-        kmt->spin_lock(&sem->wait_list->lock); // 锁定等待的任务
-        sem->wait_list->status = TASK_READY; // 将等待的任务状态设置为就绪
-        task_t* nxt=sem->wait_list->next; // 获取下一个等待的任务
+        kmt->spin_lock(&sem->wait_list->lock);   // 锁定等待的任务
+        sem->wait_list->status = TASK_READY;     // 将等待的任务状态设置为就绪
+        task_t *nxt = sem->wait_list->next;      // 获取下一个等待的任务
         kmt->spin_unlock(&sem->wait_list->lock); // 解锁等待的任务
         sem->wait_list = nxt;
     }

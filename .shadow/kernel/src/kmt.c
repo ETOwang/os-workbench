@@ -344,11 +344,12 @@ static void kmt_sem_signal(sem_t *sem)
     sem->value++;
     if (sem->wait_list)
     {
-        kmt->spin_lock(&sem->wait_list->lock);   // 锁定等待的任务
-        sem->wait_list->status = TASK_READY;     // 将等待的任务状态设置为就绪
-        task_t *nxt = sem->wait_list->next;      // 获取下一个等待的任务
-        kmt->spin_unlock(&sem->wait_list->lock); // 解锁等待的任务
-        sem->wait_list = nxt;
+        task_t *task_to_wake = sem->wait_list; // Clarity: task being woken up
+        kmt->spin_lock(&task_to_wake->lock);   // Lock the specific task being woken
+        task_to_wake->status = TASK_READY;     // Set its status to ready
+        sem->wait_list = task_to_wake->next;   // Dequeue the task from the semaphore's wait list
+        task_to_wake->next = NULL;             // IMPORTANT: Clear the next pointer of the woken task
+        kmt->spin_unlock(&task_to_wake->lock); // Unlock the woken task
     }
     kmt->spin_unlock(&sem->lock);
 }

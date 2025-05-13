@@ -49,8 +49,9 @@ static void set_current_task(task_t *task)
 static void reset_current_task()
 {
     int cpu = cpu_current();
-    panic_on(cpus[cpu].current_task == NULL, "Current task is NULL");
-    cpus[cpu].current_task->cpu=-1;
+    if(cpus[cpu].current_task){
+       cpus[cpu].current_task->cpu=-1;
+    }
     cpus[cpu].current_task = NULL;
 }
 // 保存上下文

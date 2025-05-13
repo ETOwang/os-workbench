@@ -27,16 +27,14 @@ int printf(const char *fmt, ...)
   char buf[25600];
   va_list ap;
 
-  // 获取锁，确保多核/多线程安全
-  print_lock_acquire();
-
   va_start(ap, fmt);
   int ret = vsprintf(buf, fmt, ap);
   va_end(ap);
 
   assert(ret < sizeof(buf));
+  // 获取锁，确保多核/多线程安全
+  print_lock_acquire();
   putstr(buf);
-
   // 释放锁
   print_lock_release();
 

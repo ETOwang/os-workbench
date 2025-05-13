@@ -229,7 +229,6 @@ static void pop_off()
 static void kmt_spin_lock(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
-    // printf("kmt_spin_lock: %s\n", lk->name);
     //  禁用中断并保存中断状态
     push_off();
     if (holding(lk))

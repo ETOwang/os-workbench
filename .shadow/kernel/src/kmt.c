@@ -29,7 +29,6 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-
     // 如果当前没有任务，则返回该CPU的监视任务
     if (cur == NULL)
     {
@@ -44,7 +43,9 @@ static void set_current_task(task_t *task)
     panic_on(task == NULL, "Task is NULL");
     int cpu = cpu_current();
     cpus[cpu].current_task = task;
+    kmt->spin_lock(&task_lock);
     task->cpu = cpu;
+    kmt->spin_unlock(&task_lock);
 }
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)
@@ -62,7 +63,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
 
     // 获取当前任务
     task_t *current = get_current_task();
-
+    kmt->spin_lock(&current->lock);
     // 更新当前任务状态
     if (current->status == TASK_RUNNING)
     {
@@ -78,11 +79,18 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         cnt++;
         task_t *cur = tasks[task_index];
-        if (cur != NULL && cur->status == TASK_READY)
+        if (cur == NULL)
+        {
+            task_index = (task_index + 1) % MAX_TASK;
+            continue;
+        }
+        kmt->spin_lock(&cur->lock);
+        if (cur->status == TASK_READY)
         {
             next = cur;
             break;
         }
+        kmt->spin_unlock(&cur->lock);
         task_index = (task_index + 1) % MAX_TASK;
     }
 
@@ -91,18 +99,20 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         next->status = TASK_RUNNING;
         set_current_task(next);
+        kmt->spin_unlock(&next->lock);
+        kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
         return next->context;
     }
-
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
         current->status = TASK_RUNNING;
+        kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
         return ctx;
     }
-
+    kmt->spin_unlock(&current->lock);
     // 所有任务都不可运行，使用对应CPU的监视任务
     int cpu_id = cpu_current();
     monitor_task[cpu_id].status = TASK_RUNNING;
@@ -275,6 +285,7 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
+        kmt->spin_lock(&current->lock); // 锁定当前任务
         current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞
         // 将当前任务添加到等待队列
         if (sem->wait_list == NULL)
@@ -291,6 +302,7 @@ static void kmt_sem_wait(sem_t *sem)
             cur->next = current;
             current->next = NULL;
         }
+        kmt->spin_unlock(&current->lock); // 解锁当前任务
         kmt->spin_unlock(&sem->lock);
         // 让出CPU，等待信号量
         yield();
@@ -307,8 +319,11 @@ static void kmt_sem_signal(sem_t *sem)
     sem->value++;
     if (sem->wait_list)
     {
+        kmt->spin_lock(&sem->wait_list->lock); // 锁定等待的任务
         sem->wait_list->status = TASK_READY; // 将等待的任务状态设置为就绪
-        sem->wait_list = sem->wait_list->next;
+        task_t* nxt=sem->wait_list->next; // 获取下一个等待的任务
+        kmt->spin_unlock(&sem->wait_list->lock); // 解锁等待的任务
+        sem->wait_list = nxt;
     }
     kmt->spin_unlock(&sem->lock);
 }

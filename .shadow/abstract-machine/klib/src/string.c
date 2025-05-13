@@ -114,8 +114,9 @@ void *memset(void *s, int c, size_t n)
 
 void *memmove(void *dst, const void *src, size_t n)
 {
-  char temp[1000000];
-  assert(n < 1000000);
+  const int max_len=100000;
+  char temp[max_len];
+  assert(n < max_len);
   char *d = (char *)dst;
   char *s = (char *)src;
   for (size_t i = 0; i < n; i++)

@@ -127,7 +127,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
-        panic_on(get_current_task()!=current, "Current task is not the same as the one in CPU");
+        panic_on(get_current_task() != current, "Current task is not the same as the one in CPU");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
@@ -207,8 +207,8 @@ static void kmt_teardown(task_t *task)
     if (!task)
         return;
 
-    kmt->spin_lock(&task_lock);   // Acquire global scheduler lock
-    kmt->spin_lock(&task->lock);  // Acquire lock for the task being torn down
+    kmt->spin_lock(&task_lock);  // Acquire global scheduler lock
+    kmt->spin_lock(&task->lock); // Acquire lock for the task being torn down
 
     // Mark as dead first.
     task->status = TASK_DEAD;
@@ -223,14 +223,14 @@ static void kmt_teardown(task_t *task)
         }
     }
 
-    kmt->spin_unlock(&task->lock);  // Release task's personal lock
-    kmt->spin_unlock(&task_lock);   // Release global scheduler lock
+    kmt->spin_unlock(&task->lock); // Release task's personal lock
+    kmt->spin_unlock(&task_lock);  // Release global scheduler lock
 
     // Free task's stack
     if (task->stack)
     {
         pmm->free(task->stack);
-        task->stack = NULL; 
+        task->stack = NULL;
     }
 }
 
@@ -275,7 +275,7 @@ static void kmt_spin_lock(spinlock_t *lk)
     panic_on(!lk, "Spinlock is NULL");
     //  禁用中断并保存中断状态
     push_off();
-    panic_on(holding(lk),"Spinlock is already held by current CPU");
+    panic_on(holding(lk), "Spinlock is already held by current CPU");
     // 等待锁可用
     while (atomic_xchg(&lk->locked, 1))
         ;
@@ -287,7 +287,7 @@ static void kmt_spin_lock(spinlock_t *lk)
 static void kmt_spin_unlock(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
-    panic_on(!holding(lk),"Spinlock is not held by current CPU");
+    panic_on(!holding(lk), "Spinlock is not held by current CPU");
     lk->cpu = -1;
     // 释放锁
     atomic_xchg(&lk->locked, 0);
@@ -313,7 +313,8 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
-        panic_on(current->status!=TASK_RUNNING, "Current task is not running");
+        panic_on(current == &monitor_task[cpu_current()], "Current task is monitor task");
+        panic_on(current->status != TASK_RUNNING, "Current task is not running");
         kmt->spin_lock(&current->lock); // 锁定当前任务
         current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞
         // 将当前任务添加到等待队列

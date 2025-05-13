@@ -206,13 +206,13 @@ static void kmt_teardown(task_t *task)
     if (!task)
         return;
 
-    kmt->spin_lock(&task_lock);
-    // 释放栈空间
-    if (task->stack)
-    {
-        pmm->free(task->stack);
-    }
+    kmt->spin_lock(&task_lock);   // Acquire global scheduler lock
+    kmt->spin_lock(&task->lock);  // Acquire lock for the task being torn down
+
+    // Mark as dead first.
     task->status = TASK_DEAD;
+
+    // Remove from the global tasks list so it won't be scheduled.
     for (int i = 0; i < MAX_TASK; i++)
     {
         if (tasks[i] == task)
@@ -221,7 +221,16 @@ static void kmt_teardown(task_t *task)
             break;
         }
     }
-    kmt->spin_unlock(&task_lock);
+
+    kmt->spin_unlock(&task->lock);  // Release task's personal lock
+    kmt->spin_unlock(&task_lock);   // Release global scheduler lock
+
+    // Free task's stack
+    if (task->stack)
+    {
+        pmm->free(task->stack);
+        task->stack = NULL; 
+    }
 }
 
 // 初始化自旋锁

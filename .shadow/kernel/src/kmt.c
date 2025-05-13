@@ -69,19 +69,18 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         current->status = TASK_READY; // 将当前任务状态设置为就绪
     }
     task_t *next = NULL;
-    int cur = task_index + 1;
-    printf("task_index: %d\n", task_index);
-    while (cur != task_index)
+    int cnt=0;
+    while (cnt<MAX_TASK)
     {
-        cur = cur % MAX_TASK;
-        task_t *task = tasks[cur];
-        if (task != NULL && task->status == TASK_READY)
+        cnt++;
+        task_t* cur=tasks[task_index];
+        if (cur!=NULL&&cur->status == TASK_READY)
         {
-            task_index = cur;
-            next = task; // 找到下一个就绪任务
-            break;
+            cur->status = TASK_RUNNING;
+            kmt->spin_unlock(&task_lock);
+            return cur->context; 
         }
-        cur++;
+        task_index=(task_index+1)%MAX_TASK;
     }
     if (next)
     {
@@ -97,7 +96,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         kmt->spin_unlock(&task_lock);
         return ctx;
     }
-    printf("No runnable task found, keeping current task running\n");
     kmt->spin_unlock(&task_lock);
     return monitor_task[cpu_current()].context; // 返回监视任务的上下文
 }

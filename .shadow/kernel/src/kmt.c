@@ -70,6 +70,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     }
     task_t *next = NULL;
     int cur = task_index + 1;
+    printf("task_index: %d\n", task_index);
     while (cur != task_index)
     {
         printf("cur: %d\n", cur);

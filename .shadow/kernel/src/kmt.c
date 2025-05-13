@@ -66,7 +66,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     task_t *current = get_current_task();
     if (current->status == TASK_RUNNING)
     {
-printf("kmt_schedule: %s\n", current->name);
         current->status = TASK_READY; // 将当前任务状态设置为就绪
     }
     task_t *next = NULL;
@@ -85,6 +84,7 @@ printf("kmt_schedule: %s\n", current->name);
     }
     if (next)
     {
+        printf("switching to task %s\n", next->name);
         next->status = TASK_RUNNING;
         set_current_task(next);
         kmt->spin_unlock(&task_lock);

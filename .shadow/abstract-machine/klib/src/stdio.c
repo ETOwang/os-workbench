@@ -7,27 +7,18 @@
 
 // 添加一个简单的自旋锁实现，确保printf的线程安全
 static int print_lock = 0;
-
+static bool intena=true;
 static inline void print_lock_acquire()
 {
-  // 获取当前中断状态（如果在系统支持的情况下）
-  bool intr_was_enabled = ienabled();
-
-  // 先关闭中断，防止在多核环境下被其他中断处理程序打断
-  if (intr_was_enabled)
-    iset(false);
-
-  // 原子操作：获取锁
+  bool cur=ienabled();
+  iset(false);
   while (__sync_lock_test_and_set(&print_lock, 1));
-
-  // 锁已获取，可以安全地重新启用中断
-  if (intr_was_enabled)
-    iset(true);
+  intena=cur;
 }
 
 static inline void print_lock_release()
 {
-  // 原子操作：释放锁
+  iset(intena);
   __sync_lock_release(&print_lock);
 }
 

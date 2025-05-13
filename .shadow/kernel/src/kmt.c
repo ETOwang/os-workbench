@@ -255,7 +255,6 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
-        printf("task %s is blocked\n", current->name);
         current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞
         // 将当前任务添加到等待队列
         if (sem->wait_list == NULL)
@@ -275,6 +274,7 @@ static void kmt_sem_wait(sem_t *sem)
         kmt->spin_unlock(&sem->lock);
         // 让出CPU，等待信号量
         yield();
+        panic("Semaphore wait failed");
         return;
     }
     kmt->spin_unlock(&sem->lock);

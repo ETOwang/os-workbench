@@ -64,7 +64,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 获取当前任务
     
     task_t *current = get_current_task();
-    printf("kmt_schedule: %s\n,status: %d", current->name,current->status);
+    printf("kmt_schedule: %s ,status: %d\n", current->name,current->status);
     if (current->status == TASK_RUNNING)
     {
         current->status = TASK_READY; // 将当前任务状态设置为就绪

@@ -64,6 +64,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 获取当前任务
     
     task_t *current = get_current_task();
+    printf("kmt_schedule: %s\n,status: %d", current->name,current->status);
     if (current->status == TASK_RUNNING)
     {
         current->status = TASK_READY; // 将当前任务状态设置为就绪
@@ -274,7 +275,6 @@ static void kmt_sem_wait(sem_t *sem)
         kmt->spin_unlock(&sem->lock);
         // 让出CPU，等待信号量
         yield();
-        panic("Semaphore wait failed");
         return;
     }
     kmt->spin_unlock(&sem->lock);

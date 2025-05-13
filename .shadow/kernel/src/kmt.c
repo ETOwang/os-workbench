@@ -202,37 +202,37 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
 }
 
 // 销毁任务
-static void kmt_teardown(task_t *task)
-{
-    if (!task)
-        return;
+// static void kmt_teardown(task_t *task)
+// {
+//     if (!task)
+//         return;
 
-    kmt->spin_lock(&task_lock);  // Acquire global scheduler lock
-    kmt->spin_lock(&task->lock); // Acquire lock for the task being torn down
+//     kmt->spin_lock(&task_lock);  // Acquire global scheduler lock
+//     kmt->spin_lock(&task->lock); // Acquire lock for the task being torn down
 
-    // Mark as dead first.
-    task->status = TASK_DEAD;
+//     // Mark as dead first.
+//     task->status = TASK_DEAD;
 
-    // Remove from the global tasks list so it won't be scheduled.
-    for (int i = 0; i < MAX_TASK; i++)
-    {
-        if (tasks[i] == task)
-        {
-            tasks[i] = NULL;
-            break;
-        }
-    }
+//     // Remove from the global tasks list so it won't be scheduled.
+//     for (int i = 0; i < MAX_TASK; i++)
+//     {
+//         if (tasks[i] == task)
+//         {
+//             tasks[i] = NULL;
+//             break;
+//         }
+//     }
 
-    kmt->spin_unlock(&task->lock); // Release task's personal lock
-    kmt->spin_unlock(&task_lock);  // Release global scheduler lock
+//     kmt->spin_unlock(&task->lock); // Release task's personal lock
+//     kmt->spin_unlock(&task_lock);  // Release global scheduler lock
 
-    // Free task's stack
-    if (task->stack)
-    {
-        pmm->free(task->stack);
-        task->stack = NULL;
-    }
-}
+//     // Free task's stack
+//     if (task->stack)
+//     {
+//         pmm->free(task->stack);
+//         task->stack = NULL;
+//     }
+// }
 
 // 初始化自旋锁
 static void kmt_spin_init(spinlock_t *lk, const char *name)
@@ -363,7 +363,7 @@ static void kmt_sem_signal(sem_t *sem)
 MODULE_DEF(kmt) = {
     .init = kmt_init,
     .create = kmt_create,
-    .teardown = kmt_teardown,
+    //.teardown = kmt_teardown,
     .spin_init = kmt_spin_init,
     .spin_lock = kmt_spin_lock,
     .spin_unlock = kmt_spin_unlock,

@@ -6,7 +6,6 @@
 // 任务链表
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
-static task_t monitor_task[MAX_CPU];
 static int task_index;
 static struct cpu
 {
@@ -30,10 +29,7 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    if (cur == NULL)
-    {
-        cur = &monitor_task[cpu];
-    }
+    panic_on(cur == NULL, "Current task is NULL");
     return cur;
 }
 
@@ -44,15 +40,6 @@ static void set_current_task(task_t *task)
     int cpu = cpu_current();
     cpus[cpu].current_task = task;
     task->cpu = cpu;
-}
-
-static void reset_current_task()
-{
-    int cpu = cpu_current();
-    if(cpus[cpu].current_task){
-       cpus[cpu].current_task->cpu=-1;
-    }
-    cpus[cpu].current_task = NULL;
 }
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)
@@ -66,10 +53,8 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 // 任务调度
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
-    printf("monitor: %s ,status: %d\n", monitor_task[cpu_current()].name, monitor_task[cpu_current()].status);
     kmt->spin_lock(&task_lock);
     // 获取当前任务
-
     task_t *current = get_current_task();
     if (current->status == TASK_RUNNING)
     {
@@ -91,7 +76,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     }
     if (next)
     {
-        printf("kmt_schedule: %s ,status: %d\n", next->name, next->status);
         next->status = TASK_RUNNING;
         set_current_task(next);
         kmt->spin_unlock(&task_lock);
@@ -100,14 +84,12 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有可运行的任务，保持当前任务运行
     if (current->status == TASK_READY)
     {
-        printf("kmt_schedule: %s ,status: %d\n", current->name, current->status);
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&task_lock);
         return ctx;
     }
-    kmt->spin_unlock(&task_lock);
-    reset_current_task();
-    return monitor_task[cpu_current()].context; // 返回监视任务的上下文
+    panic("No runnable task found");
+    return NULL;
 }
 
 // 初始化KMT模块
@@ -121,6 +103,14 @@ static void kmt_init()
     {
         tasks[i] = NULL; // 初始化任务列表
     }
+    for (int i = 0; i < MAX_CPU; i++)
+    {
+        tasks[i]=pmm->alloc(sizeof(task_t));
+        cpus[i].current_task=tasks[i];
+        tasks[i]->status=TASK_RUNNING;
+        tasks[i]->cpu=i;
+    }
+    
 }
 
 // 创建任务

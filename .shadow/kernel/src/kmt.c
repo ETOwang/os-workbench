@@ -237,8 +237,7 @@ static void kmt_teardown(task_t *task)
 // 初始化自旋锁
 static void kmt_spin_init(spinlock_t *lk, const char *name)
 {
-    if (!lk)
-        return;
+    panic_on(lk == NULL, "Spinlock is NULL");
     lk->locked = 0;
     lk->name = name;
     lk->cpu = -1;
@@ -276,10 +275,7 @@ static void kmt_spin_lock(spinlock_t *lk)
     panic_on(!lk, "Spinlock is NULL");
     //  禁用中断并保存中断状态
     push_off();
-    if (holding(lk))
-    {
-        panic("Spinlock is already held by current CPU");
-    }
+    panic_on(holding(lk),"Spinlock is already held by current CPU");
     // 等待锁可用
     while (atomic_xchg(&lk->locked, 1))
         ;
@@ -291,10 +287,7 @@ static void kmt_spin_lock(spinlock_t *lk)
 static void kmt_spin_unlock(spinlock_t *lk)
 {
     panic_on(!lk, "Spinlock is NULL");
-    if (!holding(lk))
-    {
-        panic("Spinlock is not held by current CPU");
-    }
+    panic_on(!holding(lk),"Spinlock is not held by current CPU");
     lk->cpu = -1;
     // 释放锁
     atomic_xchg(&lk->locked, 0);
@@ -320,6 +313,7 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
+        panic_on(current->status!=TASK_RUNNING, "Current task is not running");
         kmt->spin_lock(&current->lock); // 锁定当前任务
         current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞
         // 将当前任务添加到等待队列

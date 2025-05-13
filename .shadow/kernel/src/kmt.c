@@ -207,7 +207,6 @@ static void pop_off()
 // 获取自旋锁
 static void kmt_spin_lock(spinlock_t *lk)
 {
-    printf("try_lock: %s\n", lk->name);
     panic_on(!lk, "Spinlock is NULL");
     // printf("kmt_spin_lock: %s\n", lk->name);
     //  禁用中断并保存中断状态
@@ -221,13 +220,11 @@ static void kmt_spin_lock(spinlock_t *lk)
         ;
     // 记录锁持有信息
     lk->cpu = cpu_current();
-    printf("finish_lock: %s\n", lk->name);
 }
 
 // 释放自旋锁
 static void kmt_spin_unlock(spinlock_t *lk)
 {
-    printf("try_unlock: %s\n", lk->name);
     panic_on(!lk, "Spinlock is NULL");
     if (!holding(lk))
     {
@@ -236,7 +233,6 @@ static void kmt_spin_unlock(spinlock_t *lk)
     lk->cpu = -1;
     // 释放锁
     atomic_xchg(&lk->locked, 0);
-     printf("finish_unlock: %s\n", lk->name);
     pop_off();
 }
 

@@ -72,6 +72,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     int cur = task_index + 1;
     while (cur != task_index)
     {
+        printf("cur: %d\n", cur);
         cur = cur % MAX_TASK;
         task_t *task = tasks[cur];
         if (task != NULL && task->status == TASK_READY)

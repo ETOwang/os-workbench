@@ -40,10 +40,10 @@ static task_t *get_current_task()
 // 设置当前CPU上的任务
 static void set_current_task(task_t *task)
 {
+    panic_on(task == NULL, "Task is NULL");
     int cpu = cpu_current();
     cpus[cpu].current_task = task;
-    if (task)
-        task->cpu = cpu;
+    task->cpu = cpu;
 }
 
 // 保存上下文
@@ -100,7 +100,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         return ctx;
     }
     kmt->spin_unlock(&task_lock);
-    printf("monitor_task: %s ,status: %d\n", monitor_task[cpu_current()].name,monitor_task[cpu_current()].status);
     return monitor_task[cpu_current()].context; // 返回监视任务的上下文
 }
 

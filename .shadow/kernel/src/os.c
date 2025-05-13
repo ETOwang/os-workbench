@@ -13,36 +13,30 @@ static void os_init()
 
 static void os_run()
 {
-    printf("Hello World from CPU #%d\n",cpu_current());
+    printf("Hello World from CPU #%d\n", cpu_current());
     iset(true);
-    while (1);
+    while (1)
+        ;
 }
 static void os_on_irq(int seq, int event, handler_t handler)
 {
     kmt->spin_lock(&handler_lock);
-    if (handler_count < MAX_HANDLER)
+    panic_on(handler_count >= MAX_HANDLER, "Handler limit reached");
+    handlers[handler_count].seq = seq;
+    handlers[handler_count].event = event;
+    handlers[handler_count].handler = handler;
+    handler_count++;
+    for (int i = 0; i < handler_count; i++)
     {
-        printf("Registering handler %d for event %d\n", seq, event);
-        handlers[handler_count].seq = seq;
-        handlers[handler_count].event = event;
-        handlers[handler_count].handler = handler;
-        handler_count++;
-        for (int i = 0; i < handler_count; i++)
+        for (int j = 0; j < handler_count - i - 1; j++)
         {
-            for (int j = 0; j < handler_count - i - 1; j++)
+            if (handlers[j].seq > handlers[j + 1].seq)
             {
-                if (handlers[j].seq > handlers[j + 1].seq)
-                {
-                    handler_record_t temp = handlers[j];
-                    handlers[j] = handlers[j + 1];
-                    handlers[j + 1] = temp;
-                }
+                handler_record_t temp = handlers[j];
+                handlers[j] = handlers[j + 1];
+                handlers[j + 1] = temp;
             }
         }
-    }
-    else
-    {
-        panic("Handler limit reached");
     }
     kmt->spin_unlock(&handler_lock);
 }
@@ -50,6 +44,7 @@ static Context *os_trap(Event ev, Context *context)
 {
     kmt->spin_lock(&handler_lock);
     Context *next = NULL;
+    printf("os_trap: event %s\n", ev.msg);
     for (int i = 0; i < handler_count; i++)
     {
         if (handlers[i].event == EVENT_NULL || handlers[i].event == ev.event)

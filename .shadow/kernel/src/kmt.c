@@ -43,9 +43,9 @@ static void set_current_task(task_t *task)
     panic_on(task == NULL, "Task is NULL");
     int cpu = cpu_current();
     cpus[cpu].current_task = task;
-    kmt->spin_lock(&task->lock);
+    // 注意：调用者负责确保task->lock的访问是安全的
+    // 不再需要在这里获取锁，因为调用者应该已经持有锁了
     task->cpu = cpu;
-    kmt->spin_unlock(&task->lock);
 }
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)
@@ -140,6 +140,9 @@ static void kmt_init()
         // 初始化监视任务
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
+        monitor_task[i].next = NULL;
+        // 初始化监视任务的锁
+        kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock");
     }
 }
 

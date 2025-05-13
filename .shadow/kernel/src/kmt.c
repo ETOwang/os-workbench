@@ -72,6 +72,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
             kmt->spin_unlock(&task_lock);
             return cur->context;
         }
+        printf("task_index: %d\n", task_index);
         task_index = (task_index + 1) % MAX_TASK;
     }
     if (next)

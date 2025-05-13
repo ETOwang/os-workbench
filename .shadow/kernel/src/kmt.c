@@ -130,8 +130,8 @@ static void kmt_init()
     for (int i = 0; i < MAX_CPU; i++)
     {
         // 初始化CPU状态
-        cpus[i].noff = 0;
-        cpus[i].intena = 0;
+        // cpus[i].noff = 0;
+        // cpus[i].intena = 0;
         // 初始化监视任务
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;

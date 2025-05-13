@@ -6,6 +6,7 @@
 // 任务链表
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
+static task_t monitor_task[MAX_CPU]; // 每个CPU上的监视任务（初始进程）
 static int task_index;
 static struct cpu
 {
@@ -29,7 +30,12 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    panic_on(cur == NULL, "Current task is NULL");
+
+    // 如果当前没有任务，则返回该CPU的监视任务
+    if (cur == NULL)
+    {
+        cur = &monitor_task[cpu];
+    }
     return cur;
 }
 
@@ -54,28 +60,34 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
     kmt->spin_lock(&task_lock);
+
     // 获取当前任务
     task_t *current = get_current_task();
+
+    // 更新当前任务状态
     if (current->status == TASK_RUNNING)
     {
-        current->status = TASK_READY; // 将当前任务状态设置为就绪
+        current->status = TASK_READY;
     }
+
+    // 查找下一个可运行的任务
     task_t *next = NULL;
     int cnt = 0;
+
+    // 尝试从普通任务队列中查找
     while (cnt < MAX_TASK)
     {
         cnt++;
         task_t *cur = tasks[task_index];
-        printf("task_index: %d\n", task_index);
         if (cur != NULL && cur->status == TASK_READY)
         {
-            cur->status = TASK_RUNNING;
-            kmt->spin_unlock(&task_lock);
-            return cur->context;
+            next = cur;
+            break;
         }
-        
         task_index = (task_index + 1) % MAX_TASK;
     }
+
+    // 找到了下一个可运行的任务
     if (next)
     {
         next->status = TASK_RUNNING;
@@ -83,15 +95,21 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         kmt->spin_unlock(&task_lock);
         return next->context;
     }
-    // 没有可运行的任务，保持当前任务运行
+
+    // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&task_lock);
         return ctx;
     }
-    panic("No runnable task found");
-    return NULL;
+
+    // 所有任务都不可运行，使用对应CPU的监视任务
+    int cpu_id = cpu_current();
+    monitor_task[cpu_id].status = TASK_RUNNING;
+    set_current_task(&monitor_task[cpu_id]);
+    kmt->spin_unlock(&task_lock);
+    return monitor_task[cpu_id].context;
 }
 
 // 初始化KMT模块
@@ -101,18 +119,28 @@ static void kmt_init()
     // 注册中断处理器，用于任务调度
     os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);
     os->on_irq(INT_MAX, EVENT_NULL, kmt_schedule);
+
+    // 初始化任务列表
     for (int i = 0; i < MAX_TASK; i++)
     {
-        tasks[i] = NULL; // 初始化任务列表
+        tasks[i] = NULL;
     }
+
+    // 为每个CPU创建一个监视任务（初始进程）
     for (int i = 0; i < MAX_CPU; i++)
     {
-        tasks[i]=pmm->alloc(sizeof(task_t));
-        cpus[i].current_task=tasks[i];
-        tasks[i]->status=TASK_RUNNING;
-        tasks[i]->cpu=i;
+        // 初始化CPU状态
+        cpus[i].noff = 0;
+        cpus[i].intena = 0;
+        // 初始化监视任务
+        monitor_task[i].status = TASK_RUNNING;
+        monitor_task[i].cpu = i;
+        monitor_task[i].name = "monitor_task";
+        monitor_task[i].next = NULL;
+        monitor_task[i].fence = (void *)FENCE_PATTERN;
+        // 设置初始任务为当前CPU的任务
+        cpus[i].current_task = &monitor_task[i];
     }
-    
 }
 
 // 创建任务

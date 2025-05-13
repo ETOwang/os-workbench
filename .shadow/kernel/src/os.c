@@ -15,15 +15,14 @@ static void os_run()
 {
     printf("Hello World from CPU #%d\n",cpu_current());
     iset(true);
-    while (1){
-        yield();
-    }
+    while (1);
 }
 static void os_on_irq(int seq, int event, handler_t handler)
 {
     kmt->spin_lock(&handler_lock);
     if (handler_count < MAX_HANDLER)
     {
+        printf("Registering handler %d for event %d\n", seq, event);
         handlers[handler_count].seq = seq;
         handlers[handler_count].event = event;
         handlers[handler_count].handler = handler;

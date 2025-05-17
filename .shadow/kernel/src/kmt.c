@@ -29,7 +29,7 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    panic_on(cur!=NULL&&(cur->status==TASK_BLOCKED||cur->status==TASK_READY),"cur task is wrong");
+    panic_on(cur!=NULL&&(cur->status==TASK_DEAD||cur->status==TASK_READY),"cur task is wrong");
     // 如果当前没有任务，则返回该CPU的监视任务
     if (cur == NULL)
     {

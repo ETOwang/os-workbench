@@ -29,12 +29,7 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    panic_on(cur != NULL && (cur->status == TASK_DEAD || cur->status == TASK_READY), "Current task status is wrong");
-    // 如果当前没有任务，则返回该CPU的监视任务
-    if (cur == NULL)
-    {
-        cur = &monitor_task[cpu];
-    }
+    panic_on(cur==NULL,"Current task is null");
     return cur;
 }
 
@@ -169,6 +164,7 @@ static void kmt_init()
         monitor_task[i].cpu = i;
         monitor_task[i].next = NULL;                                // 初始化 next 指针
         kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock"); // 初始化监视任务的锁
+        cpus[i].current_task=&monitor_task[i];
     }
 }
 
@@ -361,10 +357,10 @@ static void kmt_sem_signal(sem_t *sem)
         if (task_to_wake->status != TASK_DEAD)
         {
             panic_on(task_to_wake->status != TASK_BLOCKED, "Task status is wrong");
-            task_to_wake->status = TASK_READY;   // Set its status to ready
-            sem->wait_list = task_to_wake->next; // Dequeue the task from the semaphore's wait list
-            task_to_wake->next = NULL;           // IMPORTANT: Clear the next pointer of the woken task
+            task_to_wake->status = TASK_READY; // Set its status to ready         // IMPORTANT: Clear the next pointer of the woken task
         }
+        sem->wait_list = task_to_wake->next; // Dequeue the task from the semaphore's wait list
+        task_to_wake->next = NULL;
         kmt->spin_unlock(&task_to_wake->lock); // Unlock the woken task
     }
     kmt->spin_unlock(&sem->lock);

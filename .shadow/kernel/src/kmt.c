@@ -328,9 +328,11 @@ static void kmt_sem_wait(sem_t *sem)
         else
         {
             task_t *cur = sem->wait_list;
+            panic_on(cur->status != TASK_BLOCKED, "Wait list task is not blocked");
             while (cur->next != NULL)
             {
                 cur = cur->next;
+                panic_on(cur->status != TASK_BLOCKED, "Wait list task is not blocked");
             }
             cur->next = current;
             current->next = NULL;

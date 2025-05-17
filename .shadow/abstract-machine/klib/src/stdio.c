@@ -18,8 +18,8 @@ static inline void print_lock_acquire()
 
 static inline void print_lock_release()
 {
-  iset(intena[cpu_current()]);
   __sync_lock_release(&print_lock);
+   iset(intena[cpu_current()]);
 }
 
 int printf(const char *fmt, ...)

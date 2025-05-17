@@ -28,7 +28,6 @@ static struct cpu
 static task_t *get_current_task()
 {
     int cpu = cpu_current();
-    printf("Current CPU: %d\n", cpu);
     task_t *cur = cpus[cpu].current_task;
     // 如果当前没有任务，则返回该CPU的监视任务
     if (cur == NULL)

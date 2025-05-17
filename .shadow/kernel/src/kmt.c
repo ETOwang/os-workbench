@@ -108,6 +108,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 找到了下一个可运行的任务
     if (next)
     {
+        printf("CPU: %d, switch from %s to %s\n", cpu_current(), current->name, next->name);
         next->status = TASK_RUNNING;
         set_current_task(next); // set_current_task is assumed to be correct (no internal locks)
 

@@ -50,7 +50,9 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 {
     task_t *current = get_current_task();
     panic_on(current == NULL, "Current task is NULL");
+    kmt->spin_lock(&current->lock);
     current->context = ctx;
+    kmt->spin_unlock(&current->lock);
     return NULL; // 返回NULL表示需要继续调用其他中断处理函数
 }
 

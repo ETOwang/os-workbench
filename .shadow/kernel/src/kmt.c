@@ -202,6 +202,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
 // 销毁任务
 static void kmt_teardown(task_t *task)
 {
+    panic("kmt_teardown: not implemented");
     if (!task)
         return;
 

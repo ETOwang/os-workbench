@@ -14,7 +14,7 @@ static void os_init()
 static void os_run()
 {
     printf("Hello World from CPU #%d\n", cpu_current());
-    iset(true);
+    //iset(true);
     while (1)
         ;
 }

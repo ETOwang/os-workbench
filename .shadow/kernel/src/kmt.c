@@ -125,12 +125,14 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
+        printf("CPU: %d, switch from %s to %s\n", cpu_current(), current->name, current->name);
         panic_on(get_current_task() != current, "Current task is not the same as the one in CPU");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
         return ctx;
     }
+    printf("CPU: %d, switch from %s to monitor\n", cpu_current(), current->name);
     // 原始的 'current' 任务不可运行 (例如，TASK_BLOCKED)。释放它的锁。
     kmt->spin_unlock(&current->lock);
     // 所有任务都不可运行，使用对应CPU的监视任务
@@ -316,7 +318,6 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
-        printf("CPU: %d, task %s is waiting on semaphore %s\n", cpu_current(), current->name, sem->name);
         panic_on(current == &monitor_task[cpu_current()], "Current task is monitor task");
         panic_on(current->status != TASK_RUNNING, "Current task is not running");
         kmt->spin_lock(&current->lock); // 锁定当前任务

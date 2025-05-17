@@ -29,7 +29,7 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    panic_on(cur==NULL,"Current task is null");
+    panic_on(cur==NULL,"Current task is NULL");
     return cur;
 }
 
@@ -45,7 +45,6 @@ static void set_current_task(task_t *task)
 static Context *kmt_context_save(Event ev, Context *ctx)
 {
     task_t *current = get_current_task();
-    panic_on(current == NULL, "Current task is NULL");
     kmt->spin_lock(&current->lock);
     current->context = ctx;
     kmt->spin_unlock(&current->lock);
@@ -65,7 +64,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         current->status = TASK_READY;
     }
-
+    panic_on(current->status!=TASK_READY&&current->status!=TASK_BLOCKED,"Current task is not ready or blocked");
     // 查找下一个可运行的任务
     task_t *next = NULL;
     int current_search_start_index = task_index; // Record the starting point of search

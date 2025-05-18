@@ -25,8 +25,8 @@ static void T_consume(void *arg)
 static void os_init()
 {
     pmm->init();
-    kmt->init();
     kmt->spin_init(&handler_lock, "handler_lock");
+    kmt->init();
     //dev->init();
     kmt->sem_init(&empty, "empty", 2);
     kmt->sem_init(&full,  "fill",  0);

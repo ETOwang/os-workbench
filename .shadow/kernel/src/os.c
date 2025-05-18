@@ -39,8 +39,10 @@ static void os_run()
 {
     printf("Hello World from CPU #%d\n", cpu_current());
     iset(true);
-    while (1)
-        ;
+    while (1){
+        yield();
+    }
+        
 }
 static void os_on_irq(int seq, int event, handler_t handler)
 {

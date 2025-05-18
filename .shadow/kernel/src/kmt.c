@@ -1,7 +1,7 @@
 #include <common.h>
 #include <os.h>
 #include <limits.h>
-#define TRACE_F
+//#define TRACE_F
 #ifdef TRACE_F
     #define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
     #define TRACE_EXIT printf("[trace] %s:exit\n", __func__)
@@ -22,7 +22,7 @@ static struct cpu
     task_t *current_task;
 } cpus[MAX_CPU];
 // 系统栈大小 (64KB)
-#define STACK_SIZE (1 << 16)
+#define STACK_SIZE (1 << 1)
 
 // 保护栅栏，用于检测栈溢出
 #define FENCE_PATTERN 0xABCDABCD

@@ -108,6 +108,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 找到了下一个可运行的任务
     if (next)
     {
+        panic_on(next->next!=NULL, "Next task is not NULL");
         next->status = TASK_RUNNING;
         set_current_task(next); // set_current_task is assumed to be correct (no internal locks)
 
@@ -124,6 +125,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
+        panic_on(current->next != NULL, "Current task is not NULL");
         panic_on(get_current_task() != current, "Current task is not the same as the one in CPU");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&current->lock);
@@ -176,7 +178,6 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
 
     // 分配栈空间
     task->stack = pmm->alloc(STACK_SIZE);
-    printf("task->stack = %p\n", task->stack);
     if (!task->stack)
         return -1;
 

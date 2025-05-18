@@ -22,10 +22,8 @@ static struct cpu
 } cpus[MAX_CPU];
 // 系统栈大小 (64KB)
 #define STACK_SIZE (1 << 16)
-
 // 保护栅栏，用于检测栈溢出
 #define FENCE_PATTERN 0xABCDABCD
-
 // 任务状态定义
 #define TASK_READY 1
 #define TASK_RUNNING 2
@@ -96,24 +94,22 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         panic_on((uintptr_t)cur->fence != FENCE_PATTERN, "Stack overflow detected");
         if (cur == current)
         {
-            // Current task is already locked. Check its status.
             if (current->status == TASK_READY)
             {
-                next = current;                          // Candidate: current task itself
-                task_index = (check_idx + 1) % MAX_TASK; // Next schedule round starts after this task
+                next = current;                         
+                task_index = (check_idx + 1) % MAX_TASK; 
                 break;
             }
-            // If current is not ready, continue search. Its lock (current->lock) is already held.
+
         }
         else
         {
-            // For other tasks, acquire their lock to check status
             kmt->spin_lock(&cur->lock);
             if (cur->status == TASK_READY)
             {
-                next = cur;                              // Found a different ready task. Its lock (cur->lock) is now held.
-                task_index = (check_idx + 1) % MAX_TASK; // Next schedule round starts after this task
-                break;                                   // Exit loop, next->lock (which is cur->lock) is held
+                next = cur;                              
+                task_index = (check_idx + 1) % MAX_TASK; 
+                break;                                   
             }
             kmt->spin_unlock(&cur->lock); // Release lock if not chosen
         }

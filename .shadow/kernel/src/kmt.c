@@ -167,6 +167,8 @@ static void kmt_init()
         monitor_task[i].name = "monitor";                           // 初始化 next 指针
         kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock"); // 初始化监视任务的锁
         cpus[i].current_task = &monitor_task[i];
+        cpus[i].intena=0;
+        cpus[i].noff=0;
     }
 }
 

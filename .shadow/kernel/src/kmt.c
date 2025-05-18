@@ -1,13 +1,13 @@
 #include <common.h>
 #include <os.h>
 #include <limits.h>
-//#define TRACE_F
+// #define TRACE_F
 #ifdef TRACE_F
-    #define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
-    #define TRACE_EXIT printf("[trace] %s:exit\n", __func__)
+#define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
+#define TRACE_EXIT printf("[trace] %s:exit\n", __func__)
 #else
-    #define TRACE_ENTRY ((void)0)
-    #define TRACE_EXIT ((void)0)
+#define TRACE_ENTRY ((void)0)
+#define TRACE_EXIT ((void)0)
 #endif
 #define MAX_CPU 32
 #define MAX_TASK 128
@@ -38,7 +38,7 @@ static task_t *get_current_task()
     TRACE_ENTRY;
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    panic_on(cur==NULL,"Current task is NULL");
+    panic_on(cur == NULL, "Current task is NULL");
     TRACE_EXIT;
     return cur;
 }
@@ -53,6 +53,7 @@ static void set_current_task(task_t *task)
     task->cpu = cpu;
     TRACE_EXIT;
 }
+
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)
 {
@@ -79,7 +80,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         current->status = TASK_READY;
     }
-    panic_on(current->status!=TASK_READY&&current->status!=TASK_BLOCKED,"Current task is not ready or blocked");
+    panic_on(current->status != TASK_READY && current->status != TASK_BLOCKED, "Current task is not ready or blocked");
     // 查找下一个可运行的任务
     task_t *next = NULL;
     int current_search_start_index = task_index; // Record the starting point of search
@@ -94,7 +95,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         {
             continue;
         }
-        panic_on((uintptr_t)cur->fence!=FENCE_PATTERN,"Stack overflow detected");
+        panic_on((uintptr_t)cur->fence != FENCE_PATTERN, "Stack overflow detected");
         if (cur == current)
         {
             // Current task is already locked. Check its status.
@@ -170,10 +171,10 @@ static void kmt_init()
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
         monitor_task[i].next = NULL;
-        monitor_task[i].name="monitor";
-        monitor_task[i].fence=(void*)FENCE_PATTERN;                                // 初始化 next 指针
+        monitor_task[i].name = "monitor";
+        monitor_task[i].fence = (void *)FENCE_PATTERN;              // 初始化 next 指针
         kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock"); // 初始化监视任务的锁
-        cpus[i].current_task=&monitor_task[i];
+        cpus[i].current_task = &monitor_task[i];
     }
     TRACE_EXIT;
 }
@@ -187,7 +188,8 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
 
     // 分配栈空间
     task->stack = pmm->alloc(STACK_SIZE);
-    if (!task->stack){
+    if (!task->stack)
+    {
         TRACE_EXIT;
         return -1;
     }
@@ -301,7 +303,8 @@ static void kmt_spin_lock(spinlock_t *lk)
     push_off();
     panic_on(holding(lk), "Spinlock is already held by current CPU");
     // 等待锁可用
-    while (atomic_xchg(&lk->locked, 1));
+    while (atomic_xchg(&lk->locked, 1))
+        ;
     // 记录锁持有信息
     lk->cpu = cpu_current();
     TRACE_EXIT;
@@ -360,8 +363,9 @@ static void kmt_sem_wait(sem_t *sem)
             {
                 cur = cur->next;
             }
-  
-                panic_on(cur->status != TASK_BLOCKED, "Wait list task is not blocked");          cur->next = current;
+
+            panic_on(cur->status != TASK_BLOCKED, "Wait list task is not blocked");
+            cur->next = current;
             current->next = NULL;
         }
         kmt->spin_unlock(&current->lock); // 解锁当前任务

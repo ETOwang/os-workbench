@@ -3,20 +3,31 @@
 static handler_record_t handlers[MAX_HANDLER];
 static int handler_count = 0;
 static spinlock_t handler_lock;
+static sem_t empty,full;
 static void os_init()
 {
     pmm->init();
     kmt->init();
     kmt->spin_init(&handler_lock, "handler_lock");
     //dev->init();
+    kmt->sem_init(&empty, "empty", 2);
+    kmt->sem_init(&full,  "fill",  0);
 }
-
 static void os_run()
 {
-    printf("Hello World from CPU #%d\n", cpu_current());
+    //printf("Hello World from CPU #%d\n", cpu_current());
     iset(true);
+    int cpu=cpu_current();
     while (1){
-        printf("Hello World from CPU #%d\n", cpu_current());
+        if(cpu>4){
+            kmt->sem_wait(&full);
+            printf(")");
+            kmt->sem_signal(&empty);
+        }else{
+            kmt->sem_wait(&empty);
+            printf("(");
+            kmt->sem_signal(&full);
+        }
     }
 }
 static void os_on_irq(int seq, int event, handler_t handler)

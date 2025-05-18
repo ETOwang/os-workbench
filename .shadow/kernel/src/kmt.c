@@ -1,6 +1,14 @@
 #include <common.h>
 #include <os.h>
 #include <limits.h>
+#define TRACE_F
+#ifdef TRACE_F
+    #define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
+    #define TRACE_EXIT printf("[trace] %s:exit\n", __func__)
+#else
+    #define TRACE_ENTRY ((void)0)
+    #define TRACE_EXIT ((void)0)
+#endif
 #define MAX_CPU 32
 #define MAX_TASK 128
 static spinlock_t task_lock;
@@ -27,33 +35,40 @@ static struct cpu
 // 获取当前CPU上的任务
 static task_t *get_current_task()
 {
+    TRACE_ENTRY;
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    panic_on(cur == NULL, "Current task is NULL");
+    panic_on(cur==NULL,"Current task is NULL");
+    TRACE_EXIT;
     return cur;
 }
 
 // 设置当前CPU上的任务
 static void set_current_task(task_t *task)
 {
+    TRACE_ENTRY;
     panic_on(task == NULL, "Task is NULL");
     int cpu = cpu_current();
     cpus[cpu].current_task = task;
     task->cpu = cpu;
+    TRACE_EXIT;
 }
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)
 {
+    TRACE_ENTRY;
     task_t *current = get_current_task();
     kmt->spin_lock(&current->lock);
     current->context = ctx;
     kmt->spin_unlock(&current->lock);
+    TRACE_EXIT;
     return NULL; // 返回NULL表示需要继续调用其他中断处理函数
 }
 
 // 任务调度
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
+    TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
 
     // 获取当前任务
@@ -64,7 +79,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         current->status = TASK_READY;
     }
-    panic_on(current->status != TASK_READY && current->status != TASK_BLOCKED, "Current task is not ready or blocked");
+    panic_on(current->status!=TASK_READY&&current->status!=TASK_BLOCKED,"Current task is not ready or blocked");
     // 查找下一个可运行的任务
     task_t *next = NULL;
     int current_search_start_index = task_index; // Record the starting point of search
@@ -108,7 +123,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 找到了下一个可运行的任务
     if (next)
     {
-        panic_on(next->next!=NULL, "Next task is not NULL");
         next->status = TASK_RUNNING;
         set_current_task(next); // set_current_task is assumed to be correct (no internal locks)
 
@@ -120,16 +134,17 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         // 总是释放原始当前任务的锁。
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
+        TRACE_EXIT;
         return next->context;
     }
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
-        panic_on(current->next != NULL, "Current task is not NULL");
         panic_on(get_current_task() != current, "Current task is not the same as the one in CPU");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
+        TRACE_EXIT;
         return ctx;
     }
     // 原始的 'current' 任务不可运行 (例如，TASK_BLOCKED)。释放它的锁。
@@ -141,12 +156,14 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     set_current_task(&monitor_task[cpu_id]);      // 设置当前任务为监视任务
     kmt->spin_unlock(&monitor_task[cpu_id].lock); // 释放监视任务的锁
     kmt->spin_unlock(&task_lock);
+    TRACE_EXIT;
     return monitor_task[cpu_id].context;
 }
 
 // 初始化KMT模块
 static void kmt_init()
 {
+    TRACE_ENTRY;
     kmt->spin_init(&task_lock, "task_lock");
     // 注册中断处理器，用于任务调度
     os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);
@@ -164,25 +181,26 @@ static void kmt_init()
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
         monitor_task[i].next = NULL;
-        monitor_task[i].name = "monitor";                           // 初始化 next 指针
+        monitor_task[i].name="monitor";                                // 初始化 next 指针
         kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock"); // 初始化监视任务的锁
-        cpus[i].current_task = &monitor_task[i];
-        cpus[i].intena=0;
-        cpus[i].noff=0;
+        cpus[i].current_task=&monitor_task[i];
     }
+    TRACE_EXIT;
 }
 
 // 创建任务
 static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), void *arg)
 {
+    TRACE_ENTRY;
     if (!task || !name || !entry)
         return -1;
 
     // 分配栈空间
     task->stack = pmm->alloc(STACK_SIZE);
-    if (!task->stack)
+    if (!task->stack){
+        TRACE_EXIT;
         return -1;
-
+    }
     // 设置栈底栅栏，用于检测栈溢出
     task->fence = (void *)FENCE_PATTERN;
     // 初始化任务上下文
@@ -190,7 +208,6 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
-    task->next = NULL;
     kmt->spin_init(&task->lock, name);
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
@@ -202,12 +219,14 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
         }
     }
     kmt->spin_unlock(&task_lock);
+    TRACE_EXIT;
     return 0; // 成功
 }
 
 // 销毁任务
 static void kmt_teardown(task_t *task)
 {
+    TRACE_ENTRY;
     panic("kmt_teardown: not implemented");
     if (!task)
         return;
@@ -237,23 +256,29 @@ static void kmt_teardown(task_t *task)
         pmm->free(task->stack);
         task->stack = NULL;
     }
+    TRACE_EXIT;
 }
 
 // 初始化自旋锁
 static void kmt_spin_init(spinlock_t *lk, const char *name)
 {
+    TRACE_ENTRY;
     panic_on(lk == NULL, "Spinlock is NULL");
     lk->locked = 0;
     lk->name = name;
     lk->cpu = -1;
+    TRACE_EXIT;
 }
 static bool holding(spinlock_t *lk)
 {
+    TRACE_ENTRY;
     panic_on(!lk, "Spinlock is NULL");
+    TRACE_EXIT;
     return lk->locked && lk->cpu == cpu_current();
 }
 static void push_off()
 {
+    TRACE_ENTRY;
     int cpu = cpu_current();
     int old = ienabled();
     iset(false);
@@ -262,10 +287,12 @@ static void push_off()
         cpus[cpu].intena = old;
     }
     cpus[cpu].noff++;
+    TRACE_EXIT;
 }
 
 static void pop_off()
 {
+    TRACE_ENTRY;
     int cpu = cpu_current();
     panic_on(cpus[cpu].noff == 0, "pop_off: no push_off");
     cpus[cpu].noff--;
@@ -273,47 +300,55 @@ static void pop_off()
     {
         iset(cpus[cpu].intena);
     }
+    TRACE_EXIT;
 }
 // 获取自旋锁
 static void kmt_spin_lock(spinlock_t *lk)
 {
+    TRACE_ENTRY;
     panic_on(!lk, "Spinlock is NULL");
     //  禁用中断并保存中断状态
     push_off();
     panic_on(holding(lk), "Spinlock is already held by current CPU");
     // 等待锁可用
     while (atomic_xchg(&lk->locked, 1))
+        
         ;
-    __sync_synchronize();
     // 记录锁持有信息
     lk->cpu = cpu_current();
+    TRACE_EXIT;
 }
 
 // 释放自旋锁
 static void kmt_spin_unlock(spinlock_t *lk)
 {
+    TRACE_ENTRY;
     panic_on(!lk, "Spinlock is NULL");
     panic_on(!holding(lk), "Spinlock is not held by current CPU");
     lk->cpu = -1;
-    __sync_synchronize();
     // 释放锁
+    __sync_synchronize();
     atomic_xchg(&lk->locked, 0);
     pop_off();
+    TRACE_EXIT;
 }
 
 // 初始化信号量
 static void kmt_sem_init(sem_t *sem, const char *name, int value)
 {
+    TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
     sem->value = value;
     sem->name = name;
     sem->wait_list = NULL;
     kmt->spin_init(&sem->lock, name);
+    TRACE_EXIT;
 }
 
 // 等待信号量
 static void kmt_sem_wait(sem_t *sem)
 {
+    TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
     kmt->spin_lock(&sem->lock); // 获得自旋锁
     sem->value--;
@@ -336,31 +371,33 @@ static void kmt_sem_wait(sem_t *sem)
             while (cur->next != NULL)
             {
                 cur = cur->next;
-                panic_on(cur->status != TASK_BLOCKED, "Wait list task is not blocked");
             }
-            cur->next = current;
+  
+                panic_on(cur->status != TASK_BLOCKED, "Wait list task is not blocked");          cur->next = current;
             current->next = NULL;
         }
         kmt->spin_unlock(&current->lock); // 解锁当前任务
         kmt->spin_unlock(&sem->lock);
         // 让出CPU，等待信号量
         yield();
-        panic_on(current->status != TASK_RUNNING, "Current task is not running");
+        TRACE_EXIT;
         return;
     }
     kmt->spin_unlock(&sem->lock);
+    TRACE_EXIT;
 }
 
 // 释放信号量
 static void kmt_sem_signal(sem_t *sem)
 {
+    TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
     kmt->spin_lock(&sem->lock);
     sem->value++;
     if (sem->wait_list)
     {
         task_t *task_to_wake = sem->wait_list; // Clarity: task being woken up
-        kmt->spin_lock(&task_to_wake->lock);   // Lock the specific task being woken
+        kmt->spin_lock(&task_to_wake->lock);   // Lock the specific task being woken_
         if (task_to_wake->status != TASK_DEAD)
         {
             panic_on(task_to_wake->status != TASK_BLOCKED, "Task status is wrong");
@@ -371,6 +408,7 @@ static void kmt_sem_signal(sem_t *sem)
         kmt->spin_unlock(&task_to_wake->lock); // Unlock the woken task
     }
     kmt->spin_unlock(&sem->lock);
+    TRACE_EXIT;
 }
 
 // 使用MODULE_DEF宏定义kmt模块

@@ -4,6 +4,24 @@ static handler_record_t handlers[MAX_HANDLER];
 static int handler_count = 0;
 static spinlock_t handler_lock;
 static sem_t empty,full;
+static void T_produce(void *arg)
+{
+    while (1)
+    {
+        kmt->sem_wait(&empty);
+        printf("(");
+        kmt->sem_signal(&full);
+    }
+}
+static void T_consume(void *arg)
+{
+    while (1)
+    {
+        kmt->sem_wait(&full);
+        printf(")");
+        kmt->sem_signal(&empty);
+    }
+}
 static void os_init()
 {
     pmm->init();
@@ -12,23 +30,18 @@ static void os_init()
     //dev->init();
     kmt->sem_init(&empty, "empty", 2);
     kmt->sem_init(&full,  "fill",  0);
+    for (int i = 0; i < 4; i++) {
+        kmt->create(pmm->alloc(sizeof(task_t)), "producer", T_produce, NULL);
+    }
+    for (int i = 0; i < 4; i++) {
+        kmt->create(pmm->alloc(sizeof(task_t)), "consumer", T_consume, NULL);
+    }
 }
 static void os_run()
 {
     //printf("Hello World from CPU #%d\n", cpu_current());
     iset(true);
-    int cpu=cpu_current();
-    while (1){
-        if(cpu>4){
-            kmt->sem_wait(&full);
-            printf(")");
-            kmt->sem_signal(&empty);
-        }else{
-            kmt->sem_wait(&empty);
-            printf("(");
-            kmt->sem_signal(&full);
-        }
-    }
+    while (1);
 }
 static void os_on_irq(int seq, int event, handler_t handler)
 {

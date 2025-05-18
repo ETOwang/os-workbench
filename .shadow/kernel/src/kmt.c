@@ -46,7 +46,7 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
     {
-        if (tasks[i]->cpu == cpu_current() && tasks[i] != get_current_task())
+        if (tasks[i] != NULL && tasks[i]->cpu == cpu_current() && tasks[i] != get_current_task())
         {
             kmt->spin_lock(&tasks[i]->lock);
             tasks[i]->cpu = -1;
@@ -176,7 +176,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
-    task->cpu=-1;
+    task->cpu = -1;
     kmt->spin_init(&task->lock, name);
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)

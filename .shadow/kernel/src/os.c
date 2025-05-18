@@ -9,7 +9,7 @@ static void T_produce(void *arg)
     while (1)
     {
         kmt->sem_wait(&empty);
-        //printf("(");
+        printf("%d",(uintptr_t)arg);
         kmt->sem_signal(&full);
     }
 }
@@ -18,7 +18,7 @@ static void T_consume(void *arg)
     while (1)
     {
         kmt->sem_wait(&full);
-        //printf(")");
+        printf("%d",(uintptr_t)arg);
         kmt->sem_signal(&empty);
     }
 }
@@ -31,8 +31,8 @@ static void os_init()
     kmt->sem_init(&empty, "empty", 10);
     kmt->sem_init(&full,  "fill",  0);
     for (int i = 0; i < 32; i++) {
-        kmt->create(pmm->alloc(sizeof(task_t)), "produce", T_produce, NULL);
-        kmt->create(pmm->alloc(sizeof(task_t)), "consume", T_consume, NULL);
+        kmt->create(pmm->alloc(sizeof(task_t)), "produce", T_produce, (void*)(uintptr_t)i);
+        kmt->create(pmm->alloc(sizeof(task_t)), "consume", T_consume, (void*)(uintptr_t)i);
     }
 }
 static void os_run()

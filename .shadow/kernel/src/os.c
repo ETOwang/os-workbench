@@ -9,7 +9,7 @@ static void T_produce(void *arg)
     while (1)
     {
         kmt->sem_wait(&empty);
-        printf("(");
+        //printf("(");
         kmt->sem_signal(&full);
     }
 }
@@ -18,7 +18,7 @@ static void T_consume(void *arg)
     while (1)
     {
         kmt->sem_wait(&full);
-        printf(")");
+        //printf(")");
         kmt->sem_signal(&empty);
     }
 }

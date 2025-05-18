@@ -195,7 +195,6 @@ static void *kalloc(size_t size)
     block->free = 0;
     // 返回可用内存区域（跳过块头部）
     kmt->spin_unlock(&thread_lock[tid]);
-    printf("Alloc %d bytes at %p\n", size,  (void *)((uintptr_t)block + sizeof(struct block_t)));
     return (void *)((uintptr_t)block + sizeof(struct block_t));
 }
 

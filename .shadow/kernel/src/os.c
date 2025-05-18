@@ -12,6 +12,7 @@ static void os_init()
 }
 static void os_run()
 {
+    printf("cpu count: %d\n", cpu_count());
     printf("Hello World from CPU #%d\n", cpu_current());
     iset(true);
     while (1)

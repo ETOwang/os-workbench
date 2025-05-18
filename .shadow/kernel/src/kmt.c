@@ -257,9 +257,6 @@ static void pop_off()
 {
     TRACE_ENTRY;
     int cpu = cpu_current();
-    if(cpus[cpu].noff==0){
-         printf("%s",get_current_task()->name);
-    }
     panic_on(cpus[cpu].noff == 0, "pop_off: no push_off");
     cpus[cpu].noff--;
     if (cpus[cpu].noff == 0)
@@ -276,6 +273,7 @@ static void kmt_spin_lock(spinlock_t *lk)
     panic_on(holding(lk), lk->name);
     while (atomic_xchg(&lk->locked, 1))
         ;
+    __sync_synchronize();
     lk->cpu = cpu_current();
     TRACE_EXIT;
 }

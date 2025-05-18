@@ -1,6 +1,5 @@
 #include <os.h>
 #include <devices.h>
-
 #define DEVICES(_) \
   _(0, input_t, "input",    1, &input_ops) \
   _(1, fb_t,    "fb",       1, &fb_ops) \

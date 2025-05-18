@@ -1,5 +1,4 @@
 #include <common.h>
-#include <os.h>
 #define MAX_HANDLER 64
 static handler_record_t handlers[MAX_HANDLER];
 static int handler_count = 0;

@@ -56,7 +56,7 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
         }
     }
     kmt->spin_unlock(&task_lock);
-    panic_on(cnt>1, "More than one task marked as free");
+    panic_on(cnt<=1, "More than one task marked as free");
     TRACE_EXIT;
     return NULL;
 }

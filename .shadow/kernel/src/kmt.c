@@ -1,6 +1,7 @@
 #include <common.h>
 #include <os.h>
 #include <limits.h>
+#define TRACE_F
 #ifdef TRACE_F
     #define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
     #define TRACE_EXIT printf("[trace] %s:exit\n", __func__)
@@ -139,7 +140,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
-        printf("Current task is still ready\n");
         panic_on(get_current_task() != current, "Current task is not the same as the one in CPU");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&current->lock);

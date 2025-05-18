@@ -108,7 +108,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 找到了下一个可运行的任务
     if (next)
     {
-        printf("CPU: %d, switch from %s to %s\n", cpu_current(), current->name, next->name);
         next->status = TASK_RUNNING;
         set_current_task(next); // set_current_task is assumed to be correct (no internal locks)
 
@@ -125,14 +124,12 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 没有找到其他任务，检查当前任务是否可以继续运行
     if (current->status == TASK_READY)
     {
-        printf("CPU: %d, switch from %s to %s\n", cpu_current(), current->name, current->name);
         panic_on(get_current_task() != current, "Current task is not the same as the one in CPU");
         current->status = TASK_RUNNING;
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
         return ctx;
     }
-    printf("CPU: %d, switch from %s to monitor\n", cpu_current(), current->name);
     // 原始的 'current' 任务不可运行 (例如，TASK_BLOCKED)。释放它的锁。
     kmt->spin_unlock(&current->lock);
     // 所有任务都不可运行，使用对应CPU的监视任务

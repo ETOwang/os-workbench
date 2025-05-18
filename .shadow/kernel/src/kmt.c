@@ -67,6 +67,7 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 // 任务调度
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
+    printf("kmt_schedule: %s\n", get_current_task()->name);
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
 

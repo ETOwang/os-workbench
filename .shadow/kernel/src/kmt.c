@@ -289,6 +289,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
     if(cpus[cpu_current()].noff == 0)
     {
         printf("%s\n",lk->name);
+        printf("%s\n",get_current_task()->name);
         panic_on(1, "kmt_spin_unlock: no push_off");
     }
     pop_off();

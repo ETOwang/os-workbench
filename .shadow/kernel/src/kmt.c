@@ -190,6 +190,7 @@ static void kmt_init()
 // 创建任务
 static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), void *arg)
 {
+    panic("kmt_create: not implemented");
     TRACE_ENTRY;
     if (!task || !name || !entry)
         return -1;
@@ -333,6 +334,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
 // 初始化信号量
 static void kmt_sem_init(sem_t *sem, const char *name, int value)
 {
+    panic("Semaphore is NULL");
     TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
     sem->value = value;
@@ -345,6 +347,7 @@ static void kmt_sem_init(sem_t *sem, const char *name, int value)
 // 等待信号量
 static void kmt_sem_wait(sem_t *sem)
 {
+    panic("Semaphore is NULL");
     TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
     kmt->spin_lock(&sem->lock); // 获得自旋锁
@@ -387,6 +390,7 @@ static void kmt_sem_wait(sem_t *sem)
 // 释放信号量
 static void kmt_sem_signal(sem_t *sem)
 {
+    panic("Semaphore is NULL");
     TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
     kmt->spin_lock(&sem->lock);

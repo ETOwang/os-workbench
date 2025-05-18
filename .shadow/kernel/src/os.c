@@ -27,7 +27,7 @@ static void os_init()
     pmm->init();
     kmt->spin_init(&handler_lock, "handler_lock");
     kmt->init();
-    dev->init();
+    //dev->init();
     kmt->sem_init(&empty, "empty", 10);
     kmt->sem_init(&full,  "fill",  0);
     for (int i = 0; i < 4; i++) {

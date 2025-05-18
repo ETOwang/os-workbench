@@ -29,7 +29,7 @@ static task_t *get_current_task()
 {
     int cpu = cpu_current();
     task_t *cur = cpus[cpu].current_task;
-    panic_on(cur==NULL,"Current task is NULL");
+    panic_on(cur == NULL, "Current task is NULL");
     return cur;
 }
 
@@ -64,7 +64,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         current->status = TASK_READY;
     }
-    panic_on(current->status!=TASK_READY&&current->status!=TASK_BLOCKED,"Current task is not ready or blocked");
+    panic_on(current->status != TASK_READY && current->status != TASK_BLOCKED, "Current task is not ready or blocked");
     // 查找下一个可运行的任务
     task_t *next = NULL;
     int current_search_start_index = task_index; // Record the starting point of search
@@ -162,9 +162,9 @@ static void kmt_init()
         monitor_task[i].status = TASK_RUNNING;
         monitor_task[i].cpu = i;
         monitor_task[i].next = NULL;
-        monitor_task[i].name="monitor";                                // 初始化 next 指针
+        monitor_task[i].name = "monitor";                           // 初始化 next 指针
         kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock"); // 初始化监视任务的锁
-        cpus[i].current_task=&monitor_task[i];
+        cpus[i].current_task = &monitor_task[i];
     }
 }
 
@@ -176,6 +176,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
 
     // 分配栈空间
     task->stack = pmm->alloc(STACK_SIZE);
+    printf("task->stack = %p\n", task->stack);
     if (!task->stack)
         return -1;
 
@@ -186,7 +187,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
-    task->next=NULL;
+    task->next = NULL;
     kmt->spin_init(&task->lock, name);
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)

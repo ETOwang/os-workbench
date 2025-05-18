@@ -67,7 +67,6 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 // 任务调度
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
-    printf("kmt_schedule: %s\n", get_current_task()->name);
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
 
@@ -123,6 +122,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     // 找到了下一个可运行的任务
     if (next)
     {
+        printf("Switching from %s to %s\n", current->name, next->name);
         next->status = TASK_RUNNING;
         set_current_task(next); // set_current_task is assumed to be correct (no internal locks)
 

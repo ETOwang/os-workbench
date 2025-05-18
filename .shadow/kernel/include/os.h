@@ -19,15 +19,15 @@ struct spinlock
 };
 struct task
 {
-    spinlock_t lock; // 任务锁
+    spinlock_t lock;   // 任务锁
     Context *context;  // 上下文
     const char *name;  // 任务名称
     int id;            // 任务ID
     void *stack;       // 任务栈
     int status;        // 任务状态
     int cpu;           // 运行的CPU
-    void *fence;       // 用于检测栈溢出的栅栏
     task_t *next;      // 下一个任务
+    void *fence;       // 用于检测栈溢出的栅栏
     char stack_area[]; // 任务栈区域
 };
 struct semaphore

@@ -346,7 +346,6 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
-        panic_on(current == &monitor_task[cpu_current()], "Current task is monitor task");
         panic_on(current->status != TASK_RUNNING, "Current task is not running");
         kmt->spin_lock(&current->lock); // 锁定当前任务
         current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞

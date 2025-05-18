@@ -310,9 +310,7 @@ static void kmt_spin_lock(spinlock_t *lk)
     push_off();
     panic_on(holding(lk), "Spinlock is already held by current CPU");
     // 等待锁可用
-    while (atomic_xchg(&lk->locked, 1))
-        
-        ;
+    while (atomic_xchg(&lk->locked, 1));
     // 记录锁持有信息
     lk->cpu = cpu_current();
     TRACE_EXIT;

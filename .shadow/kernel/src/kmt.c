@@ -286,6 +286,10 @@ static void kmt_spin_unlock(spinlock_t *lk)
     lk->cpu = -1;
     __sync_synchronize();
     atomic_xchg(&lk->locked, 0);
+    if(cpus[cpu_current()].noff == 0)
+    {
+        printf("%s",lk->name);
+    }
     pop_off();
     TRACE_EXIT;
 }

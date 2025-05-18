@@ -301,7 +301,7 @@ static void kmt_spin_lock(spinlock_t *lk)
     panic_on(!lk, "Spinlock is NULL");
     //  禁用中断并保存中断状态
     push_off();
-    panic_on(holding(lk), "Spinlock is already held by current CPU");
+    panic_on(holding(lk),lk->name);
     // 等待锁可用
     while (atomic_xchg(&lk->locked, 1))
         ;

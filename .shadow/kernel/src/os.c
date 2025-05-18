@@ -4,10 +4,12 @@ static handler_record_t handlers[MAX_HANDLER];
 static int handler_count = 0;
 static spinlock_t handler_lock;
 static sem_t empty,full;
+static void *fence=(void*)0xABCDABCD;
 static void T_produce(void *arg)
 {
     while (1)
-    {
+    {  
+        panic_on((uintptr_t)fence!=0xABCDABCD,"stack overflow");
         kmt->sem_wait(&empty);
         printf("(");
         kmt->sem_signal(&full);
@@ -17,6 +19,7 @@ static void T_consume(void *arg)
 {
     while (1)
     {
+        panic_on((uintptr_t)fence!=0xABCDABCD,"stack overflow");
         kmt->sem_wait(&full);
         printf(")");
         kmt->sem_signal(&empty);

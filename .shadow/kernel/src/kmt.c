@@ -60,7 +60,7 @@ static Context *kmt_context_save(Event ev, Context *ctx)
     TRACE_ENTRY;
     task_t *current = get_current_task();
     kmt->spin_lock(&current->lock);
-    current->context = ctx;
+    *(current->context) = *ctx;
     kmt->spin_unlock(&current->lock);
     TRACE_EXIT;
     return NULL; // 返回NULL表示需要继续调用其他中断处理函数

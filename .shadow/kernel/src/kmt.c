@@ -14,7 +14,7 @@ static struct cpu
     task_t *current_task;
 } cpus[MAX_CPU];
 // 系统栈大小 (64KB)
-#define STACK_SIZE (1 << 16)
+#define STACK_SIZE (1 << 17)
 
 // 保护栅栏，用于检测栈溢出
 #define FENCE_PATTERN 0xABCDABCD

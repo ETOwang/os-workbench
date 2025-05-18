@@ -1,7 +1,6 @@
 #include <common.h>
 #include <os.h>
 #include <limits.h>
-#define TRACE_F
 #ifdef TRACE_F
     #define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
     #define TRACE_EXIT printf("[trace] %s:exit\n", __func__)

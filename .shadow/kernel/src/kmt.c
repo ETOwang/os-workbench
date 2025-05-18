@@ -44,16 +44,19 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
 {
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
+    int cnt=0;
     for (int i = 0; i < MAX_TASK; i++)
     {
         if (tasks[i] != NULL && tasks[i]->cpu == cpu_current() && tasks[i] != get_current_task())
         {
             kmt->spin_lock(&tasks[i]->lock);
             tasks[i]->cpu = -1;
+            cnt++;
             kmt->spin_unlock(&tasks[i]->lock);
         }
     }
     kmt->spin_unlock(&task_lock);
+    panic_on(cnt>1, "More than one task marked as free");
     TRACE_EXIT;
     return NULL;
 }

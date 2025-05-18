@@ -186,6 +186,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
+    task->next=NULL;
     kmt->spin_init(&task->lock, name);
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)

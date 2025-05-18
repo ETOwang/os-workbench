@@ -343,7 +343,6 @@ static void kmt_sem_wait(sem_t *sem)
         kmt->spin_unlock(&sem->lock);
         // 让出CPU，等待信号量
         yield();
-        printf("status: %d\n", current->status);
         panic_on(current->status != TASK_RUNNING, "Current task is not running");
         return;
     }

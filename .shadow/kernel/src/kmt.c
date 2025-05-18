@@ -288,7 +288,8 @@ static void kmt_spin_unlock(spinlock_t *lk)
     atomic_xchg(&lk->locked, 0);
     if(cpus[cpu_current()].noff == 0)
     {
-        printf("%s",lk->name);
+        printf("%s\n",lk->name);
+        panic_on(1, "kmt_spin_unlock: no push_off");
     }
     pop_off();
     TRACE_EXIT;

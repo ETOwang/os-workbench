@@ -140,7 +140,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     kmt->spin_unlock(&current->lock);
     // 所有任务都不可运行，使用对应CPU的监视任务
     int cpu_id = cpu_current();
-    panic_on((uintptr_t)monitor_task[cpu_id].fence!=FENCE_PATTERN,"Stack overflow detected");
+    panic_on((uintptr_t)monitor_task[cpu_id].fence==FENCE_PATTERN,"Stack overflow detected");
     kmt->spin_lock(&monitor_task[cpu_id].lock); // 获取监视任务的锁
     monitor_task[cpu_id].status = TASK_RUNNING;
     set_current_task(&monitor_task[cpu_id]);      // 设置当前任务为监视任务

@@ -50,7 +50,22 @@ static void set_current_task(task_t *task)
     task->cpu = cpu;
     TRACE_EXIT;
 }
-
+static Context *kmt_mark_as_free(Event ev, Context *ctx)
+{
+    TRACE_ENTRY;
+    kmt->spin_lock(&task_lock);
+    for (int i = 0; i < MAX_TASK; i++)
+    {
+        if(tasks[i]->cpu==cpu_current()&&tasks[i]!=get_current_task()){
+            kmt->spin_lock(&tasks[i]->lock);
+            tasks[i]->cpu = -1;
+            kmt->spin_unlock(&tasks[i]->lock);
+        }
+    }
+    kmt->spin_unlock(&task_lock);
+    TRACE_EXIT;
+    return NULL; 
+}
 // 保存上下文
 static Context *kmt_context_save(Event ev, Context *ctx)
 {
@@ -100,7 +115,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
                 task_index = (check_idx + 1) % MAX_TASK; 
                 break;
             }
-
         }
         else
         {
@@ -147,6 +161,7 @@ static void kmt_init()
     kmt->spin_init(&task_lock, "task_lock");
     // 注册中断处理器，用于任务调度
     os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);
+    os->on_irq(INT_MIN+1,EVENT_NULL,kmt_mark_as_free);
     os->on_irq(INT_MAX, EVENT_NULL, kmt_schedule);
     // 初始化任务列表
     for (int i = 0; i < MAX_TASK; i++)

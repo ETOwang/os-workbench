@@ -1,14 +1,11 @@
-#include <common.h>
-typedef struct devops
-{
+typedef struct devops {
     int (*init)(device_t *dev);
     int (*read)(device_t *dev, int offset, void *buf, int count);
     int (*write)(device_t *dev, int offset, const void *buf, int count);
 } devops_t;
 extern devops_t tty_ops, fb_ops, sd_ops, input_ops;
 
-struct device
-{
+struct device {
     const char *name;
     int id;
     void *ptr;
@@ -18,14 +15,12 @@ struct device
 // Input
 // -------------------------------------------------------------------
 
-struct input_event
-{
+struct input_event {
     uint32_t ctrl : 1, alt : 1;
     uint32_t data : 16;
 };
 
-typedef struct
-{
+typedef struct {
     spinlock_t lock;
     sem_t event_sem;
     struct input_event *events;
@@ -51,28 +46,24 @@ typedef struct
 #define TEXTURE_H 8
 #define SPRITE_BRK 0x1000000
 
-struct display_info
-{
+struct display_info {
     uint32_t width, height;
     uint32_t num_displays;
     uint32_t current;
     uint32_t num_textures, num_sprites;
 };
 
-struct texture
-{
+struct texture {
     uint32_t pixels[TEXTURE_W * TEXTURE_H];
 };
 
-struct sprite
-{
+struct sprite {
     uint16_t texture, x, y;
     unsigned int display : 4;
     unsigned int z : 12;
 } __attribute__((packed));
 
-typedef struct
-{
+typedef struct {
     struct display_info *info;
     struct texture *textures;
     struct sprite *sprites;
@@ -81,19 +72,16 @@ typedef struct
 // -------------------------------------------------------------------
 // Virtual console on fb
 
-struct character
-{
+struct character {
     uint32_t metadata;
     unsigned char ch;
 };
 
-struct tty_queue
-{
+struct tty_queue {
     char *buf, *end, *front, *rear;
 };
 
-typedef struct
-{
+typedef struct {
     sem_t lock, cooked;
     device_t *fbdev;
     int display;
@@ -107,8 +95,7 @@ typedef struct
 // -------------------------------------------------------------------
 // SCSI (Standard) Disk
 
-typedef struct
-{
+typedef struct {
     uint32_t blkcnt, blksz;
     uint8_t *buf;
 } sd_t;

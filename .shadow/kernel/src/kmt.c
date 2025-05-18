@@ -13,13 +13,13 @@
 #define MAX_TASK 128
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
-static task_t monitor_task[MAX_CPU]; // 每个CPU上的监视任务（初始进程）
 static int task_index;
 static struct cpu
 {
     int noff;
     int intena;
     task_t *current_task;
+    task_t *monitor_task;
 } cpus[MAX_CPU];
 // 系统栈大小 (64KB)
 #define STACK_SIZE (1 << 16)
@@ -60,7 +60,7 @@ static Context *kmt_context_save(Event ev, Context *ctx)
     TRACE_ENTRY;
     task_t *current = get_current_task();
     kmt->spin_lock(&current->lock);
-    *(current->context) = *ctx;
+    current->context = ctx;
     kmt->spin_unlock(&current->lock);
     TRACE_EXIT;
     return NULL; // 返回NULL表示需要继续调用其他中断处理函数
@@ -71,7 +71,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
 {
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
-
     // 获取当前任务
     task_t *current = get_current_task();
     kmt->spin_lock(&current->lock);
@@ -141,13 +140,9 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     kmt->spin_unlock(&current->lock);
     // 所有任务都不可运行，使用对应CPU的监视任务
     int cpu_id = cpu_current();
-    kmt->spin_lock(&monitor_task[cpu_id].lock); // 获取监视任务的锁
-    monitor_task[cpu_id].status = TASK_RUNNING;
-    set_current_task(&monitor_task[cpu_id]);      // 设置当前任务为监视任务
-    kmt->spin_unlock(&monitor_task[cpu_id].lock); // 释放监视任务的锁
-    kmt->spin_unlock(&task_lock);
+    cpus[cpu_id].monitor_task->status=TASK_RUNNING;
     TRACE_EXIT;
-    return monitor_task[cpu_id].context;
+    return cpus[cpu_id].monitor_task->context;
 }
 
 // 初始化KMT模块
@@ -168,13 +163,10 @@ static void kmt_init()
     for (int i = 0; i < MAX_CPU; i++)
     {
         // 初始化监视任务
-        monitor_task[i].status = TASK_RUNNING;
-        monitor_task[i].cpu = i;
-        monitor_task[i].next = NULL;
-        monitor_task[i].name = "monitor";
-        monitor_task[i].fence = (void *)FENCE_PATTERN;              // 初始化 next 指针
-        kmt->spin_init(&monitor_task[i].lock, "monitor_task_lock"); // 初始化监视任务的锁
-        cpus[i].current_task = &monitor_task[i];
+        cpus[i].monitor_task=pmm->alloc(sizeof(task_t));
+        kmt->create(cpus[i].monitor_task, "monitor_task", NULL, NULL);
+        kmt->spin_init(&cpus[i].monitor_task->lock, "monitor_task_lock"); // 初始化监视任务的锁
+        cpus[i].current_task =cpus[i].monitor_task;
     }
     TRACE_EXIT;
 }
@@ -183,7 +175,7 @@ static void kmt_init()
 static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), void *arg)
 {
     TRACE_ENTRY;
-    if (!task || !name || !entry)
+    if (!task || !name )
         return -1;
 
     // 分配栈空间
@@ -346,7 +338,7 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
-        panic_on(current == &monitor_task[cpu_current()], "Current task is monitor task");
+        panic_on(current == cpus[cpu_current()].monitor_task, "Current task is monitor task");
         panic_on(current->status != TASK_RUNNING, "Current task is not running");
         kmt->spin_lock(&current->lock); // 锁定当前任务
         current->status = TASK_BLOCKED; // 将当前任务状态设置为阻塞

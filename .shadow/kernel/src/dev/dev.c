@@ -1,6 +1,5 @@
 #include <os.h>
 #include <devices.h>
-
 #define DEVICES(_) \
   _(0, input_t, "input",    1, &input_ops) \
   _(1, fb_t,    "fb",       1, &fb_ops) \
@@ -39,6 +38,7 @@ static void dev_init() {
   devices[id]->ops->init(devices[id]);
 
   DEVICES(INIT);
+
   kmt->create(pmm->alloc(sizeof(task_t)), "input-task", dev_input_task, NULL);
   kmt->create(pmm->alloc(sizeof(task_t)), "tty-task",   dev_tty_task,   NULL);
 }

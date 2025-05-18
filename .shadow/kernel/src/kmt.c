@@ -129,8 +129,10 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         return next->context;
     }
     kmt->spin_unlock(&current->lock);
+    kmt->spin_unlock(&task_lock);
     int cpu_id = cpu_current();
     cpus[cpu_id].monitor_task->status = TASK_RUNNING;
+    set_current_task(cpus[cpu_id].monitor_task);
     TRACE_EXIT;
     return cpus[cpu_id].monitor_task->context;
 }

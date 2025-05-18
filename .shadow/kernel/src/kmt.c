@@ -37,6 +37,9 @@ static void set_current_task(task_t *task)
     task->cpu = cpu;
     TRACE_EXIT;
 }
+/*
+ to solve the data race
+*/
 static Context *kmt_mark_as_free(Event ev, Context *ctx)
 {
     TRACE_ENTRY;

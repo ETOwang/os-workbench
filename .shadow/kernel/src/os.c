@@ -33,9 +33,9 @@ static void os_init()
     for (int i = 0; i < 32; i++) {
         char temp[32];
         snprintf(temp, sizeof(temp), "task-%d", i);
-        kmt->create(pmm->alloc(sizeof(task_t)), "producer", T_produce, NULL);
+        kmt->create(pmm->alloc(sizeof(task_t)), temp, T_produce, NULL);
 
-        kmt->create(pmm->alloc(sizeof(task_t)), "consumer", T_consume, NULL);
+        kmt->create(pmm->alloc(sizeof(task_t)), temp, T_consume, NULL);
     }
 }
 static void os_run()

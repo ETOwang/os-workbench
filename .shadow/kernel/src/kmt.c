@@ -87,7 +87,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         int check_idx = (current_search_start_index + i) % MAX_TASK;
         task_t *cur = tasks[check_idx];
 
-        if (cur == NULL)
+        if (cur == NULL||(cur->cpu!=-1&&cur->cpu!=current->cpu))
         {
             continue;
         }

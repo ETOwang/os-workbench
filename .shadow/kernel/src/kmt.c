@@ -94,7 +94,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         {
             continue;
         }
-
+        panic_on((uintptr_t)cur->fence!=FENCE_PATTERN,"Stack overflow detected");
         if (cur == current)
         {
             // Current task is already locked. Check its status.

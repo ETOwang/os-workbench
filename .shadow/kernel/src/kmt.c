@@ -290,6 +290,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
     {
         printf("%s\n",lk->name);
         printf("%s\n",get_current_task()->name);
+        printf("%d\n",get_current_task()->status);
         panic_on(1, "kmt_spin_unlock: no push_off");
     }
     pop_off();

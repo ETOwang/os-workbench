@@ -62,7 +62,7 @@ static Context *kmt_context_save(Event ev, Context *ctx)
     TRACE_ENTRY;
     task_t *current = get_current_task();
     kmt->spin_lock(&current->lock);
-    *(current->context) = *ctx;
+    current->context = *ctx;
     kmt->spin_unlock(&current->lock);
     TRACE_EXIT;
     return NULL;
@@ -126,7 +126,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
         TRACE_EXIT;
-        return next->context;
+        return &next->context;
     }
     kmt->spin_unlock(&current->lock);
     kmt->spin_unlock(&task_lock);
@@ -134,7 +134,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     cpus[cpu_id].monitor_task->status = TASK_RUNNING;
     set_current_task(cpus[cpu_id].monitor_task);
     TRACE_EXIT;
-    return cpus[cpu_id].monitor_task->context;
+    return &cpus[cpu_id].monitor_task->context;
 }
 
 static void kmt_init()
@@ -173,7 +173,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     }
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
-    task->context = kcontext(stack_area, entry, arg);
+    task->context = *kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
     task->cpu = -1;

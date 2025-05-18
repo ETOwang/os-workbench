@@ -315,7 +315,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
 {
     TRACE_ENTRY;
     panic_on(!lk, "Spinlock is NULL");
-    panic_on(!holding(lk), "Spinlock is not held by current CPU");
+    panic_on(!holding(lk), lk->name);
     lk->cpu = -1;
     // 释放锁
     __sync_synchronize();

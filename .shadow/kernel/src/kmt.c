@@ -210,7 +210,6 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
 static void kmt_teardown(task_t *task)
 {
     TRACE_ENTRY;
-    panic("kmt_teardown: not implemented");
     if (!task)
         return;
 

@@ -31,8 +31,10 @@ static void os_init()
     kmt->sem_init(&empty, "empty", 10);
     kmt->sem_init(&full,  "fill",  0);
     for (int i = 0; i < 32; i++) {
+        char temp[32];
+        snprintf(temp, sizeof(temp), "task-%d", i);
         kmt->create(pmm->alloc(sizeof(task_t)), "producer", T_produce, NULL);
-        
+
         kmt->create(pmm->alloc(sizeof(task_t)), "consumer", T_consume, NULL);
     }
 }

@@ -33,34 +33,34 @@ int gettid()
 {
     return cpu_current();
 }
-// // 计算伙伴块的地址
-// static block_t find_buddy(block_t block)
-// {
-//     if (!block)
-//         return NULL;
+// 计算伙伴块的地址
+static block_t find_buddy(block_t block)
+{
+    if (!block)
+        return NULL;
 
-//     // 计算块相对于起始地址的偏移量
-//     uintptr_t block_addr = (uintptr_t)block;
-//     uintptr_t start_addr = (uintptr_t)block->start_addr;
-//     uintptr_t offset = block_addr - start_addr;
+    // 计算块相对于起始地址的偏移量
+    uintptr_t block_addr = (uintptr_t)block;
+    uintptr_t start_addr = (uintptr_t)block->start_addr;
+    uintptr_t offset = block_addr - start_addr;
 
-//     // 使用异或操作计算伙伴块的偏移量
-//     uintptr_t buddy_offset = offset ^ block->size;
+    // 使用异或操作计算伙伴块的偏移量
+    uintptr_t buddy_offset = offset ^ block->size;
 
-//     // 如果伙伴块偏移量在有效范围内，返回伙伴块地址
-//     if (buddy_offset < pgsize)
-//     {
-//         block_t buddy = (block_t)(start_addr + buddy_offset);
+    // 如果伙伴块偏移量在有效范围内，返回伙伴块地址
+    if (buddy_offset < pgsize)
+    {
+        block_t buddy = (block_t)(start_addr + buddy_offset);
 
-//         // 验证这是一个有效的伙伴（大小和阶数相同）
-//         if (buddy->size == block->size && buddy->order == block->order)
-//         {
-//             return buddy;
-//         }
-//     }
+        // 验证这是一个有效的伙伴（大小和阶数相同）
+        if (buddy->size == block->size && buddy->order == block->order)
+        {
+            return buddy;
+        }
+    }
 
-//     return NULL; // 伙伴不存在（可能在另一页）
-// }
+    return NULL; // 伙伴不存在（可能在另一页）
+}
 
 // 分裂块
 static block_t split_block(block_t block, int target_order)
@@ -90,54 +90,54 @@ static block_t split_block(block_t block, int target_order)
     return block;
 }
 
-// // 从空闲链表中移除块
-// static void remove_from_free_list(block_t block)
-// {
-//     if (!block || !block->free)
-//         return;
-//     int tid = gettid() % THREAD_NUM;
-//     int order = block->order;
-//     block_t *curr = &free_lists[tid][order];
+// 从空闲链表中移除块
+static void remove_from_free_list(block_t block)
+{
+    if (!block || !block->free)
+        return;
+    int tid = gettid() % THREAD_NUM;
+    int order = block->order;
+    block_t *curr = &free_lists[tid][order];
 
-//     while (*curr != NULL)
-//     {
-//         if (*curr == block)
-//         {
-//             *curr = block->next;
-//             block->next = NULL;
-//             return;
-//         }
-//         curr = &((*curr)->next);
-//     }
-// }
+    while (*curr != NULL)
+    {
+        if (*curr == block)
+        {
+            *curr = block->next;
+            block->next = NULL;
+            return;
+        }
+        curr = &((*curr)->next);
+    }
+}
 
 // 合并块
-// static block_t merge_blocks(block_t block)
-// {
-//     if (!block || !block->free)
-//         return block;
+static block_t merge_blocks(block_t block)
+{
+    if (!block || !block->free)
+        return block;
 
-//     block_t buddy = find_buddy(block);
+    block_t buddy = find_buddy(block);
 
-//     // 如果伙伴不存在、不空闲或阶数不同，不能合并
-//     if (!buddy || !buddy->free || buddy->order != block->order)
-//     {
-//         return block;
-//     }
+    // 如果伙伴不存在、不空闲或阶数不同，不能合并
+    if (!buddy || !buddy->free || buddy->order != block->order)
+    {
+        return block;
+    }
 
-//     // // 从对应的空闲链表中移除伙伴块
-//     remove_from_free_list(buddy);
-//     remove_from_free_list(block);
-//     // 确保block是两个中地址较低的
-//     block_t lower_block = (uintptr_t)block < (uintptr_t)buddy ? block : buddy;
+    // // 从对应的空闲链表中移除伙伴块
+    remove_from_free_list(buddy);
+    remove_from_free_list(block);
+    // 确保block是两个中地址较低的
+    block_t lower_block = (uintptr_t)block < (uintptr_t)buddy ? block : buddy;
 
-//     // 合并为更大的块
-//     lower_block->size *= 2;
-//     lower_block->order += 1;
+    // 合并为更大的块
+    lower_block->size *= 2;
+    lower_block->order += 1;
 
-//     // 递归尝试继续合并
-//     return merge_blocks(lower_block);
-// }
+    // 递归尝试继续合并
+    return merge_blocks(lower_block);
+}
 static void *kalloc(size_t size)
 {
     // 考虑头部大小
@@ -195,26 +195,27 @@ static void *kalloc(size_t size)
     block->free = 0;
     // 返回可用内存区域（跳过块头部）
     kmt->spin_unlock(&thread_lock[tid]);
+    printf("Alloc %d bytes at %p\n", size, (void *)((uintptr_t)block + sizeof(struct block_t)));
     return (void *)((uintptr_t)block + sizeof(struct block_t));
 }
 
 static void kfree(void *ptr)
 {
-    // if (!ptr)
-    //     return;
-    // int tid = gettid() % THREAD_NUM;
-    // // 计算块的地址（减去头部大小）
-    // block_t block = (block_t)((uintptr_t)ptr - sizeof(struct block_t));
+    if (!ptr)
+        return;
+    int tid = gettid() % THREAD_NUM;
+    // 计算块的地址（减去头部大小）
+    block_t block = (block_t)((uintptr_t)ptr - sizeof(struct block_t));
 
-    // // 标记为空闲
-    // block->free = 1;
-    // kmt->spin_lock(&thread_lock[tid]);
-    // // 尝试与伙伴合并
-    // block = merge_blocks(block);
-    // // 将块添加到相应的空闲链表中
-    // block->next = free_lists[tid][block->order];
-    // free_lists[tid][block->order] = block;
-    // kmt->spin_unlock(&thread_lock[tid]);
+    // 标记为空闲
+    block->free = 1;
+    kmt->spin_lock(&thread_lock[tid]);
+    // 尝试与伙伴合并
+    block = merge_blocks(block);
+    // 将块添加到相应的空闲链表中
+    block->next = free_lists[tid][block->order];
+    free_lists[tid][block->order] = block;
+    kmt->spin_unlock(&thread_lock[tid]);
 }
 
 static void pmm_init()

@@ -19,14 +19,6 @@ static struct cpu
 #define TASK_BLOCKED 3
 #define TASK_DEAD 4
 
-static void idle_task_entry(void *arg)
-{
-    while (1)
-    {
-        yield();
-    }
-}
-
 static task_t *get_current_task()
 {
     TRACE_ENTRY;
@@ -161,7 +153,7 @@ static void kmt_init()
     for (int i = 0; i < MAX_CPU; i++)
     {
         cpus[i].monitor_task = pmm->alloc(sizeof(task_t));
-        kmt->create(cpus[i].monitor_task, "monitor_task", idle_task_entry, NULL);
+        kmt->create(cpus[i].monitor_task, "monitor_task", NULL, NULL);
         kmt->spin_init(&cpus[i].monitor_task->lock, "monitor_task_lock");
         cpus[i].current_task = cpus[i].monitor_task;
     }
@@ -295,11 +287,11 @@ static void kmt_spin_unlock(spinlock_t *lk)
     lk->cpu = -1;
     __sync_synchronize();
     atomic_xchg(&lk->locked, 0);
-    if (cpus[cpu_current()].noff == 0)
+    if(cpus[cpu_current()].noff == 0)
     {
-        printf("%s\n", lk->name);
-        printf("%s\n", get_current_task()->name);
-        printf("%d\n", get_current_task()->status);
+        printf("%s\n",lk->name);
+        printf("%s\n",get_current_task()->name);
+        printf("%d\n",get_current_task()->status);
         panic_on(1, "kmt_spin_unlock: no push_off");
     }
     pop_off();

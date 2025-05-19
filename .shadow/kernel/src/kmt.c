@@ -47,10 +47,14 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
     {
-        if (tasks[i] != NULL && tasks[i]->cpu == cpu_current() && tasks[i] != get_current_task())
+        if (tasks[i] != NULL)
         {
             kmt->spin_lock(&tasks[i]->lock);
-            tasks[i]->cpu = -1;
+            if (tasks[i]->cpu == cpu_current() && tasks[i] != get_current_task())
+            {
+                tasks[i]->cpu = -1;
+            }
+
             kmt->spin_unlock(&tasks[i]->lock);
         }
     }
@@ -153,7 +157,7 @@ static void kmt_init()
     for (int i = 0; i < MAX_CPU; i++)
     {
         cpus[i].monitor_task.name = "monitor_task";
-        cpus[i].monitor_task.status= TASK_READY;
+        cpus[i].monitor_task.status = TASK_READY;
         cpus[i].current_task = &cpus[i].monitor_task;
     }
     TRACE_EXIT;
@@ -177,7 +181,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->name = name;
     task->status = TASK_READY;
     task->cpu = -1;
-    task->next=NULL;
+    task->next = NULL;
     kmt->spin_init(&task->lock, name);
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
@@ -287,17 +291,18 @@ static void kmt_spin_unlock(spinlock_t *lk)
     lk->cpu = -1;
     __sync_synchronize();
     atomic_xchg(&lk->locked, 0);
-    if(cpus[cpu_current()].noff == 0)
+    if (cpus[cpu_current()].noff == 0)
     {
         kmt->spin_lock(&task_lock);
-        printf("current cpu is %d\n",cpu_current());
-        printf("current lock is %s\n",lk->name);
-        for (int i = 0; i <MAX_TASK; i++)
+        printf("current cpu is %d\n", cpu_current());
+        printf("current lock is %s\n", lk->name);
+        for (int i = 0; i < MAX_TASK; i++)
         {
-            if(tasks[i]!=NULL&&tasks[i]->cpu!=-1){
-               printf("----------------------------------------\n");
-               printf("task %s is %d\n",tasks[i]->name,tasks[i]->status);
-               printf("task %s is in cpu %d\n",tasks[i]->name,tasks[i]->cpu);
+            if (tasks[i] != NULL && tasks[i]->cpu != -1)
+            {
+                printf("----------------------------------------\n");
+                printf("task %s is %d\n", tasks[i]->name, tasks[i]->status);
+                printf("task %s is in cpu %d\n", tasks[i]->name, tasks[i]->cpu);
                 printf("----------------------------------------\n");
             }
         }
@@ -306,7 +311,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
             printf("cpu %d task is %s\n", i, cpus[i].current_task->name);
             printf("cpu %d task status is %d\n", i, cpus[i].current_task->status);
         }
-        
+
         kmt->spin_unlock(&task_lock);
         panic_on(1, "kmt_spin_unlock: no push_off");
     }

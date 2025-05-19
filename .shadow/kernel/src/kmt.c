@@ -10,7 +10,7 @@ static struct cpu
     int noff;
     int intena;
     task_t *current_task;
-    task_t *monitor_task;
+    task_t monitor_task;
 } cpus[MAX_CPU];
 #define STACK_SIZE (1 << 16)
 #define FENCE_PATTERN 0xABCDABCD
@@ -132,10 +132,10 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     kmt->spin_unlock(&current->lock);
     kmt->spin_unlock(&task_lock);
     int cpu_id = cpu_current();
-    cpus[cpu_id].monitor_task->status = TASK_RUNNING;
-    set_current_task(cpus[cpu_id].monitor_task);
+    cpus[cpu_id].monitor_task.status = TASK_RUNNING;
+    set_current_task(&cpus[cpu_id].monitor_task);
     TRACE_EXIT;
-    return &cpus[cpu_id].monitor_task->context;
+    return &cpus[cpu_id].monitor_task.context;
 }
 
 static void kmt_init()
@@ -152,9 +152,9 @@ static void kmt_init()
 
     for (int i = 0; i < MAX_CPU; i++)
     {
-        cpus[i].monitor_task = pmm->alloc(sizeof(task_t));
-        kmt->create(cpus[i].monitor_task, "monitor_task", NULL, NULL);
-        cpus[i].current_task = cpus[i].monitor_task;
+        cpus[i].monitor_task.name = "monitor_task";
+        cpus[i].monitor_task.status= TASK_READY;
+        cpus[i].current_task = &cpus[i].monitor_task;
     }
     TRACE_EXIT;
 }
@@ -318,7 +318,7 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
-        panic_on(current == cpus[cpu_current()].monitor_task, "Current task is monitor task");
+        panic_on(current == &cpus[cpu_current()].monitor_task, "Current task is monitor task");
         panic_on(current->status != TASK_RUNNING, "Current task is not running");
         kmt->spin_lock(&current->lock);
         current->status = TASK_BLOCKED;

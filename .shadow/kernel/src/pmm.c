@@ -12,7 +12,6 @@ struct block_t
     void *start_addr;     // 块的起始地址（用于计算伙伴）
 };
 typedef struct block_t *block_t;
-static int temp=0;
 // 空闲链表数组，每个元素是特定大小的空闲块链表头
 block_t free_lists[THREAD_NUM][MAX_ORDER + 1];
 spinlock_t thread_lock[THREAD_NUM];
@@ -195,8 +194,6 @@ static void *kalloc(size_t size)
     block->free = 0;
     // 返回可用内存区域（跳过块头部）
     kmt->spin_unlock(&thread_lock[tid]);
-     temp+=size;
-     printf("kalloc %d bytes, total allocated: %d bytes\n", size, temp);
     return (void *)((uintptr_t)block + sizeof(struct block_t));
 }
 

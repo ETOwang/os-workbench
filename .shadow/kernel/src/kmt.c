@@ -289,6 +289,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
     atomic_xchg(&lk->locked, 0);
     if(cpus[cpu_current()].noff == 0)
     {
+        kmt->spin_lock(&task_lock);
         for (int i = 0; i <MAX_TASK; i++)
         {
             if(tasks[i]!=NULL){
@@ -296,7 +297,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
                printf("task %s is in cpu %d\n",tasks[i]->name,tasks[i]->cpu);
             }
         }
-        
+        kmt->spin_unlock(&task_lock);
         panic_on(1, "kmt_spin_unlock: no push_off");
     }
     pop_off();

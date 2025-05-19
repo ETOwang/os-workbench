@@ -317,7 +317,6 @@ static void kmt_sem_wait(sem_t *sem)
     sem->value--;
     if (sem->value < 0)
     {
-        printf("%s\n", sem->name);
         task_t *current = get_current_task();
         panic_on(current == cpus[cpu_current()].monitor_task, "Current task is monitor task");
         panic_on(current->status != TASK_RUNNING, "Current task is not running");

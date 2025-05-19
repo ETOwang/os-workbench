@@ -20,7 +20,7 @@ struct spinlock
 struct task
 {
     spinlock_t lock;   // 任务锁
-    Context context;  // 上下文
+    Context *context;  // 上下文
     const char *name;  // 任务名称
     int id;            // 任务ID
     void *stack;       // 任务栈

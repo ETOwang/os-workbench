@@ -283,6 +283,7 @@ static void kmt_spin_lock(spinlock_t *lk)
     while (atomic_xchg(&lk->locked, 1)){
         pop_off();
         yield();
+        push_off();
     }
     __sync_synchronize();
     lk->cpu = cpu_current();

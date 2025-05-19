@@ -290,6 +290,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
     if(cpus[cpu_current()].noff == 0)
     {
         kmt->spin_lock(&task_lock);
+        printf("current cpu is %d\n",cpu_current());
         for (int i = 0; i <MAX_TASK; i++)
         {
             if(tasks[i]!=NULL&&tasks[i]->cpu!=-1){

@@ -10,7 +10,7 @@ static struct cpu
     int noff;
     int intena;
     task_t *current_task;
-    task_t *monitor_task;
+    task_t monitor_task;
 } cpus[MAX_CPU];
 #define STACK_SIZE (1 << 16)
 #define FENCE_PATTERN 0xABCDABCD
@@ -18,6 +18,7 @@ static struct cpu
 #define TASK_RUNNING 2
 #define TASK_BLOCKED 3
 #define TASK_DEAD 4
+
 static task_t *get_current_task()
 {
     TRACE_ENTRY;
@@ -37,16 +38,23 @@ static void set_current_task(task_t *task)
     task->cpu = cpu;
     TRACE_EXIT;
 }
+/*
+ to solve the data race
+*/
 static Context *kmt_mark_as_free(Event ev, Context *ctx)
 {
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
     {
-        if (tasks[i]->cpu == cpu_current() && tasks[i] != get_current_task())
+        if (tasks[i] != NULL)
         {
             kmt->spin_lock(&tasks[i]->lock);
-            tasks[i]->cpu = -1;
+            if (tasks[i]->cpu == cpu_current() && tasks[i] != get_current_task())
+            {
+                tasks[i]->cpu = -1;
+            }
+
             kmt->spin_unlock(&tasks[i]->lock);
         }
     }
@@ -126,10 +134,12 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         return next->context;
     }
     kmt->spin_unlock(&current->lock);
+    kmt->spin_unlock(&task_lock);
     int cpu_id = cpu_current();
-    cpus[cpu_id].monitor_task->status = TASK_RUNNING;
+    cpus[cpu_id].monitor_task.status = TASK_RUNNING;
+    set_current_task(&cpus[cpu_id].monitor_task);
     TRACE_EXIT;
-    return cpus[cpu_id].monitor_task->context;
+    return cpus[cpu_id].monitor_task.context;
 }
 
 static void kmt_init()
@@ -146,10 +156,9 @@ static void kmt_init()
 
     for (int i = 0; i < MAX_CPU; i++)
     {
-        cpus[i].monitor_task = pmm->alloc(sizeof(task_t));
-        kmt->create(cpus[i].monitor_task, "monitor_task", NULL, NULL);
-        kmt->spin_init(&cpus[i].monitor_task->lock, "monitor_task_lock");
-        cpus[i].current_task = cpus[i].monitor_task;
+        cpus[i].monitor_task.name = "monitor_task";
+        cpus[i].monitor_task.status = TASK_READY;
+        cpus[i].current_task = &cpus[i].monitor_task;
     }
     TRACE_EXIT;
 }
@@ -171,6 +180,8 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->context = kcontext(stack_area, entry, arg);
     task->name = name;
     task->status = TASK_READY;
+    task->cpu = -1;
+    task->next = NULL;
     kmt->spin_init(&task->lock, name);
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
@@ -236,9 +247,13 @@ static bool holding(spinlock_t *lk)
 static void push_off()
 {
     TRACE_ENTRY;
-    int cpu = cpu_current();
     int old = ienabled();
     iset(false);
+    /**
+     * first iset(false) to disable interrupt
+     * then get cpu id
+     */
+    int cpu = cpu_current();
     if (cpus[cpu].noff == 0)
     {
         cpus[cpu].intena = old;
@@ -267,6 +282,7 @@ static void kmt_spin_lock(spinlock_t *lk)
     panic_on(holding(lk), lk->name);
     while (atomic_xchg(&lk->locked, 1))
         ;
+    __sync_synchronize();
     lk->cpu = cpu_current();
     TRACE_EXIT;
 }
@@ -303,7 +319,7 @@ static void kmt_sem_wait(sem_t *sem)
     if (sem->value < 0)
     {
         task_t *current = get_current_task();
-        panic_on(current == cpus[cpu_current()].monitor_task, "Current task is monitor task");
+        panic_on(current == &cpus[cpu_current()].monitor_task, "Current task is monitor task");
         panic_on(current->status != TASK_RUNNING, "Current task is not running");
         kmt->spin_lock(&current->lock);
         current->status = TASK_BLOCKED;

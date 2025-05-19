@@ -1,4 +1,4 @@
-#include <os.h>
+#include <common.h>
 #include <devices.h>
 
 #define NTEXTURE 16384

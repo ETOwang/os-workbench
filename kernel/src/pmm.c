@@ -12,7 +12,6 @@ struct block_t
     void *start_addr;     // 块的起始地址（用于计算伙伴）
 };
 typedef struct block_t *block_t;
-
 // 空闲链表数组，每个元素是特定大小的空闲块链表头
 block_t free_lists[THREAD_NUM][MAX_ORDER + 1];
 spinlock_t thread_lock[THREAD_NUM];

@@ -293,11 +293,12 @@ static void kmt_spin_unlock(spinlock_t *lk)
     atomic_xchg(&lk->locked, 0);
     if (cpus[cpu_current()].noff == 0)
     {
-        kmt->spin_lock(&task_lock);
         printf("current cpu is %d\n", cpu_current());
         printf("current cpu intena is %d\n", cpus[cpu_current()].intena);
         printf("current cpu noff is %d\n", cpus[cpu_current()].noff);
         printf("current lock is %s\n", lk->name);
+        kmt->spin_lock(&task_lock);
+
         for (int i = 0; i < MAX_TASK; i++)
         {
             if (tasks[i] != NULL && tasks[i]->cpu != -1)

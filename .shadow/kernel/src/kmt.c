@@ -280,8 +280,10 @@ static void kmt_spin_lock(spinlock_t *lk)
     panic_on(!lk, "Spinlock is NULL");
     push_off();
     panic_on(holding(lk), lk->name);
-    while (atomic_xchg(&lk->locked, 1))
-        ;
+    while (atomic_xchg(&lk->locked, 1)){
+        pop_off();
+        yield();
+    }
     __sync_synchronize();
     lk->cpu = cpu_current();
     TRACE_EXIT;

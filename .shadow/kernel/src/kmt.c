@@ -247,9 +247,9 @@ static bool holding(spinlock_t *lk)
 static void push_off()
 {
     TRACE_ENTRY;
-    int cpu = cpu_current();
     int old = ienabled();
     iset(false);
+    int cpu = cpu_current();
     if (cpus[cpu].noff == 0)
     {
         cpus[cpu].intena = old;

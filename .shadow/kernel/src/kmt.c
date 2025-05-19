@@ -249,6 +249,10 @@ static void push_off()
     TRACE_ENTRY;
     int old = ienabled();
     iset(false);
+    /**
+     * first iset(false) to disable interrupt
+     * then get cpu id
+     */
     int cpu = cpu_current();
     if (cpus[cpu].noff == 0)
     {
@@ -291,33 +295,6 @@ static void kmt_spin_unlock(spinlock_t *lk)
     lk->cpu = -1;
     __sync_synchronize();
     atomic_xchg(&lk->locked, 0);
-    if (cpus[cpu_current()].noff == 0)
-    {
-        printf("current cpu is %d\n", cpu_current());
-        printf("current cpu intena is %d\n", cpus[cpu_current()].intena);
-        printf("current cpu noff is %d\n", cpus[cpu_current()].noff);
-        printf("current lock is %s\n", lk->name);
-        kmt->spin_lock(&task_lock);
-
-        for (int i = 0; i < MAX_TASK; i++)
-        {
-            if (tasks[i] != NULL && tasks[i]->cpu != -1)
-            {
-                printf("----------------------------------------\n");
-                printf("task %s is %d\n", tasks[i]->name, tasks[i]->status);
-                printf("task %s is in cpu %d\n", tasks[i]->name, tasks[i]->cpu);
-                printf("----------------------------------------\n");
-            }
-        }
-        for (size_t i = 0; i < MAX_CPU; i++)
-        {
-            printf("cpu %d task is %s\n", i, cpus[i].current_task->name);
-            printf("cpu %d task status is %d\n", i, cpus[i].current_task->status);
-        }
-
-        kmt->spin_unlock(&task_lock);
-        panic_on(1, "kmt_spin_unlock: no push_off");
-    }
     pop_off();
     TRACE_EXIT;
 }

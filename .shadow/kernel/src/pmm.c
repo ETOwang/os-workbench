@@ -231,7 +231,6 @@ static void pmm_init()
         block->start_addr = block; // 初始时，块的起始地址就是自己
         free_lists[i][block->order] = block;
     }
-    printf("PMM initialized with %d bytes\n", pgsize);
     printf(
         "Got %d MiB heap: [%p, %p)\n",
         pmsize >> 20, heap.start, heap.end);

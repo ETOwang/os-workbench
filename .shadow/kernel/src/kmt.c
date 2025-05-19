@@ -293,8 +293,10 @@ static void kmt_spin_unlock(spinlock_t *lk)
         for (int i = 0; i <MAX_TASK; i++)
         {
             if(tasks[i]!=NULL&&tasks[i]->cpu!=-1){
+               printf("----------------------------------------\n");
                printf("task %s is %d\n",tasks[i]->name,tasks[i]->status);
                printf("task %s is in cpu %d\n",tasks[i]->name,tasks[i]->cpu);
+                printf("----------------------------------------\n");
             }
         }
         kmt->spin_unlock(&task_lock);

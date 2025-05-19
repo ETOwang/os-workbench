@@ -1,4 +1,4 @@
-#include <os.h>
+#include <common.h>
 #include <devices.h>
 #define DEVICES(_) \
   _(0, input_t, "input",    1, &input_ops) \

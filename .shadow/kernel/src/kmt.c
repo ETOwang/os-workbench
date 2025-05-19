@@ -299,6 +299,12 @@ static void kmt_spin_unlock(spinlock_t *lk)
                 printf("----------------------------------------\n");
             }
         }
+        for (size_t i = 0; i < MAX_CPU; i++)
+        {
+            printf("cpu %d task is %s\n", i, cpus[i].current_task->name);
+            printf("cpu %d task status is %d\n", i, cpus[i].current_task->status);
+        }
+        
         kmt->spin_unlock(&task_lock);
         panic_on(1, "kmt_spin_unlock: no push_off");
     }

@@ -154,7 +154,6 @@ static void kmt_init()
     {
         cpus[i].monitor_task = pmm->alloc(sizeof(task_t));
         kmt->create(cpus[i].monitor_task, "monitor_task", NULL, NULL);
-        kmt->spin_init(&cpus[i].monitor_task->lock, "monitor_task_lock");
         cpus[i].current_task = cpus[i].monitor_task;
     }
     TRACE_EXIT;

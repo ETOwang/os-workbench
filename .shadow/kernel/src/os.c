@@ -3,23 +3,23 @@
 static handler_record_t handlers[MAX_HANDLER];
 static int handler_count = 0;
 static spinlock_t handler_lock;
-static sem_t empty, full;
+//static sem_t empty, full;
 static void T_produce(void *arg)
 {
     while (1)
     {
-        kmt->sem_wait(&empty);
+        //kmt->sem_wait(&empty);
         printf("%d",(uintptr_t)arg);
-        kmt->sem_signal(&full);
+        //kmt->sem_signal(&full);
     }
 }
 static void T_consume(void *arg)
 {
     while (1)
     {
-        kmt->sem_wait(&full);
+        //kmt->sem_wait(&full);
         printf("%d",(uintptr_t)arg);
-        kmt->sem_signal(&empty);
+        //kmt->sem_signal(&empty);
     }
 }
 static void os_init()
@@ -28,8 +28,8 @@ static void os_init()
     kmt->spin_init(&handler_lock, "handler_lock");
     kmt->init();
     //dev->init();
-    kmt->sem_init(&empty, "empty", 10);
-    kmt->sem_init(&full,  "fill",  0);
+    //kmt->sem_init(&empty, "empty", 10);
+    //kmt->sem_init(&full,  "fill",  0);
     for (int i = 0; i < 32; i++) {
         kmt->create(pmm->alloc(sizeof(task_t)), "produce", T_produce, (void*)(uintptr_t)i);
         kmt->create(pmm->alloc(sizeof(task_t)), "consume", T_consume, (void*)(uintptr_t)i);

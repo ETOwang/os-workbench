@@ -28,7 +28,7 @@ static void os_init()
     kmt->spin_init(&handler_lock, "handler_lock");
     kmt->init();
     //dev->init();
-    kmt->sem_init(&empty, "empty", 100000);
+    kmt->sem_init(&empty, "empty", 10);
     kmt->sem_init(&full,  "fill",  0);
     for (int i = 0; i <1; i++) {
         kmt->create(pmm->alloc(sizeof(task_t)), "produce", T_produce, (void*)(uintptr_t)i);

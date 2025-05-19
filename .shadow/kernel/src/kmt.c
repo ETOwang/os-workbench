@@ -291,6 +291,7 @@ static void kmt_spin_unlock(spinlock_t *lk)
     {
         kmt->spin_lock(&task_lock);
         printf("current cpu is %d\n",cpu_current());
+        printf("current lock is %s\n",lk->name);
         for (int i = 0; i <MAX_TASK; i++)
         {
             if(tasks[i]!=NULL&&tasks[i]->cpu!=-1){

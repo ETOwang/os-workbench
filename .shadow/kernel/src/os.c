@@ -2,38 +2,25 @@
 #define MAX_HANDLER 64
 static handler_record_t handlers[MAX_HANDLER];
 static int handler_count = 0;
-static spinlock_t handler_lock;
-static void tty_reader(void *arg) {
-    device_t *tty = dev->lookup(arg);
-    char cmd[128], resp[128], ps[16];
-    snprintf(ps, 16, "(%s) $ ", arg);
-    while (1) {
-        tty->ops->write(tty, 0, ps, strlen(ps));
-        int nread = tty->ops->read(tty, 0, cmd, sizeof(cmd) - 1);
-        cmd[nread] = '\0';
-        sprintf(resp, "tty reader task: got %d character(s).\n", strlen(cmd));
-        tty->ops->write(tty, 0, resp, strlen(resp));
-    }
-}
 static void os_init()
 {
     pmm->init();
-    kmt->spin_init(&handler_lock, "handler_lock");
     kmt->init();
     dev->init();
-    kmt->create(pmm->alloc(sizeof(task_t)), "tty_reader", tty_reader, "tty1");
-    kmt->create(pmm->alloc(sizeof(task_t)), "tty_reader", tty_reader, "tty2");
+    uproc->init();
 }
 static void os_run()
 {
     printf("Hello World from CPU #%d\n", cpu_current());
     iset(true);
-    while (1);
-        
+    while (1)
+        ;
 }
+/**
+ * must be called before os_run
+ */
 static void os_on_irq(int seq, int event, handler_t handler)
 {
-    kmt->spin_lock(&handler_lock);
     panic_on(handler_count >= MAX_HANDLER, "Handler limit reached");
     handlers[handler_count].seq = seq;
     handlers[handler_count].event = event;
@@ -51,11 +38,13 @@ static void os_on_irq(int seq, int event, handler_t handler)
             }
         }
     }
-    kmt->spin_unlock(&handler_lock);
 }
+/**
+ * pay attention to dead lock
+ */
 static Context *os_trap(Event ev, Context *context)
 {
-    kmt->spin_lock(&handler_lock);
+    halt(0);
     Context *next = NULL;
     for (int i = 0; i < handler_count; i++)
     {
@@ -70,7 +59,6 @@ static Context *os_trap(Event ev, Context *context)
         }
     }
     panic_on(!next, "return to NULL context");
-    kmt->spin_unlock(&handler_lock);
     return next;
 }
 MODULE_DEF(os) = {

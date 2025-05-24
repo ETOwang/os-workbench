@@ -51,7 +51,7 @@ int vsprintf(char *out, const char *fmt, va_list ap)
   const char *s;
   char buf[256]; // 这个缓冲区是线程本地的，所以是安全的
   int i, len;
-  uint32_t cur;
+  uintptr_t cur;
   for (; *fmt; fmt++)
   {
     if (*fmt != '%')
@@ -88,7 +88,7 @@ int vsprintf(char *out, const char *fmt, va_list ap)
       }
       break;
     case 'x':
-      cur = va_arg(ap, uint32_t);
+      cur = va_arg(ap, uintptr_t);
       p = buf + sizeof(buf) - 1;
       *p = '\0';
       do
@@ -103,7 +103,7 @@ int vsprintf(char *out, const char *fmt, va_list ap)
       }
       break;
     case 'p':
-      cur = va_arg(ap, uint32_t);
+      cur = va_arg(ap, uintptr_t);
       len = sprintf(buf, "0x%x", cur);
       for (int j = 0; j < len; j++)
       {

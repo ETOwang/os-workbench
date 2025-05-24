@@ -2,20 +2,19 @@
 #define MIN_BLOCK_SIZE 16 // 最小块大小
 #define MAX_ORDER 31      // 最大阶数
 #define THREAD_NUM 8      // 线程数
-uintptr_t pgsize;
+uintptr_t pgsize;    
 struct block_t
 {
-    size_t size;          // 块大小
-    int order;            // 块阶数
-    int free;             // 是否空闲
-    struct block_t *next; // 链表中下一个块
-    void *start_addr;     // 块的起始地址（用于计算伙伴）
+    size_t size;          
+    int order;            
+    int free;             
+    struct block_t *next; 
+    void *start_addr;     
+    size_t offset;
 };
 typedef struct block_t *block_t;
-// 空闲链表数组，每个元素是特定大小的空闲块链表头
 block_t free_lists[THREAD_NUM][MAX_ORDER + 1];
 spinlock_t thread_lock[THREAD_NUM];
-// 计算块的阶数
 static int get_order(size_t size)
 {
     int order = 0;
@@ -28,60 +27,66 @@ static int get_order(size_t size)
     return order;
 }
 
-int gettid()
+static size_t round_up_to_power_of_2(size_t val)
+{
+    if (val == 0)
+        return 0;
+    size_t n = val - 1;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    if (sizeof(size_t) > 4)
+    { 
+        n |= n >> 32;
+    }
+    return n + 1;
+}
+
+static inline int gettid(void)
 {
     return cpu_current();
 }
-// 计算伙伴块的地址
 static block_t find_buddy(block_t block)
 {
     if (!block)
         return NULL;
 
-    // 计算块相对于起始地址的偏移量
     uintptr_t block_addr = (uintptr_t)block;
     uintptr_t start_addr = (uintptr_t)block->start_addr;
     uintptr_t offset = block_addr - start_addr;
-
-    // 使用异或操作计算伙伴块的偏移量
     uintptr_t buddy_offset = offset ^ block->size;
 
-    // 如果伙伴块偏移量在有效范围内，返回伙伴块地址
     if (buddy_offset < pgsize)
     {
         block_t buddy = (block_t)(start_addr + buddy_offset);
-
-        // 验证这是一个有效的伙伴（大小和阶数相同）
         if (buddy->size == block->size && buddy->order == block->order)
         {
             return buddy;
         }
     }
 
-    return NULL; // 伙伴不存在（可能在另一页）
+    return NULL; 
 }
 
-// 分裂块
 static block_t split_block(block_t block, int target_order)
 {
     int curr_order = block->order;
-    void *start_addr = block->start_addr; // 保存原始起始地址
+    void *start_addr = block->start_addr;
     int tid = gettid() % THREAD_NUM;
     while (curr_order > target_order)
     {
         curr_order--;
         size_t new_size = 1UL << curr_order;
-
-        // 创建新的伙伴块
         block_t buddy = (block_t)((uintptr_t)block + new_size);
         buddy->size = new_size;
         buddy->order = curr_order;
         buddy->free = 1;
         buddy->next = free_lists[tid][curr_order];
         free_lists[tid][curr_order] = buddy;
-        buddy->start_addr = start_addr; // 设置为原始页起始地址
-
-        // 更新原块信息
+        buddy->start_addr = start_addr;
+        buddy->offset = 0;              
         block->size = new_size;
         block->order = curr_order;
     }
@@ -89,7 +94,6 @@ static block_t split_block(block_t block, int target_order)
     return block;
 }
 
-// 从空闲链表中移除块
 static void remove_from_free_list(block_t block)
 {
     if (!block || !block->free)
@@ -110,111 +114,146 @@ static void remove_from_free_list(block_t block)
     }
 }
 
-// 合并块
 static block_t merge_blocks(block_t block)
 {
     if (!block || !block->free)
         return block;
 
     block_t buddy = find_buddy(block);
-
-    // 如果伙伴不存在、不空闲或阶数不同，不能合并
     if (!buddy || !buddy->free || buddy->order != block->order)
     {
         return block;
     }
-
-    // // 从对应的空闲链表中移除伙伴块
     remove_from_free_list(buddy);
     remove_from_free_list(block);
-    // 确保block是两个中地址较低的
     block_t lower_block = (uintptr_t)block < (uintptr_t)buddy ? block : buddy;
-
-    // 合并为更大的块
     lower_block->size *= 2;
     lower_block->order += 1;
-
-    // 递归尝试继续合并
+    lower_block->free = 1;
+    lower_block->start_addr = block->start_addr; 
     return merge_blocks(lower_block);
 }
-static void *kalloc(size_t size)
+void *kalloc(size_t size)
 {
-    // 考虑头部大小
-    size += sizeof(struct block_t);
+    size_t user_data_size = size;
 
-    // 计算所需块的阶数
-    int req_order = get_order(size);
+    if (user_data_size > 0)
+    {
+        user_data_size = round_up_to_power_of_2(user_data_size);
+    }
+    size_t header_size = ((sizeof(struct block_t) + sizeof(size_t) - 1) / sizeof(size_t)) * sizeof(size_t);
+    size_t total_size = user_data_size + header_size;
+    int req_order = get_order(total_size);
     if (req_order < get_order(MIN_BLOCK_SIZE))
     {
         req_order = get_order(MIN_BLOCK_SIZE);
     }
     int tid = gettid() % THREAD_NUM;
     kmt->spin_lock(&thread_lock[tid]);
-    // 查找合适的块
     int order = req_order;
     block_t block = NULL;
     while (order <= MAX_ORDER)
     {
         block_t *prev = &free_lists[tid][order];
         block_t curr = *prev;
-        // 遍历当前阶数的空闲链表，找到空闲的块
         while (curr != NULL)
         {
             if (curr->free && curr->order >= req_order)
             {
-                // 找到空闲块，从链表中移除
                 *prev = curr->next;
                 block = curr;
                 order = curr->order;
                 break;
             }
-            // 不空闲，继续查找
             prev = &(curr->next);
             curr = curr->next;
         }
         if (block)
-            break; // 找到合适的块，退出循环
-
-        order++; // 尝试更高阶数
+            break; 
+        order++;
     }
 
     if (!block)
     {
         kmt->spin_unlock(&thread_lock[tid]);
-        panic("No free block found");
-        return NULL; // 没有足够的内存
+        panic( "No free block found");
+        return NULL; 
     }
-
-    // 如果找到的块比需要的大，分裂它
     if (order > req_order)
     {
         block = split_block(block, req_order);
     }
-    // 标记为已使用
     block->free = 0;
-    // 返回可用内存区域（跳过块头部）
+    void *user_ptr = (void *)((uintptr_t)block + header_size);
+    uintptr_t user_addr = (uintptr_t)user_ptr;
+    if (user_data_size > 0 && (user_addr & (user_data_size - 1)) != 0)
+    {
+        size_t alignment_offset = ((user_addr + user_data_size - 1) & ~(user_data_size - 1)) - user_addr;
+        user_addr += alignment_offset;
+        user_ptr = (void *)user_addr;
+        block->offset = header_size + alignment_offset;
+    }
+    else
+    {
+        block->offset = header_size;
+    }
+
     kmt->spin_unlock(&thread_lock[tid]);
-    return (void *)((uintptr_t)block + sizeof(struct block_t));
+    return user_ptr;
 }
 
-static void kfree(void *ptr)
+void kfree(void *ptr)
 {
     if (!ptr)
         return;
     int tid = gettid() % THREAD_NUM;
-    // 计算块的地址（减去头部大小）
-    block_t block = (block_t)((uintptr_t)ptr - sizeof(struct block_t));
+    block_t possible_block = (block_t)((uintptr_t)ptr - sizeof(struct block_t));
+    block_t block = NULL;
+    if (possible_block && possible_block->offset > 0 &&
+        possible_block->offset <= 1024 && // 设置一个合理的上限
+        (uintptr_t)ptr == (uintptr_t)possible_block + possible_block->offset)
+    {
+        block = possible_block;
+    }
+    else
+    {
+        for (size_t offset = sizeof(struct block_t); offset <= sizeof(struct block_t) * 2; offset += 8)
+        {
+            possible_block = (block_t)((uintptr_t)ptr - offset);
+            if (possible_block && possible_block->offset == offset &&
+                possible_block->order >= 0 && possible_block->order <= MAX_ORDER)
+            {
+                block = possible_block;
+                break;
+            }
+        }
 
-    // 标记为空闲
+        if (!block)
+        {
+            for (size_t offset = 8; offset <= 128; offset += 8)
+            {
+                possible_block = (block_t)((uintptr_t)ptr - offset);
+                if (possible_block && possible_block->offset == offset)
+                {
+                    block = possible_block;
+                    break;
+                }
+            }
+        }
+    }
+    if (!block)
+    {
+        return;
+    }
+
     block->free = 1;
     kmt->spin_lock(&thread_lock[tid]);
-    // 尝试与伙伴合并
     block = merge_blocks(block);
-    // 将块添加到相应的空闲链表中
     block->next = free_lists[tid][block->order];
     free_lists[tid][block->order] = block;
     kmt->spin_unlock(&thread_lock[tid]);
 }
+
 
 static void pmm_init()
 {
@@ -228,7 +267,7 @@ static void pmm_init()
         block->order = get_order(block->size);
         block->free = 1;
         block->next = free_lists[i][block->order];
-        block->start_addr = block; // 初始时，块的起始地址就是自己
+        block->start_addr = block;
         free_lists[i][block->order] = block;
     }
     printf(

@@ -44,7 +44,6 @@ static void os_on_irq(int seq, int event, handler_t handler)
  */
 static Context *os_trap(Event ev, Context *context)
 {
-    halt(0);
     Context *next = NULL;
     for (int i = 0; i < handler_count; i++)
     {

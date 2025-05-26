@@ -18,16 +18,15 @@ struct spinlock
 };
 struct task
 {
+    procinfo_t* pi;
     spinlock_t lock;   // 任务锁
     Context *context;  // 上下文
     const char *name;  // 任务名称
-    int id;            // 任务ID
-    void *stack;       // 任务栈
     int status;        // 任务状态
     int cpu;           // 运行的CPU
     task_t *next;      // 下一个任务
     void *fence;       // 用于检测栈溢出的栅栏
-    char stack_area[]; // 任务栈区域
+    char stack[STACK_SIZE]; // 任务栈区域
 };
 struct semaphore
 {
@@ -36,7 +35,13 @@ struct semaphore
     spinlock_t lock;   // 信号量内部锁
     task_t *wait_list; // 等待信号量的任务列表
 };
-
+struct procinfo
+{
+    int pid;          
+    int xstate;       
+    task_t* parent;
+    AddrSpace as;
+};
 struct handler_record
 {
     int seq;           // 处理器序列号

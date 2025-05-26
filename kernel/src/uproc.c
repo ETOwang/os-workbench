@@ -1,0 +1,242 @@
+#include <common.h>
+#include <string.h>
+#include <am.h>
+#include <user.h>
+#include "initcode.inc"
+#define PTE_ADDR(pte) ((pte) & 0x000ffffffffff000ULL)
+#define MAX_PID 32767
+static spinlock_t uproc_lock;
+static int next_pid = 1;
+extern void kmt_add_task(task_t *task);
+extern task_t* kmt_get_son();
+static int uproc_alloc_pid()
+{
+    kmt->spin_lock(&uproc_lock);
+    int ret = next_pid;
+    next_pid = next_pid % MAX_PID + 1;
+    kmt->spin_unlock(&uproc_lock);
+    return ret;
+}
+static void user_init()
+{
+    task_t *task = pmm->alloc(sizeof(task_t));
+    task->pi = pmm->alloc(sizeof(procinfo_t));
+    task->pi->parent = NULL;
+    task->pi->pid = uproc_alloc_pid();
+    panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
+    protect(&task->pi->as);
+    char *mem = pmm->alloc(task->pi->as.pgsize);
+    map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
+    panic_on(_init_len > task->pi->as.pgsize, "init code too large");
+    char *entry = pmm->alloc(task->pi->as.pgsize);
+    memcpy(entry, _init, _init_len);
+    map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
+    task->fence = (void *)FENCE_PATTERN;
+    Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
+    task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
+    task->name = "initproc";
+    task->status = TASK_READY;
+    task->cpu = -1;
+    task->next = NULL;
+    kmt->spin_init(&task->lock, task->name);
+    kmt_add_task(task);
+    TRACE_EXIT;
+}
+static void uproc_init()
+{
+    vme_init((void *(*)(int))pmm->alloc, pmm->free);
+    kmt->spin_init(&uproc_lock, "uproc_lock");
+    user_init();
+}
+
+static int uproc_exit(task_t *task, int status)
+{
+    panic_on(task == NULL, "Task is NULL");
+    panic_on(task->pi == NULL, "Task procinfo is NULL");
+    task->pi->xstate = status;
+    task->status= TASK_ZOMBIE;
+    return 0;
+}
+
+static int uproc_kputc(task_t *task, char ch)
+{
+    putch(ch);
+    return 0;
+}
+
+int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
+{
+    panic_on(old == NULL || new == NULL, "old or new AddrSpace is NULL");
+    uintptr_t pg_sz = old->pgsize;
+    for (uintptr_t offset = 0; offset < sz; offset += pg_sz)
+    {
+        uintptr_t current_va = (uintptr_t)UVSTART + offset;
+        if (current_va >= (uintptr_t)UVMEND)
+        {
+            break;
+        }
+        uintptr_t *ptep = ptewalk(old, current_va);
+        if (ptep && (*ptep & PROT_NONE))
+        {
+            int map_prot = MMAP_READ;
+            if (*ptep & MMAP_WRITE)
+            {
+                map_prot |= MMAP_WRITE;
+            }
+            void *old_pa = (void *)PTE_ADDR(*ptep);
+            void *new_pa = pmm->alloc(pg_sz);
+            panic_on(new_pa == NULL, "Failed to allocate new physical page");
+            memcpy(new_pa, old_pa, pg_sz);
+            map(new, (void *)current_va, new_pa, map_prot);
+        }
+    }
+    return 0;
+}
+static int uproc_fork(task_t *task)
+{
+    panic_on(task == NULL, "Task is NULL");
+    int pid = uproc_alloc_pid();
+    task_t *son = pmm->alloc(sizeof(task_t));
+    son->name = "son";
+    son->cpu = -1;
+    son->next = NULL;
+    son->fence = task->fence;
+    kmt->spin_init(&son->lock, son->name);
+    son->status = TASK_READY;
+    son->pi = pmm->alloc(sizeof(procinfo_t));
+    son->pi->parent = task;
+    protect(&son->pi->as);
+    uvmcopy(&task->pi->as, &son->pi->as, UVMEND - UVSTART);
+    son->pi->pid = pid;
+    son->context = (Context *)(son->stack + STACK_SIZE - sizeof(Context));
+    *son->context = *task->context;
+    son->context->GPRx = 0;
+    son->context->cr3 = son->pi->as.ptr;
+    son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
+    kmt_add_task(son);
+    return pid;
+}
+
+static int uproc_wait(task_t *task, int *status)
+{
+    if(kmt_get_son()==NULL){
+        return -1;
+    }
+    while (1)
+    {
+     
+        task_t* son = kmt_get_son();
+        if (son == NULL)
+        {
+            return 0;
+        }
+        kmt->spin_lock(&son->lock);
+        if (son->status == TASK_ZOMBIE)
+        {
+            if (status != NULL)
+            {
+                *status = son->pi->xstate;
+            }
+            son->pi->parent=NULL;
+            son->status=TASK_DEAD;
+        }
+        kmt->spin_unlock(&son->lock);
+    }
+    return 0;
+}
+
+// static int uproc_kill(task_t *task, int pid)
+// {
+//     TRACE_ENTRY;
+//     // `task` is the initiator. Can be NULL if called from a non-process context (e.g. kernel utility).
+//     const char *initiator_name = task ? task->name : "SYSTEM";
+//     printf("uproc_if_kill: %s wants to kill PID %d.\n", initiator_name, pid_to_kill);
+
+//     user_process_t *target_proc = uproc_get_proc_by_pid(pid_to_kill);
+//     if (!target_proc)
+//     {
+//         printf("uproc_if_kill: PID %d not found.\n", pid_to_kill);
+//         TRACE_EXIT;
+//         return -1; // Target PID not found
+//     }
+
+//     kmt_spin_lock(&uproc_lock);
+//     if (target_proc->state == UPROC_STATE_FREE || target_proc->state == UPROC_STATE_ZOMBIE)
+//     {
+//         kmt_spin_unlock(&uproc_lock);
+//         printf("uproc_if_kill: PID %d is already free or zombie.\n", pid_to_kill);
+//         TRACE_EXIT;
+//         return 0; // Or -1 if killing an already terminated process is an error
+//     }
+
+//     printf("uproc_if_kill: Marking process %s (PID %d) as ZOMBIE due to kill signal.\n",
+//            target_proc->name, pid_to_kill);
+//     target_proc->state = UPROC_STATE_ZOMBIE;
+//     // target_proc->exit_status = -SIGKILL; // Define appropriate signal numbers
+
+//     // TODO: For a real kill, the target_proc->task must be made to stop executing and exit.
+//     // This is complex. Options:
+//     // 1. Set a flag in target_proc->task; task checks it and calls exit (cooperative).
+//     // 2. If task is blocked (e.g., sem_wait), unblock it with an error status that leads to exit.
+//     // 3. Advanced: Manipulate task context to force jump to an exit routine.
+//     // For now, just marking ZOMBIE. Task might continue until it hits a syscall or yields.
+//     if (target_proc->task)
+//     {
+//         printf("  Target task: %s. Actual task termination for kill is not fully implemented.\n", target_proc->task->name);
+//         // Example: if task_t had a `pending_signal` field:
+//         // target_proc->task->pending_signal = SIGKILL;
+//         // if (target_proc->task->state == TASK_STATE_BLOCKED_ON_SEM) kmt_sem_signal(target_proc->task->blocking_sem_with_error);
+//     }
+//     kmt_spin_unlock(&uproc_lock);
+//     TRACE_EXIT;
+//     return 0; // Kill signal sent/processed (marked as ZOMBIE)
+// }
+
+// static void *uproc_if_mmap(task_t *task, void *addr, int length, int prot, int flags)
+// {
+//     TRACE_ENTRY;
+//     const char *task_name = task ? task->name : "SYSTEM";
+//     printf("uproc_if_mmap: Task %s requests mmap - NOT IMPLEMENTED.\n", task_name);
+//     // TODO: Implement virtual memory mapping for user processes.
+//     TRACE_EXIT;
+//     return (void *)-1; // Return error (e.g., MAP_FAILED)
+// }
+
+static int uproc_getpid(task_t *task)
+{
+    panic_on(task->pi == NULL, "Task procinfo is NULL");
+    return task->pi->pid;
+}
+
+static int uproc_sleep(task_t *task, int seconds)
+{
+    if (seconds > 0)
+    {
+        AM_TIMER_UPTIME_T start_time = io_read(AM_TIMER_UPTIME);
+        uint64_t duration_us = (uint64_t)seconds * 1000000;
+        uint64_t end_us = start_time.us + duration_us;
+        while (io_read(AM_TIMER_UPTIME).us < end_us)
+            ;
+    }
+    return 0;
+}
+
+static int64_t uproc_uptime(task_t *task)
+{
+    AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
+    return uptime.us / 1000;
+}
+
+// Define the uproc module structure with pointers to implemented functions
+MODULE_DEF(uproc) = {
+    .init = uproc_init,
+    .kputc = uproc_kputc,
+    .fork = uproc_fork,
+    .wait = uproc_wait,
+    .exit = uproc_exit,
+    //.kill = uproc_kill,
+    // .mmap = uproc_if_mmap,
+    .getpid = uproc_getpid,
+    .sleep = uproc_sleep,
+    .uptime = uproc_uptime,
+};

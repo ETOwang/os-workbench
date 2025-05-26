@@ -1,7 +1,7 @@
 #include <common.h>
 #include <limits.h>
-#define MAX_CPU 32
-#define MAX_TASK 128
+#include <syscall.h>
+#include <user.h>
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
 static int task_index;
@@ -12,12 +12,6 @@ static struct cpu
     task_t *current_task;
     task_t monitor_task;
 } cpus[MAX_CPU];
-#define STACK_SIZE (1 << 16)
-#define FENCE_PATTERN 0xABCDABCD
-#define TASK_READY 1
-#define TASK_RUNNING 2
-#define TASK_BLOCKED 3
-#define TASK_DEAD 4
 
 static task_t *get_current_task()
 {
@@ -46,7 +40,7 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
-    {
+    {    
         if (tasks[i] != NULL)
         {
             kmt->spin_lock(&tasks[i]->lock);
@@ -54,7 +48,15 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
             {
                 tasks[i]->cpu = -1;
             }
-
+            else if (tasks[i]->cpu == -1 && tasks[i]->status == TASK_DEAD)
+            {
+                if (tasks[i]->pi)
+                {
+                    unprotect(&tasks[i]->pi->as);
+                    pmm->free(tasks[i]->pi);
+                    tasks[i]->pi=NULL;
+                }
+            }
             kmt->spin_unlock(&tasks[i]->lock);
         }
     }
@@ -66,13 +68,39 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 {
     TRACE_ENTRY;
     task_t *current = get_current_task();
-    kmt->spin_lock(&current->lock);
     current->context = ctx;
-    kmt->spin_unlock(&current->lock);
     TRACE_EXIT;
     return NULL;
 }
-
+static Context *kmt_syscall(Event ev, Context *ctx)
+{
+    uint64_t syscall_num = ctx->GPRx;
+    switch (syscall_num)
+    {
+    case SYS_kputc:
+        ctx->GPRx = uproc->kputc(get_current_task(), ctx->GPR1);
+        break;
+    case SYS_exit:
+        ctx->GPRx = uproc->exit(get_current_task(), ctx->GPR1);
+        break;
+    case SYS_uptime:
+        ctx->GPRx = uproc->uptime(get_current_task());
+        break;
+    case SYS_sleep:
+        ctx->GPRx = uproc->sleep(get_current_task(), ctx->GPR1);
+        break;
+    case SYS_fork:
+        ctx->GPRx = uproc->fork(get_current_task());
+        break;
+    case SYS_wait:
+        ctx->GPRx = uproc->wait(get_current_task(), (int *)ctx->GPR1);
+        break;
+    default:
+        panic("Unknown syscall number");
+        break;
+    }
+    return NULL;
+}
 static Context *kmt_schedule(Event ev, Context *ctx)
 {
     TRACE_ENTRY;
@@ -83,7 +111,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         current->status = TASK_READY;
     }
-    panic_on(current->status != TASK_READY && current->status != TASK_BLOCKED, "Current task is not ready or blocked");
+    panic_on(current->status == TASK_RUNNING, "Current task is running");
     task_t *next = NULL;
     int current_search_start_index = task_index;
 
@@ -123,7 +151,6 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     {
         next->status = TASK_RUNNING;
         set_current_task(next);
-
         if (next != current)
         {
             kmt->spin_unlock(&next->lock);
@@ -141,7 +168,51 @@ static Context *kmt_schedule(Event ev, Context *ctx)
     TRACE_EXIT;
     return cpus[cpu_id].monitor_task.context;
 }
-
+task_t *kmt_get_son()
+{
+    task_t *cur = get_current_task();
+    task_t *son = NULL;
+    kmt->spin_lock(&task_lock);
+    for (int i = 0; i < MAX_TASK; i++)
+    {
+        if (tasks[i] == NULL)
+        {
+            continue;
+        }
+        kmt->spin_lock(&tasks[i]->lock);
+        if (tasks[i]->pi != NULL && tasks[i]->pi->parent == cur&&tasks[i]->status!=TASK_DEAD)
+        {
+            son = tasks[i];
+            kmt->spin_unlock(&tasks[i]->lock);
+            break;
+        }
+        kmt->spin_unlock(&tasks[i]->lock);
+    }
+    kmt->spin_unlock(&task_lock);
+    return son;
+}
+void kmt_add_task(task_t *task)
+{
+    panic_on(task == NULL, "task is NULL");
+    kmt->spin_lock(&task_lock);
+    for (int i = 0; i < MAX_TASK; i++)
+    {
+        if (tasks[i] == NULL)
+        {
+            tasks[i] = task;
+            break;
+        }
+    }
+    kmt->spin_unlock(&task_lock);
+}
+static Context *kmt_pgfault(Event ev, Context *ctx)
+{
+    printf("Page fault at %p\n", ev.ref);
+    printf("Page fault msg: %s\n", ev.msg);
+    printf("Page fault cause: %p\n", ev.cause);
+    halt(1);
+    return NULL;
+}
 static void kmt_init()
 {
     TRACE_ENTRY;
@@ -149,11 +220,12 @@ static void kmt_init()
     os->on_irq(INT_MIN, EVENT_NULL, kmt_context_save);
     os->on_irq(INT_MIN + 1, EVENT_NULL, kmt_mark_as_free);
     os->on_irq(INT_MAX, EVENT_NULL, kmt_schedule);
+    os->on_irq(1, EVENT_SYSCALL, kmt_syscall);
+    os->on_irq(1, EVENT_PAGEFAULT, kmt_pgfault);
     for (int i = 0; i < MAX_TASK; i++)
     {
         tasks[i] = NULL;
     }
-
     for (int i = 0; i < MAX_CPU; i++)
     {
         cpus[i].monitor_task.name = "monitor_task";
@@ -168,13 +240,7 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     TRACE_ENTRY;
     if (!task || !name)
         return -1;
-
-    task->stack = pmm->alloc(STACK_SIZE);
-    if (!task->stack)
-    {
-        TRACE_EXIT;
-        return -1;
-    }
+    task->pi = NULL;
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
     task->context = kcontext(stack_area, entry, arg);
@@ -183,49 +249,33 @@ static int kmt_create(task_t *task, const char *name, void (*entry)(void *arg), 
     task->cpu = -1;
     task->next = NULL;
     kmt->spin_init(&task->lock, name);
-    kmt->spin_lock(&task_lock);
-    for (int i = 0; i < MAX_TASK; i++)
-    {
-        if (tasks[i] == NULL)
-        {
-            tasks[i] = task;
-            break;
-        }
-    }
-    kmt->spin_unlock(&task_lock);
+    kmt_add_task(task);
     TRACE_EXIT;
     return 0;
 }
 
 static void kmt_teardown(task_t *task)
 {
-    TRACE_ENTRY;
     if (!task)
         return;
-
-    kmt->spin_lock(&task_lock);
     kmt->spin_lock(&task->lock);
-
     task->status = TASK_DEAD;
-
+    kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
     {
-        if (tasks[i] == task)
+        if (tasks[i] == NULL || tasks[i] == task)
         {
-            tasks[i] = NULL;
-            break;
+            continue;
         }
+        kmt->spin_lock(&tasks[i]->lock);
+        if (tasks[i]->pi != NULL && tasks[i]->pi->parent == task)
+        {
+            tasks[i]->pi->parent = NULL;
+        }
+        kmt->spin_unlock(&tasks[i]->lock);
     }
-
-    kmt->spin_unlock(&task->lock);
     kmt->spin_unlock(&task_lock);
-
-    if (task->stack)
-    {
-        pmm->free(task->stack);
-        task->stack = NULL;
-    }
-    TRACE_EXIT;
+    kmt->spin_unlock(&task->lock);
 }
 
 static void kmt_spin_init(spinlock_t *lk, const char *name)
@@ -280,10 +330,8 @@ static void kmt_spin_lock(spinlock_t *lk)
     panic_on(!lk, "Spinlock is NULL");
     push_off();
     panic_on(holding(lk), lk->name);
-    while (atomic_xchg(&lk->locked, 1)){
-        pop_off();
-        yield();
-    }
+    while (atomic_xchg(&lk->locked, 1))
+        ;
     __sync_synchronize();
     lk->cpu = cpu_current();
     TRACE_EXIT;
@@ -337,7 +385,6 @@ static void kmt_sem_wait(sem_t *sem)
             {
                 cur = cur->next;
             }
-
             panic_on(cur->status != TASK_BLOCKED, "Wait list task is not blocked");
             cur->next = current;
             current->next = NULL;

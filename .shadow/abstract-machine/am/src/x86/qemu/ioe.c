@@ -261,11 +261,45 @@ static void gpu_render(AM_GPU_RENDER_T *ren) {
 // Disk (ATA0)
 // ====================================================
 
+// #define BLKSZ  512
+// #define DISKSZ (64 << 20)
 
-#define SECTOR_SIZE_UNKNOWN 0
-#define MAX_RETRIES 5
+// static void disk_config(AM_DISK_CONFIG_T *cfg) {
+//   cfg->present = true;
+//   cfg->blksz   = BLKSZ;
+//   cfg->blkcnt  = DISKSZ / BLKSZ;
+// }
 
-// IDE 端口定义
+// static void disk_status(AM_DISK_STATUS_T *status) {
+//   status->ready = true;
+// }
+
+// static inline void wait_disk(void) {
+//   while ((inb(0x1f7) & 0xc0) != 0x40);
+// }
+
+// static void disk_blkio(AM_DISK_BLKIO_T *bio) {
+//   uint32_t blkno = bio->blkno, remain = bio->blkcnt;
+//   uint32_t *ptr = bio->buf;
+//   for (remain = bio->blkcnt; remain; remain--, blkno++) {
+//     wait_disk();
+//     outb(0x1f2, 1);
+//     outb(0x1f3, blkno);
+//     outb(0x1f4, blkno >> 8);
+//     outb(0x1f5, blkno >> 16);
+//     outb(0x1f6, (blkno >> 24) | 0xe0);
+//     outb(0x1f7, bio->write? 0x30 : 0x20);
+//     wait_disk();
+//     if (bio->write) {
+//       for (int i = 0; i < BLKSZ / 4; i ++)
+//         outl(0x1f0, *ptr++);
+//     } else {
+//       for (int i = 0; i < BLKSZ / 4; i ++)
+//         *ptr++ = inl(0x1f0);
+//     }
+//   }
+// }
+
 #define IDE_DATA        0x1F0
 #define IDE_ERROR       0x1F1
 #define IDE_SECTOR_CNT  0x1F2
@@ -284,17 +318,14 @@ static void gpu_render(AM_GPU_RENDER_T *ren) {
 
 // ATA 命令
 #define ATA_CMD_IDENTIFY 0xEC
-#define ATA_CMD_READ     0x20
-#define ATA_CMD_WRITE    0x30
 
-// 磁盘设备结构
-struct ide_device {
-  uint32_t blksz;      // 动态获取的扇区大小
-  uint64_t blkcnt;     // 动态获取的总扇区数
-  uint8_t  present;    // 设备是否存在
+// 磁盘配置结构（支持多磁盘）
+struct ide_disk {
+  uint32_t blksz;       // 动态获取的扇区大小
+  uint64_t blkcnt;      // 动态获取的总扇区数
+  uint8_t  present;     // 设备是否存在
 };
-
-static struct ide_device disk;
+static struct ide_disk disks[2]; // 主盘（0）和从盘（1）
 
 //--------------------------------------------------
 // 工具函数
@@ -303,58 +334,44 @@ static inline void wait_disk(void) {
   while ((inb(IDE_STATUS) & (IDE_STATUS_BUSY | IDE_STATUS_READY)) != IDE_STATUS_READY);
 }
 
-static void ide_delay() {
-  for (int i = 0; i < 4; i++) inb(IDE_STATUS);
-}
-
-//--------------------------------------------------
-// 发送 IDENTIFY 命令获取磁盘参数
-//--------------------------------------------------
-static int disk_identify() {
+static int ide_identify(uint8_t drive, struct ide_disk *disk) {
   uint16_t buf[256] = {0};
-  int retries = MAX_RETRIES;
+  int retries = 5;
 
-  // 重置磁盘状态
-  outb(IDE_CMD, 0x08); // ATA_CMD_IDENTIFY 前发送 DEVICE RESET（可选）
+  // 1. 选择驱动器（主盘 0xE0，从盘 0xF0）
+  outb(IDE_DRIVE_HEAD, 0xA0 | (drive << 4)); // LBA 模式
 
-  // 发送 IDENTIFY 命令
-  outb(IDE_DRIVE_HEAD, 0xE0); // LBA 模式 + 主盘
+  // 2. 发送 IDENTIFY 命令
   outb(IDE_CMD, ATA_CMD_IDENTIFY);
 
-  // 等待磁盘就绪（不再忙碌）
-  while ((inb(IDE_STATUS) & IDE_STATUS_BUSY) && retries-- > 0) 
-    ide_delay();
-
-  if (retries <= 0) {
-    disk.present = 0;
-    return -1; // 超时
+  // 3. 等待数据就绪
+  while (retries-- > 0) {
+    uint8_t status = inb(IDE_STATUS);
+    if (status & IDE_STATUS_ERR) return -1;
+    if (status & IDE_STATUS_DRQ) break;
+    if (status & IDE_STATUS_BUSY) continue;
   }
+  if (retries <= 0) return -1;
 
-  // 检查错误状态
-  if (inb(IDE_STATUS) & IDE_STATUS_ERR) {
-    disk.present = 0;
-    return -1; // 命令失败
-  }
-
-  // 读取 256 字（512 字节）
-  for (int i = 0; i < 256; i++) 
+  // 4. 读取 512 字节数据
+  for (int i = 0; i < 256; i++)
     buf[i] = inw(IDE_DATA);
 
-  // 解析逻辑扇区大小（字 106）
-  uint16_t lba_size_flags = buf[106];
-  if ((lba_size_flags & 0xC000) == 0x4000) { // 位 14-15 = 01
-    disk.blksz = 512 << ((lba_size_flags >> 12) & 0x03); // 位 12-13 是乘数
-  } else {
-    disk.blksz = 512; // 默认 512B
+  // 5. 解析参数
+  disk->present = 1;
+
+  // 5.1 总扇区数（优先 48 位 LBA）
+  if (buf[83] & 0x0400) { // 支持 48 位 LBA
+    disk->blkcnt = *(uint64_t*)(buf + 100);
+  } else {                // 28 位 LBA
+    disk->blkcnt = *(uint32_t*)(buf + 60);
   }
 
-  // 解析总扇区数（48 位 LBA 优先）
-  if (buf[83] & 0x0400) { // 支持 48 位 LBA (bit 10)
-    uint32_t lba_low  = (uint32_t)buf[100] | ((uint32_t)buf[101] << 16);
-    uint32_t lba_high = (uint32_t)buf[102] | ((uint32_t)buf[103] << 16);
-    disk.blkcnt = ((uint64_t)lba_high << 32) | lba_low;
-  } else { // 28 位 LBA
-    disk.blkcnt = (uint32_t)buf[60] | ((uint32_t)buf[61] << 16);
+  // 5.2 扇区大小（检查字 106）
+  if ((buf[106] & 0xF000) == 0x1000) { // 物理扇区大小有效
+    disk->blksz = 512 << (buf[106] & 0x0F);
+  } else {
+    disk->blksz = 512; // 默认 512B
   }
 
   return 0;
@@ -363,52 +380,57 @@ static int disk_identify() {
 //--------------------------------------------------
 // 接口函数
 //--------------------------------------------------
-static void disk_config(AM_DISK_CONFIG_T *cfg) {
-  if (disk_identify() != 0) {
-    disk.present = 0;
+static void disk_config(AM_DISK_CONFIG_T *cfg, uint8_t drive) {
+  if (drive >= 2) { // 仅支持主盘（0）和从盘（1）
     cfg->present = false;
     return;
   }
 
-  cfg->present = disk.present;
-  cfg->blksz   = disk.blksz;
-  cfg->blkcnt  = disk.blkcnt;
+  // 首次访问时初始化磁盘信息
+  if (!disks[drive].present && ide_identify(drive, &disks[drive]) != 0) {
+    disks[drive].present = 0;
+    cfg->present = false;
+    return;
+  }
+
+  cfg->present = disks[drive].present;
+  cfg->blksz   = disks[drive].blksz;
+  cfg->blkcnt  = disks[drive].blkcnt;
 }
 
 static void disk_status(AM_DISK_STATUS_T *status) {
   status->ready = (inb(IDE_STATUS) & IDE_STATUS_READY) ? true : false;
 }
 
-static void disk_blkio(AM_DISK_BLKIO_T *bio) {
-  if (!disk.present || bio->blkno + bio->blkcnt > disk.blkcnt) {
-    return; // 错误处理
-  }
+static void disk_blkio(AM_DISK_BLKIO_T *bio, uint8_t drive) {
+  if (drive >= 2 || !disks[drive].present) return;
 
-  uint32_t sectors = bio->blkcnt * (disk.blksz / 512); // 转换为 512B 单位
-  uint32_t lba = bio->blkno * (disk.blksz / 512);
+  // 选择驱动器
+  outb(IDE_DRIVE_HEAD, 0xA0 | (drive << 4));
+
+  uint32_t sectors = bio->blkcnt * (disks[drive].blksz / 512); // 转换为 512B 单位
+  uint32_t lba = bio->blkno * (disks[drive].blksz / 512);
 
   // 设置 LBA 地址
-  outb(IDE_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
+  outb(IDE_DRIVE_HEAD, 0xE0 | (drive << 4) | ((lba >> 24) & 0x0F));
   outb(IDE_SECTOR_CNT, sectors);
   outb(IDE_SECTOR_NUM, lba & 0xFF);
   outb(IDE_CYL_LOW, (lba >> 8) & 0xFF);
   outb(IDE_CYL_HIGH, (lba >> 16) & 0xFF);
 
   // 发送读/写命令
-  outb(IDE_CMD, bio->write ? ATA_CMD_WRITE : ATA_CMD_READ);
+  outb(IDE_CMD, bio->write ? 0x30 : 0x20);
 
   // 数据传输
   uint32_t *ptr = bio->buf;
   for (int s = 0; s < sectors; s++) {
     wait_disk();
     if (bio->write) {
-      for (int i = 0; i < disk.blksz / 4; i++) {
+      for (int i = 0; i < disks[drive].blksz / 4; i++)
         outl(IDE_DATA, *ptr++);
-      }
     } else {
-      for (int i = 0; i < disk.blksz / 4; i++) {
+      for (int i = 0; i < disks[drive].blksz / 4; i++)
         *ptr++ = inl(IDE_DATA);
-      }
     }
   }
 }

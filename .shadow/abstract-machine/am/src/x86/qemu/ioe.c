@@ -261,45 +261,152 @@ static void gpu_render(AM_GPU_RENDER_T *ren) {
 // Disk (ATA0)
 // ====================================================
 
-#define BLKSZ  512
-#define DISKSZ (64 << 20)
 
+#define SECTOR_SIZE_UNKNOWN 0
+#define MAX_RETRIES 5
+
+// IDE 端口定义
+#define IDE_DATA        0x1F0
+#define IDE_ERROR       0x1F1
+#define IDE_SECTOR_CNT  0x1F2
+#define IDE_SECTOR_NUM  0x1F3
+#define IDE_CYL_LOW     0x1F4
+#define IDE_CYL_HIGH    0x1F5
+#define IDE_DRIVE_HEAD  0x1F6
+#define IDE_STATUS      0x1F7
+#define IDE_CMD         0x1F7
+
+// IDE 状态位
+#define IDE_STATUS_ERR  (1 << 0)
+#define IDE_STATUS_DRQ  (1 << 3)
+#define IDE_STATUS_READY (1 << 6)
+#define IDE_STATUS_BUSY (1 << 7)
+
+// ATA 命令
+#define ATA_CMD_IDENTIFY 0xEC
+#define ATA_CMD_READ     0x20
+#define ATA_CMD_WRITE    0x30
+
+// 磁盘设备结构
+struct ide_device {
+  uint32_t blksz;      // 动态获取的扇区大小
+  uint64_t blkcnt;     // 动态获取的总扇区数
+  uint8_t  present;    // 设备是否存在
+};
+
+static struct ide_device disk;
+
+//--------------------------------------------------
+// 工具函数
+//--------------------------------------------------
+static inline void wait_disk(void) {
+  while ((inb(IDE_STATUS) & (IDE_STATUS_BUSY | IDE_STATUS_READY)) != IDE_STATUS_READY);
+}
+
+static void ide_delay() {
+  for (int i = 0; i < 4; i++) inb(IDE_STATUS);
+}
+
+//--------------------------------------------------
+// 发送 IDENTIFY 命令获取磁盘参数
+//--------------------------------------------------
+static int disk_identify() {
+  uint16_t buf[256] = {0};
+  int retries = MAX_RETRIES;
+
+  // 发送 IDENTIFY 命令
+  outb(IDE_DRIVE_HEAD, 0xE0); // LBA 模式 + 主盘
+  outb(IDE_SECTOR_CNT, 0);
+  outb(IDE_SECTOR_NUM, 0);
+  outb(IDE_CYL_LOW, 0);
+  outb(IDE_CYL_HIGH, 0);
+  outb(IDE_CMD, ATA_CMD_IDENTIFY);
+
+  // 等待数据就绪
+  while (retries-- > 0) {
+    uint8_t status = inb(IDE_STATUS);
+    if (status & IDE_STATUS_ERR) return -1;
+    if (status & IDE_STATUS_DRQ) break;
+    ide_delay();
+  }
+
+  // 读取 512 字节数据
+  for (int i = 0; i < 256; i++) {
+    buf[i] = inw(IDE_DATA);
+  }
+
+  // 解析参数
+  disk.present = 1;
+
+  // 1. 获取总扇区数（优先使用 48 位 LBA）
+  if (buf[83] & 0x0400) { // 支持 48 位 LBA
+    disk.blkcnt = *(uint64_t*)(buf + 100);
+  } else {                // 28 位 LBA
+    disk.blkcnt = *(uint32_t*)(buf + 60);
+  }
+
+  // 2. 获取扇区大小
+  if (buf[106] & 0x1000) { // 4K 物理扇区
+    disk.blksz = 4096;
+  } else {                 // 512B 扇区
+    disk.blksz = 512;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------
+// 接口函数
+//--------------------------------------------------
 static void disk_config(AM_DISK_CONFIG_T *cfg) {
-  cfg->present = true;
-  cfg->blksz   = BLKSZ;
-  cfg->blkcnt  = DISKSZ / BLKSZ;
+  if (disk_identify() != 0) {
+    disk.present = 0;
+    cfg->present = false;
+    return;
+  }
+
+  cfg->present = disk.present;
+  cfg->blksz   = disk.blksz;
+  cfg->blkcnt  = disk.blkcnt;
 }
 
 static void disk_status(AM_DISK_STATUS_T *status) {
-  status->ready = true;
-}
-
-static inline void wait_disk(void) {
-  while ((inb(0x1f7) & 0xc0) != 0x40);
+  status->ready = (inb(IDE_STATUS) & IDE_STATUS_READY) ? true : false;
 }
 
 static void disk_blkio(AM_DISK_BLKIO_T *bio) {
-  uint32_t blkno = bio->blkno, remain = bio->blkcnt;
+  if (!disk.present || bio->blkno + bio->blkcnt > disk.blkcnt) {
+    return; // 错误处理
+  }
+
+  uint32_t sectors = bio->blkcnt * (disk.blksz / 512); // 转换为 512B 单位
+  uint32_t lba = bio->blkno * (disk.blksz / 512);
+
+  // 设置 LBA 地址
+  outb(IDE_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
+  outb(IDE_SECTOR_CNT, sectors);
+  outb(IDE_SECTOR_NUM, lba & 0xFF);
+  outb(IDE_CYL_LOW, (lba >> 8) & 0xFF);
+  outb(IDE_CYL_HIGH, (lba >> 16) & 0xFF);
+
+  // 发送读/写命令
+  outb(IDE_CMD, bio->write ? ATA_CMD_WRITE : ATA_CMD_READ);
+
+  // 数据传输
   uint32_t *ptr = bio->buf;
-  for (remain = bio->blkcnt; remain; remain--, blkno++) {
-    wait_disk();
-    outb(0x1f2, 1);
-    outb(0x1f3, blkno);
-    outb(0x1f4, blkno >> 8);
-    outb(0x1f5, blkno >> 16);
-    outb(0x1f6, (blkno >> 24) | 0xe0);
-    outb(0x1f7, bio->write? 0x30 : 0x20);
+  for (int s = 0; s < sectors; s++) {
     wait_disk();
     if (bio->write) {
-      for (int i = 0; i < BLKSZ / 4; i ++)
-        outl(0x1f0, *ptr++);
+      for (int i = 0; i < disk.blksz / 4; i++) {
+        outl(IDE_DATA, *ptr++);
+      }
     } else {
-      for (int i = 0; i < BLKSZ / 4; i ++)
-        *ptr++ = inl(0x1f0);
+      for (int i = 0; i < disk.blksz / 4; i++) {
+        *ptr++ = inl(IDE_DATA);
+      }
     }
   }
 }
-
 // ====================================================
 
 static void audio_config(AM_AUDIO_CONFIG_T *cfg) { cfg->present = false; }

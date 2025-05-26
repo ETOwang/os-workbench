@@ -314,42 +314,47 @@ static int disk_identify() {
   uint16_t buf[256] = {0};
   int retries = MAX_RETRIES;
 
+  // 重置磁盘状态
+  outb(IDE_CMD, 0x08); // ATA_CMD_IDENTIFY 前发送 DEVICE RESET（可选）
+
   // 发送 IDENTIFY 命令
   outb(IDE_DRIVE_HEAD, 0xE0); // LBA 模式 + 主盘
-  outb(IDE_SECTOR_CNT, 0);
-  outb(IDE_SECTOR_NUM, 0);
-  outb(IDE_CYL_LOW, 0);
-  outb(IDE_CYL_HIGH, 0);
   outb(IDE_CMD, ATA_CMD_IDENTIFY);
 
-  // 等待数据就绪
-  while (retries-- > 0) {
-    uint8_t status = inb(IDE_STATUS);
-    if (status & IDE_STATUS_ERR) return -1;
-    if (status & IDE_STATUS_DRQ) break;
+  // 等待磁盘就绪（不再忙碌）
+  while ((inb(IDE_STATUS) & IDE_STATUS_BUSY) && retries-- > 0) 
     ide_delay();
+
+  if (retries <= 0) {
+    disk.present = 0;
+    return -1; // 超时
   }
 
-  // 读取 512 字节数据
-  for (int i = 0; i < 256; i++) {
+  // 检查错误状态
+  if (inb(IDE_STATUS) & IDE_STATUS_ERR) {
+    disk.present = 0;
+    return -1; // 命令失败
+  }
+
+  // 读取 256 字（512 字节）
+  for (int i = 0; i < 256; i++) 
     buf[i] = inw(IDE_DATA);
+
+  // 解析逻辑扇区大小（字 106）
+  uint16_t lba_size_flags = buf[106];
+  if ((lba_size_flags & 0xC000) == 0x4000) { // 位 14-15 = 01
+    disk.blksz = 512 << ((lba_size_flags >> 12) & 0x03); // 位 12-13 是乘数
+  } else {
+    disk.blksz = 512; // 默认 512B
   }
 
-  // 解析参数
-  disk.present = 1;
-
-  // 1. 获取总扇区数（优先使用 48 位 LBA）
-  if (buf[83] & 0x0400) { // 支持 48 位 LBA
-    disk.blkcnt = *(uint64_t*)(buf + 100);
-  } else {                // 28 位 LBA
-    disk.blkcnt = *(uint32_t*)(buf + 60);
-  }
-
-  // 2. 获取扇区大小
-  if (buf[106] & 0x1000) { // 4K 物理扇区
-    disk.blksz = 4096;
-  } else {                 // 512B 扇区
-    disk.blksz = 512;
+  // 解析总扇区数（48 位 LBA 优先）
+  if (buf[83] & 0x0400) { // 支持 48 位 LBA (bit 10)
+    uint32_t lba_low  = (uint32_t)buf[100] | ((uint32_t)buf[101] << 16);
+    uint32_t lba_high = (uint32_t)buf[102] | ((uint32_t)buf[103] << 16);
+    disk.blkcnt = ((uint64_t)lba_high << 32) | lba_low;
+  } else { // 28 位 LBA
+    disk.blkcnt = (uint32_t)buf[60] | ((uint32_t)buf[61] << 16);
   }
 
   return 0;

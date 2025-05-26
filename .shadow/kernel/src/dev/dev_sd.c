@@ -2,6 +2,7 @@
 #include <devices.h>
 
 static int sd_init(device_t *dev) {
+  printf("sd init....\n");
   sd_t *sd = dev->ptr;
   if (!io_read(AM_DISK_CONFIG).present) {
     dev->ptr = NULL;
@@ -9,6 +10,7 @@ static int sd_init(device_t *dev) {
     sd->blkcnt = io_read(AM_DISK_CONFIG).blkcnt;
     sd->blksz  = io_read(AM_DISK_CONFIG).blksz;
     sd->buf    = pmm->alloc(sd->blksz);
+    printf("sd init :blkcnt:%d\n",sd->blkcnt);
   }
   return 0;
 }

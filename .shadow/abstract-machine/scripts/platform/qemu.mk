@@ -5,7 +5,7 @@ LDFLAGS    += -N -Ttext-segment=0x00100000
 QEMU_FLAGS += -serial mon:stdio \
               -machine accel=tcg \
               -smp "cores=1,sockets=$(smp)" \
-			  -kernel $(IMAGE) \
+			  -kernel $(IMAGE).elf \
               #-drive format=raw,file=$(IMAGE) \
 			  #-drive format=raw,file=/media/wcy/Data/os-workbench/sdcard-rv.img
 

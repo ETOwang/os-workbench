@@ -1,6 +1,16 @@
 #include <x86/x86.h>
 #include "x86-qemu.h"
 
+// PVH ELF Note for QEMU -kernel support
+.section .note.Xen, "a", @note
+.align 4
+.long 4                     // namesz
+.long 4                     // descsz
+.long 18                    // type (XEN_ELFNOTE_PHYS32_ENTRY = 18)
+.asciz "Xen"               // name
+.align 4
+.long _start               // desc (entry point)
+
 .code32
 .globl _start
 _start:

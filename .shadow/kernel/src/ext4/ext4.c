@@ -386,11 +386,10 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 			break;
 		}
 	}
-    printf("ext4_mount: dev_name=%s, mount_point=%s, read_only=%d\n",
-		  dev_name, mount_point, read_only);
 	if (!bd)
 		return ENODEV;
-
+    printf("ext4_mount: dev_name=%s, mount_point=%s, read_only=%d\n",
+		  dev_name, mount_point, read_only);
 	for (size_t i = 0; i < CONFIG_EXT4_MOUNTPOINTS_COUNT; ++i) {
 		if (!s_mp[i].mounted) {
 			strcpy(s_mp[i].name, mount_point);

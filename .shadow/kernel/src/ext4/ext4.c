@@ -431,20 +431,21 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	r = ext4_block_init(bd);
 	if (r != EOK)
 		return r;
-	printf("ext4: Mounting %s on %s\n", dev_name, mount_point);
+	
 	r = ext4_fs_init(&mp->fs, bd, read_only);
+	printf("ext4: Mounting %s on %s\n", dev_name, mount_point);
 	if (r != EOK)
 	{
 		ext4_block_fini(bd);
 		return r;
 	}
-
+    printf("ext4: Mounting %s on %s\n", dev_name, mount_point);
 	bsize = ext4_sb_get_block_size(&mp->fs.sb);
 	ext4_block_set_lb_size(bd, bsize);
 	bc = &mp->bc;
 
 	r = ext4_bcache_init_dynamic(bc, CONFIG_BLOCK_DEV_CACHE_SIZE, bsize);
-	printf("ext4: Mounting %s on %s\n", dev_name, mount_point);
+	
 	if (r != EOK)
 	{
 		ext4_block_fini(bd);

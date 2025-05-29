@@ -9,7 +9,7 @@ AM_SRCS := x86/qemu/start64.S \
            x86/qemu/vme.c \
            x86/qemu/mpe.c
 
-kernel:$(IMAGE).elf
+test:build-arg
     @qemu-system-x86_64 $(QEMU_KERNEL_FLAGS)
 
 

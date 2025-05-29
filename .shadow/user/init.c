@@ -19,7 +19,6 @@ int main()
     else
     {
       int status;
-      wait(&status);
       if (status == 0)
       {
         putstr("Hello World from child process\n", 31);
@@ -36,7 +35,6 @@ int main()
     else
     {
       int status;
-      wait(&status);
       if (status == 0)
       {
         putstr("Hello World from child process\n", 31);

@@ -83,18 +83,18 @@ static Context *kmt_syscall(Event ev, Context *ctx)
     case SYS_exit:
         ctx->GPRx = uproc->exit(get_current_task(), ctx->GPR1);
         break;
-    case SYS_uptime:
-        ctx->GPRx = uproc->uptime(get_current_task());
-        break;
+    // case SYS_uptime:
+    //     ctx->GPRx = uproc->uptime(get_current_task());
+    //     break;
     case SYS_sleep:
         ctx->GPRx = uproc->sleep(get_current_task(), ctx->GPR1);
         break;
     case SYS_fork:
         ctx->GPRx = uproc->fork(get_current_task());
         break;
-    case SYS_wait:
-        ctx->GPRx = uproc->wait(get_current_task(), (int *)ctx->GPR1);
-        break;
+    // case SYS_wait:
+    //     ctx->GPRx = uproc->wait(get_current_task(), (int *)ctx->GPR1);
+    //     break;
     default:
         panic("Unknown syscall number");
         break;

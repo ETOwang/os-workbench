@@ -23,9 +23,6 @@ static inline int fork() {
   return syscall(SYS_fork, 0, 0, 0, 0);
 }
 
-static inline int wait(int *status) {
-  return syscall(SYS_wait, (uint64_t)status, 0, 0, 0);
-}
 
 static inline int exit(int status) {
   return syscall(SYS_exit, status, 0, 0, 0);
@@ -45,8 +42,4 @@ static inline int getpid() {
 
 static inline int sleep(int seconds) {
   return syscall(SYS_sleep, seconds, 0, 0, 0);
-}
-
-static inline int64_t uptime() {
-  return syscall(SYS_uptime, 0, 0, 0, 0);
 }

@@ -6,14 +6,8 @@ QEMU_FLAGS += -serial mon:stdio \
               -machine accel=tcg \
               -smp "cores=1,sockets=$(smp)" \
               -drive format=raw,file=$(IMAGE) \
+              -drive format=raw,file=/media/wcy/Data/lwext4/sdcard-rv.img 
 
-# QEMU flags for -kernel boot (direct ELF loading)
-QEMU_KERNEL_FLAGS += -serial mon:stdio \
-                     -machine accel=tcg \
-                     -smp "cores=1,sockets=$(smp)" \
-                     -kernel $(IMAGE).elf \
-                     -drive format=raw,file=/media/wcy/Data/lwext4/sdcard-rv.img \
-                     -nographic
 build-arg: image
 	@( echo -n $(mainargs); ) | dd if=/dev/stdin of=$(IMAGE) bs=512 count=2 seek=1 conv=notrunc status=none
 

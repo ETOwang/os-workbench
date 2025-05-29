@@ -18,11 +18,8 @@ int main()
     }
     else
     {
-      int status;
-      if (status == 0)
-      {
+    
         putstr("Hello World from child process\n", 31);
-      }
     }
   }
   else
@@ -34,11 +31,7 @@ int main()
     }
     else
     {
-      int status;
-      if (status == 0)
-      {
         putstr("Hello World from child process\n", 31);
-      }
     }
   }
   return 0;

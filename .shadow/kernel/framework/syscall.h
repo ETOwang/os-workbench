@@ -1,8 +1,8 @@
-#define SYS_kputc   1
-#define SYS_fork    2
-#define SYS_kill    7
-#define SYS_sleep  14
-#define SYS_open   16
+#define SYS_kputc 1
+#define SYS_fork 2
+#define SYS_kill 7
+#define SYS_sleep 14
+#define SYS_open 16
 #define SYS_getcwd 17
 #define SYS_pipe2 59
 #define SYS_dup 23
@@ -34,4 +34,7 @@
 #define SYS_gettimeofday 169
 #define SYS_nanosleep 101
 
+#ifndef __ASSEMBLER__
 #include <sys/time.h>
+#include <stdio.h>
+#endif

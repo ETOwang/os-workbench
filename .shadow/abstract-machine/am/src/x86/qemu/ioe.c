@@ -262,7 +262,7 @@ static void gpu_render(AM_GPU_RENDER_T *ren) {
 // ====================================================
 
 #define BLKSZ  512
-#define DISKSZ (64 << 20)
+#define DISKSZ (4*1024*1024*1024ll)
 
 static void disk_config(AM_DISK_CONFIG_T *cfg) {
   cfg->present = true;

@@ -9,7 +9,37 @@ void *calloc(size_t nmemb, size_t size)
     memset(ptr, 0, total);
     return ptr;
 }
-
+void* ext4_user_malloc(size_t size)
+{
+    void *ptr = pmm->alloc(size);
+    panic_on(ptr == NULL, "Failed to allocate memory in ext4_user_malloc");
+    return ptr;
+}
+void* ext4_user_calloc(size_t nmemb, size_t size)
+{
+    size_t total = nmemb * size;
+    void *ptr = pmm->alloc(total);
+    panic_on(ptr == NULL, "Failed to allocate memory in ext4_user_calloc");
+    memset(ptr, 0, total);
+    return ptr;
+}
+void* ext4_user_realloc(void *ptr, size_t size)
+{
+    if (ptr == NULL) {
+        return ext4_user_malloc(size);
+    }
+    void *new_ptr = pmm->alloc(size);
+    panic_on(new_ptr == NULL, "Failed to allocate memory in ext4_user_realloc");
+    memcpy(new_ptr, ptr, size);
+    pmm->free(ptr);
+    return new_ptr;
+}
+void ext4_user_free(void *ptr)
+{
+    if (ptr) {
+        pmm->free(ptr);
+    }
+}
 // 实现qsort函数
 static void swap(void *a, void *b, size_t size)
 {

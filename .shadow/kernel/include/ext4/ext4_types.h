@@ -823,6 +823,11 @@ struct jbd_sb {
 
 #if CONFIG_USE_USER_MALLOC
 
+extern void *ext4_user_malloc(size_t size);
+extern void *ext4_user_calloc(size_t nmemb, size_t size);
+extern void *ext4_user_realloc(void *ptr, size_t size);
+extern void ext4_user_free(void *ptr);
+
 #define ext4_malloc  ext4_user_malloc
 #define ext4_calloc  ext4_user_calloc
 #define ext4_realloc ext4_user_realloc

@@ -168,7 +168,7 @@ extern "C"
 /**@brief Switches use of malloc/free functions family
  *        from standard library to user provided*/
 #ifndef CONFIG_USE_USER_MALLOC
-#define CONFIG_USE_USER_MALLOC 0
+#define CONFIG_USE_USER_MALLOC 1
 #endif
 
 #ifdef __cplusplus

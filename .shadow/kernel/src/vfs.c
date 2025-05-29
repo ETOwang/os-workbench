@@ -75,7 +75,7 @@ void vfs_init(void)
 	vfs->mount("disk", "/", "ext4", 0, NULL);
 	vfs->opendir("/glibc");
 	int fd=vfs->open("/glibc/busybox_testcode.sh", VFS_O_RDONLY);
-	char* buf = malloc(1024);
+	char* buf = pmm->alloc(1024);
 	vfs->read(fd, buf, 1024);
 	printf("Read from /glibc/busybox_testcode.sh: %s\n", buf);
 }

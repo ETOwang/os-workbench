@@ -431,6 +431,7 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	r = ext4_block_init(bd);
 	if (r != EOK)
 		return r;
+	printf("ext4: Mounting %s on %s\n", dev_name, mount_point);
 	r = ext4_fs_init(&mp->fs, bd, read_only);
 	if (r != EOK)
 	{
@@ -449,7 +450,7 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 		ext4_block_fini(bd);
 		return r;
 	}
-	printf("ext4: Mounting %s on %s\n", dev_name, mount_point);
+	
 	if (bsize != bc->itemsize)
 		return ENOTSUP;
 

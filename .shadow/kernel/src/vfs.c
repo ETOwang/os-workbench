@@ -68,9 +68,8 @@ void vfs_init(void)
 	bi.ph_refctr=1;
     bi.p_user = sda;
 	bi.ph_bcnt = ((sd_t*)sda->ptr)->blkcnt/ bi.ph_bsize* ((sd_t*)sda->ptr)->blksz;
-	printf("phbcnt:%d\n",bi.ph_bcnt);
 	bd.bdif = &bi;
-	bd.part_size=bd.bdif->ph_bcnt*bd.bdif->ph_bsize;
+	bd.part_size=bd.bdif->ph_bcnt*(uint64_t)bd.bdif->ph_bsize;
 	printf("bdpartsize:%d\n",bd.part_size);
 	vfs->mount("disk", "/", "ext4", 0, NULL);
 	printf("VFS initialized with ext4 filesystem on disk\n");

@@ -33,7 +33,7 @@
  * @file  ext4_blockdev.c
  * @brief Block device module.
  */
-
+#include<common.h>
 #include <ext4_config.h>
 #include <ext4_types.h>
 #include <ext4_misc.h>
@@ -387,10 +387,10 @@ int ext4_block_readbytes(struct ext4_blockdev *bdev, uint64_t off, void *buf,
 	uint8_t *p = (void *)buf;
 
 	ext4_assert(bdev && buf);
-
+ 
 	if (!bdev->bdif->ph_refctr)
 		return EIO;
-
+    printf("readbytes\n");
 	if (off + len > bdev->part_size)
 		return EINVAL; /*Ups. Out of range operation*/
 

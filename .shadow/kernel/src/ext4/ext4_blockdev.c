@@ -389,7 +389,7 @@ int ext4_block_readbytes(struct ext4_blockdev *bdev, uint64_t off, void *buf,
 	ext4_assert(bdev && buf);
 	if (!bdev->bdif->ph_refctr)
 		return EIO;
-	printf("off:%d,len:%d ,partsize:%d",off,len,bdev->part_size);
+	printf("off:%d,len:%d ,partsize:%p",off,len,bdev->part_size);
 	if (off + len > bdev->part_size)
 		return EINVAL; /*Ups. Out of range operation*/
 	printf("readbytes\n");

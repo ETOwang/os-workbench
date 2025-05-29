@@ -387,7 +387,7 @@ int ext4_block_readbytes(struct ext4_blockdev *bdev, uint64_t off, void *buf,
 	uint8_t *p = (void *)buf;
 
 	ext4_assert(bdev && buf);
- 
+    printf("readbytes\n");
 	if (!bdev->bdif->ph_refctr)
 		return EIO;
 	if (off + len > bdev->part_size)

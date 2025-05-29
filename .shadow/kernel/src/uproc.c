@@ -221,10 +221,16 @@ static int uproc_sleep(task_t *task, int seconds)
     return 0;
 }
 
-static int64_t uproc_uptime(task_t *task)
+static int64_t uproc_uptime(task_t *task,struct timeval *tv)
 {
-    AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
-    return uptime.us / 1000;
+    // If tv is not NULL, fill it with the current uptime
+    if (tv != NULL) {
+        AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
+        tv->tv_sec = uptime.us / 1000000;
+        tv->tv_usec = uptime.us / 1000;
+        return 0;
+    }
+    return -1;
 }
 
 // Define the uproc module structure with pointers to implemented functions

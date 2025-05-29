@@ -1,5 +1,5 @@
 #include <am.h>
-
+#include <syscall.h>
 #define MODULE(mod) \
   typedef struct mod_##mod##_t mod_##mod##_t; \
   extern mod_##mod##_t *mod; \
@@ -55,7 +55,7 @@ MODULE(uproc) {
   void *(*mmap)(task_t *task, void *addr, int length, int prot, int flags);
   int (*getpid)(task_t *task);
   int (*sleep)(task_t *task, int seconds);
-  int64_t (*uptime)(task_t *task);
+  int64_t (*uptime)(task_t *task, struct timeval *tv);
 };
 
 typedef struct vfs_file vfs_file_t;

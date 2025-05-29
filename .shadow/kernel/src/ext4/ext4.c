@@ -432,7 +432,7 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	if (r != EOK)
 		return r;
 
-	printf("fs dev:%p\n",mp->fs.bdev);
+	printf("bd:%p\n",bd);
 	r = ext4_fs_init(&mp->fs, bd, read_only);
 	if (r != EOK)
 	{

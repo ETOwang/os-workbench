@@ -287,7 +287,8 @@ static void disk_blkio(AM_DISK_BLKIO_T *bio) {
     outb(0x1f3, blkno);
     outb(0x1f4, blkno >> 8);
     outb(0x1f5, blkno >> 16);
-    outb(0x1f6, (blkno >> 24) | 0xe0);
+    // slave disk for ide0
+    outb(0x1f6, (blkno >> 24) | 0xf0);
     outb(0x1f7, bio->write? 0x30 : 0x20);
     wait_disk();
     if (bio->write) {

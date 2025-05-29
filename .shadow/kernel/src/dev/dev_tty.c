@@ -223,7 +223,7 @@ static int tty_init(device_t *ttydev) {
   return 0;
 }
 
-static int tty_read(device_t *dev, int offset, void *buf, int count) {
+static int tty_read(device_t *dev, size_t offset, void *buf, int count) {
   tty_t *tty = dev->ptr;
   kmt->sem_wait(&tty->cooked);
   kmt->sem_wait(&tty->lock);
@@ -244,7 +244,7 @@ static int tty_read(device_t *dev, int offset, void *buf, int count) {
   return nread;
 }
 
-static int tty_write(device_t *dev, int offset, const void *buf, int count) {
+static int tty_write(device_t *dev, size_t offset, const void *buf, int count) {
   tty_t *tty = dev->ptr;
   kmt->sem_wait(&tty->lock);
   for (int i = 0; i < count; i++) {

@@ -104,7 +104,7 @@ static int input_init(device_t *dev) {
   return 0;
 }
 
-static int input_read(device_t *dev, int offset, void *buf, int count) {
+static int input_read(device_t *dev, size_t offset, void *buf, int count) {
   struct input_event ev = pop_event(dev->ptr);
   if (count >= sizeof(ev)) {
     memcpy(buf, &ev, sizeof(ev));
@@ -114,7 +114,7 @@ static int input_read(device_t *dev, int offset, void *buf, int count) {
   }
 }
 
-static int input_write(device_t *dev, int offset, const void *buf, int count) {
+static int input_write(device_t *dev, size_t offset, const void *buf, int count) {
   return 0;
 }
 

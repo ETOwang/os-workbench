@@ -443,6 +443,7 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	bc = &mp->bc;
 
 	r = ext4_bcache_init_dynamic(bc, CONFIG_BLOCK_DEV_CACHE_SIZE, bsize);
+	printf("ext4: Mounting %s on %s\n", dev_name, mount_point);
 	if (r != EOK)
 	{
 		ext4_block_fini(bd);

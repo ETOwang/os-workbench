@@ -11,6 +11,7 @@
 .align 4
 .long _start               // desc (entry point)
 
+.text
 .code32
 .globl _start
 _start:

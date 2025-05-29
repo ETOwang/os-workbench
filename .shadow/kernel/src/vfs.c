@@ -67,8 +67,7 @@ void vfs_init(void)
 	bi.ph_bbuf = block_buffer;
 	bi.ph_refctr=1;
     bi.p_user = sda;
-	printf("sda->ptr:%p,sda->size:%d\n", sda->ptr,  ((sd_t*)sda->ptr)->blkcnt* ((sd_t*)sda->ptr)->blksz);
-	bi.ph_bcnt = ((sd_t*)sda->ptr)->blkcnt* ((sd_t*)sda->ptr)->blksz / bi.ph_bsize;
+	bi.ph_bcnt = ((sd_t*)sda->ptr)->blkcnt/ bi.ph_bsize* ((sd_t*)sda->ptr)->blksz;
 	printf("phbcnt:%d\n",bi.ph_bcnt);
 	bd.bdif = &bi;
 	bd.part_size=bd.bdif->ph_bcnt*bd.bdif->ph_bsize;

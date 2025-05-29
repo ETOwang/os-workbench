@@ -9,9 +9,9 @@ AM_SRCS := x86/qemu/start64.S \
            x86/qemu/vme.c \
            x86/qemu/mpe.c
 
-test:build-arg
-    @qemu-system-x86_64 $(QEMU_KERNEL_FLAGS)
-
 
 run:build-arg
 	@qemu-system-x86_64 $(QEMU_FLAGS)
+
+test:build-arg
+	@qemu-system-x86_64 $(QEMU_KERNEL_FLAGS)

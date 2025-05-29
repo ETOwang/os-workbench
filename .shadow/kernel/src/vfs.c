@@ -73,8 +73,8 @@ void vfs_init(void)
 	bd.bdif = &bi;
 	bd.part_size=bd.bdif->ph_bcnt*(uint64_t)bd.bdif->ph_bsize;
 	vfs->mount("disk", "/", "ext4", 0, NULL);
-	int fd=vfs->opendir("/glibc");
-	panic_on(fd < 0, "Failed to open directory /glibc");
+	vfs->opendir("/glibc");
+	vfs->open("/glibc/busybox_testcode.sh", VFS_O_RDONLY);
 }
 
 // 挂载文件系统

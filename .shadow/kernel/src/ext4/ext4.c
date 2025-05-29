@@ -388,8 +388,6 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	}
 	if (!bd)
 		return ENODEV;
-    printf("ext4_mount: dev_name=%s, mount_point=%s, read_only=%d\n",
-		  dev_name, mount_point, read_only);
 	for (size_t i = 0; i < CONFIG_EXT4_MOUNTPOINTS_COUNT; ++i) {
 		if (!s_mp[i].mounted) {
 			strcpy(s_mp[i].name, mount_point);
@@ -403,7 +401,7 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 
 	if (!mp)
 		return ENOMEM;
-
+    printf("Mounting %s on %s\n", dev_name, mount_point);
 	r = ext4_block_init(bd);
 	if (r != EOK)
 		return r;

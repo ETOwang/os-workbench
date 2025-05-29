@@ -23,7 +23,8 @@ static int blockdev_bread(struct ext4_blockdev *bdev, void *buf,
 	size_t offset = blk_id * bdev->bdif->ph_bsize;
 	int count =blk_cnt*bdev->bdif->ph_bsize;
 	device_t* dev=(device_t*)bdev->bdif->p_user;
-	return dev->ops->read(dev,offset,buf,count);
+	dev->ops->read(dev,offset,buf,count);
+	return EOK;
 }
 
 static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
@@ -33,7 +34,8 @@ static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
 	size_t offset = blk_id * bdev->bdif->ph_bsize;
 	int count = blk_cnt * bdev->bdif->ph_bsize;
 	device_t* dev=(device_t*)bdev->bdif->p_user;
-	return 	dev->ops->write(dev, offset, buf, count);
+	dev->ops->write(dev, offset, buf, count);
+	return EOK;	
 }
 
 static int blockdev_lock(struct ext4_blockdev *bdev) { return EOK; }

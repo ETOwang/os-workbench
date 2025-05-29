@@ -392,7 +392,7 @@ int ext4_block_readbytes(struct ext4_blockdev *bdev, uint64_t off, void *buf,
 		return EIO;
 	if (off + len > bdev->part_size)
 		return EINVAL; /*Ups. Out of range operation*/
-
+	printf("readbytes\n");
 	block_idx = ((off + bdev->part_offset) / bdev->bdif->ph_bsize);
 
 	/*OK lets deal with the first possible unaligned block*/

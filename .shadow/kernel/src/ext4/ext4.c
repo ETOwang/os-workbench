@@ -33,8 +33,6 @@
  * @file  ext4.h
  * @brief Ext4 high level operations (file, directory, mountpoints...)
  */
-
-#include <common.h>
 #include <ext4_config.h>
 #include <ext4_types.h>
 #include <ext4_misc.h>
@@ -434,8 +432,6 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	r = ext4_fs_init(&mp->fs, bd, read_only);
 	if (r != EOK)
 	{
-		printf("ext4: Failed to initialize filesystem on %s\n",
-			   dev_name);
 		ext4_block_fini(bd);
 		return r;
 	}

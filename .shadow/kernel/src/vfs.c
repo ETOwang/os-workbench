@@ -73,7 +73,8 @@ void vfs_init(void)
 	bd.bdif = &bi;
 	bd.part_size=bd.bdif->ph_bcnt*(uint64_t)bd.bdif->ph_bsize;
 	vfs->mount("disk", "/", "ext4", 0, NULL);
-	printf("VFS initialized with ext4 filesystem on disk\n");
+	int fd=vfs->opendir("/glibc");
+	panic_on(fd < 0, "Failed to open directory /glibc");
 }
 
 // 挂载文件系统

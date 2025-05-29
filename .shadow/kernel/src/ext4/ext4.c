@@ -426,6 +426,7 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	/*Bind block cache to block device*/
 	r = ext4_block_bind_bcache(bd, bc);
 	if (r != EOK) {
+		printf("ext4: Failed to bind block cache to block device\n");
 		ext4_bcache_cleanup(bc);
 		ext4_block_fini(bd);
 		ext4_bcache_fini_dynamic(bc);

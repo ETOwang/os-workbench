@@ -34,6 +34,7 @@
  * @brief Ext4 high level operations (file, directory, mountpoints...)
  */
 
+#include <common.h>
 #include <ext4_config.h>
 #include <ext4_types.h>
 #include <ext4_misc.h>
@@ -385,7 +386,8 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 			break;
 		}
 	}
-
+    printf("ext4_mount: dev_name=%s, mount_point=%s, read_only=%d\n",
+		  dev_name, mount_point, read_only);
 	if (!bd)
 		return ENODEV;
 
@@ -422,7 +424,6 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 		ext4_block_fini(bd);
 		return r;
 	}
-
 	if (bsize != bc->itemsize)
 		return ENOTSUP;
 

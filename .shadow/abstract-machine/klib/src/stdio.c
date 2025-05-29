@@ -25,7 +25,7 @@ static inline void print_lock_release()
 int printf(const char *fmt, ...)
 {
   //stackoverflow!
-  char buf[256];
+  char buf[2560];
   va_list ap;
 
   va_start(ap, fmt);

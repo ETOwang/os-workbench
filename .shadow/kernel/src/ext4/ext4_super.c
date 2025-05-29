@@ -39,6 +39,7 @@
  * @brief Superblock operations.
  */
 
+#include <common.h>
 #include <ext4_config.h>
 #include <ext4_types.h>
 #include <ext4_misc.h>
@@ -47,7 +48,6 @@
 
 #include <ext4_super.h>
 #include <ext4_crc32.h>
-
 uint32_t ext4_block_group_cnt(struct ext4_sblock *s)
 {
 	uint64_t blocks_count = ext4_sb_get_blocks_cnt(s);
@@ -124,8 +124,13 @@ int ext4_sb_write(struct ext4_blockdev *bdev, struct ext4_sblock *s)
 
 int ext4_sb_read(struct ext4_blockdev *bdev, struct ext4_sblock *s)
 {
-	return ext4_block_readbytes(bdev, EXT4_SUPERBLOCK_OFFSET, s,
+
+	ext4_block_readbytes(bdev, EXT4_SUPERBLOCK_OFFSET, s,
 				    EXT4_SUPERBLOCK_SIZE);
+	printf("s.magic: %p\n", s->magic);
+	printf("s.mmp_block: %u\n", s->mmp_block);
+	printf("s.algorithm_usage_bitmap: %u\n", s->algorithm_usage_bitmap);
+	return 0;
 }
 
 bool ext4_sb_check(struct ext4_sblock *s)

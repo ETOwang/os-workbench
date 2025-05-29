@@ -432,7 +432,7 @@ int ext4_block_readbytes(struct ext4_blockdev *bdev, uint64_t off, void *buf,
 
 		memcpy(p, bdev->bdif->ph_bbuf, len);
 	}
-
+     
 	return r;
 }
 

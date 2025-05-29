@@ -37,7 +37,7 @@
  * @file  ext4_fs.c
  * @brief More complex filesystem functions.
  */
-
+#include <common.h>
 #include <ext4_config.h>
 #include <ext4_types.h>
 #include <ext4_misc.h>
@@ -75,8 +75,10 @@ int ext4_fs_init(struct ext4_fs *fs, struct ext4_blockdev *bdev,
 	if (r != EOK)
 		return r;
 
-	if (!ext4_sb_check(&fs->sb))
+	if (!ext4_sb_check(&fs->sb)){
+		printf("ext4: Invalid superblock \n");
 		return ENOTSUP;
+	}
 
 	bsize = ext4_sb_get_block_size(&fs->sb);
 	if (bsize > EXT4_MAX_BLOCK_SIZE)

@@ -33,7 +33,6 @@
  * @file  ext4_blockdev.c
  * @brief Block device module.
  */
-#include<common.h>
 #include <ext4_config.h>
 #include <ext4_types.h>
 #include <ext4_misc.h>
@@ -404,7 +403,6 @@ int ext4_block_readbytes(struct ext4_blockdev *bdev, uint64_t off, void *buf,
 		r = ext4_bdif_bread(bdev, bdev->bdif->ph_bbuf, block_idx, 1);
 		if (r != EOK)
 			return r;
-        printf("unalg=%d, rlen=%d, len=%d\n", unalg, rlen, len);
 		memcpy(p, bdev->bdif->ph_bbuf + unalg, rlen);
 
 		p += rlen;

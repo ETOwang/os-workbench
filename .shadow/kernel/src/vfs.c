@@ -65,6 +65,7 @@ void vfs_init(void)
 	bi.unlock = blockdev_unlock;
 	bi.ph_bsize = 4096;
 	bi.ph_bbuf = block_buffer;
+	bi.ph_refctr=1;
     bi.p_user = sda;
 	bi.ph_bcnt = ((sd_t*)sda->ptr)->blkcnt* ((sd_t*)sda->ptr)->blksz / bi.ph_bsize;
 	bd.bdif = &bi;

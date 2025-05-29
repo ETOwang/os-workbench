@@ -431,8 +431,6 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 	r = ext4_block_init(bd);
 	if (r != EOK)
 		return r;
-
-	printf("bd:%p\n",bd);
 	r = ext4_fs_init(&mp->fs, bd, read_only);
 	if (r != EOK)
 	{

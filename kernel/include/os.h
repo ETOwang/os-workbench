@@ -41,6 +41,7 @@ struct procinfo
     int xstate;       
     task_t* parent;
     AddrSpace as;
+    char* cwd;
 };
 struct handler_record
 {

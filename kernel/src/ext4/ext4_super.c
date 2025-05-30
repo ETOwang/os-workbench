@@ -47,7 +47,6 @@
 
 #include <ext4_super.h>
 #include <ext4_crc32.h>
-
 uint32_t ext4_block_group_cnt(struct ext4_sblock *s)
 {
 	uint64_t blocks_count = ext4_sb_get_blocks_cnt(s);
@@ -124,8 +123,10 @@ int ext4_sb_write(struct ext4_blockdev *bdev, struct ext4_sblock *s)
 
 int ext4_sb_read(struct ext4_blockdev *bdev, struct ext4_sblock *s)
 {
+
 	return ext4_block_readbytes(bdev, EXT4_SUPERBLOCK_OFFSET, s,
 				    EXT4_SUPERBLOCK_SIZE);
+
 }
 
 bool ext4_sb_check(struct ext4_sblock *s)

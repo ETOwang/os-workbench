@@ -8,6 +8,7 @@ static void os_init()
     kmt->init();
     dev->init();
     uproc->init();
+    vfs->init();
 }
 static void os_run()
 {

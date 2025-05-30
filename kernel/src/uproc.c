@@ -8,7 +8,7 @@
 static spinlock_t uproc_lock;
 static int next_pid = 1;
 extern void kmt_add_task(task_t *task);
-extern task_t* kmt_get_son();
+extern task_t *kmt_get_son();
 static int uproc_alloc_pid()
 {
     kmt->spin_lock(&uproc_lock);
@@ -23,6 +23,8 @@ static void user_init()
     task->pi = pmm->alloc(sizeof(procinfo_t));
     task->pi->parent = NULL;
     task->pi->pid = uproc_alloc_pid();
+    task->pi->cwd = pmm->alloc(PATH_MAX);
+    strcpy(task->pi->cwd, "/");
     panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
     protect(&task->pi->as);
     char *mem = pmm->alloc(task->pi->as.pgsize);
@@ -54,7 +56,7 @@ static int uproc_exit(task_t *task, int status)
     panic_on(task == NULL, "Task is NULL");
     panic_on(task->pi == NULL, "Task procinfo is NULL");
     task->pi->xstate = status;
-    task->status= TASK_ZOMBIE;
+    task->status = TASK_ZOMBIE;
     return 0;
 }
 
@@ -105,6 +107,7 @@ static int uproc_fork(task_t *task)
     son->status = TASK_READY;
     son->pi = pmm->alloc(sizeof(procinfo_t));
     son->pi->parent = task;
+    strcpy(son->pi->cwd, task->pi->cwd);
     protect(&son->pi->as);
     uvmcopy(&task->pi->as, &son->pi->as, UVMEND - UVSTART);
     son->pi->pid = pid;
@@ -117,97 +120,63 @@ static int uproc_fork(task_t *task)
     return pid;
 }
 
-static int uproc_wait(task_t *task, int *status)
+static int uproc_wait(task_t *task, int pid, int *status, int options)
 {
-    if(kmt_get_son()==NULL){
-        return -1;
-    }
+    panic_on(task == NULL, "Task is NULL");
+    panic_on(task->pi == NULL, "Task procinfo is NULL");
+    bool found = false;
     while (1)
     {
-     
-        task_t* son = kmt_get_son();
-        if (son == NULL)
+        task_t *son = kmt_get_son();
+        while (son != NULL)
         {
+            kmt->spin_lock(&son->lock);
+            bool match_pid = pid == -1 || son->pi->pid == pid;
+            bool is_zombie = (son->status == TASK_ZOMBIE);
+            if (match_pid)
+            {
+                if (is_zombie)
+                {
+                    if (status != NULL)
+                    {
+                        *status = son->pi->xstate;
+                    }
+                    int ret_pid = son->pi->pid;
+                    son->pi->parent = NULL;
+                    son->status = TASK_DEAD;
+                    kmt->spin_unlock(&son->lock);
+                    return ret_pid;
+                }
+                found = true;
+            }
+            kmt->spin_unlock(&son->lock);
+            son = son->next;
+        }
+        if (options & WNOHANG)
+        {
+            if (!found)
+                return -1; // 没有子进程
             return 0;
         }
-        kmt->spin_lock(&son->lock);
-        if (son->status == TASK_ZOMBIE)
-        {
-            if (status != NULL)
-            {
-                *status = son->pi->xstate;
-            }
-            son->pi->parent=NULL;
-            son->status=TASK_DEAD;
-        }
-        kmt->spin_unlock(&son->lock);
+        // TODO:
+        // yield();
     }
-    return 0;
 }
-
-// static int uproc_kill(task_t *task, int pid)
-// {
-//     TRACE_ENTRY;
-//     // `task` is the initiator. Can be NULL if called from a non-process context (e.g. kernel utility).
-//     const char *initiator_name = task ? task->name : "SYSTEM";
-//     printf("uproc_if_kill: %s wants to kill PID %d.\n", initiator_name, pid_to_kill);
-
-//     user_process_t *target_proc = uproc_get_proc_by_pid(pid_to_kill);
-//     if (!target_proc)
-//     {
-//         printf("uproc_if_kill: PID %d not found.\n", pid_to_kill);
-//         TRACE_EXIT;
-//         return -1; // Target PID not found
-//     }
-
-//     kmt_spin_lock(&uproc_lock);
-//     if (target_proc->state == UPROC_STATE_FREE || target_proc->state == UPROC_STATE_ZOMBIE)
-//     {
-//         kmt_spin_unlock(&uproc_lock);
-//         printf("uproc_if_kill: PID %d is already free or zombie.\n", pid_to_kill);
-//         TRACE_EXIT;
-//         return 0; // Or -1 if killing an already terminated process is an error
-//     }
-
-//     printf("uproc_if_kill: Marking process %s (PID %d) as ZOMBIE due to kill signal.\n",
-//            target_proc->name, pid_to_kill);
-//     target_proc->state = UPROC_STATE_ZOMBIE;
-//     // target_proc->exit_status = -SIGKILL; // Define appropriate signal numbers
-
-//     // TODO: For a real kill, the target_proc->task must be made to stop executing and exit.
-//     // This is complex. Options:
-//     // 1. Set a flag in target_proc->task; task checks it and calls exit (cooperative).
-//     // 2. If task is blocked (e.g., sem_wait), unblock it with an error status that leads to exit.
-//     // 3. Advanced: Manipulate task context to force jump to an exit routine.
-//     // For now, just marking ZOMBIE. Task might continue until it hits a syscall or yields.
-//     if (target_proc->task)
-//     {
-//         printf("  Target task: %s. Actual task termination for kill is not fully implemented.\n", target_proc->task->name);
-//         // Example: if task_t had a `pending_signal` field:
-//         // target_proc->task->pending_signal = SIGKILL;
-//         // if (target_proc->task->state == TASK_STATE_BLOCKED_ON_SEM) kmt_sem_signal(target_proc->task->blocking_sem_with_error);
-//     }
-//     kmt_spin_unlock(&uproc_lock);
-//     TRACE_EXIT;
-//     return 0; // Kill signal sent/processed (marked as ZOMBIE)
-// }
-
-// static void *uproc_if_mmap(task_t *task, void *addr, int length, int prot, int flags)
-// {
-//     TRACE_ENTRY;
-//     const char *task_name = task ? task->name : "SYSTEM";
-//     printf("uproc_if_mmap: Task %s requests mmap - NOT IMPLEMENTED.\n", task_name);
-//     // TODO: Implement virtual memory mapping for user processes.
-//     TRACE_EXIT;
-//     return (void *)-1; // Return error (e.g., MAP_FAILED)
-// }
 
 static int uproc_getpid(task_t *task)
 {
     panic_on(task->pi == NULL, "Task procinfo is NULL");
     return task->pi->pid;
 }
-
+static int uproc_getppid(task_t *task)
+{
+    panic_on(task->pi == NULL, "Task procinfo is NULL");
+    if (task->pi->parent != NULL)
+    {
+        return task->pi->parent->pi->pid;
+    }
+    return 0;
+}
 static int uproc_sleep(task_t *task, int seconds)
 {
     if (seconds > 0)
@@ -221,10 +190,16 @@ static int uproc_sleep(task_t *task, int seconds)
     return 0;
 }
 
-static int64_t uproc_uptime(task_t *task)
+static int64_t uproc_uptime(task_t *task, struct timespec *ts)
 {
-    AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
-    return uptime.us / 1000;
+    if (ts != NULL)
+    {
+        AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
+        ts->tv_sec = uptime.us / 1000000;
+        ts->tv_nsec = (uptime.us % 1000000) * 1000;
+        return 0;
+    }
+    return -1;
 }
 
 // Define the uproc module structure with pointers to implemented functions
@@ -234,9 +209,8 @@ MODULE_DEF(uproc) = {
     .fork = uproc_fork,
     .wait = uproc_wait,
     .exit = uproc_exit,
-    //.kill = uproc_kill,
-    // .mmap = uproc_if_mmap,
     .getpid = uproc_getpid,
     .sleep = uproc_sleep,
     .uptime = uproc_uptime,
+    .getppid = uproc_getppid
 };

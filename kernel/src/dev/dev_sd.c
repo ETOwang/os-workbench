@@ -2,7 +2,6 @@
 #include <devices.h>
 
 static int sd_init(device_t *dev) {
-  printf("sd init....\n");
   sd_t *sd = dev->ptr;
   if (!io_read(AM_DISK_CONFIG).present) {
     dev->ptr = NULL;
@@ -10,7 +9,6 @@ static int sd_init(device_t *dev) {
     sd->blkcnt = io_read(AM_DISK_CONFIG).blkcnt;
     sd->blksz  = io_read(AM_DISK_CONFIG).blksz;
     sd->buf    = pmm->alloc(sd->blksz);
-    printf("sd init :blkcnt:%d blksz:%d \n",sd->blkcnt,sd->blksz);
   }
   return 0;
 }
@@ -25,7 +23,7 @@ static void blk_write(void *buf, int blkno, int blkcnt) {
   while (!io_read(AM_DISK_STATUS).ready) ;
 }
 
-static int sd_read(device_t *dev, int offset, void *buf, int count) {
+static int sd_read(device_t *dev, size_t offset, void *buf, int count) {
   sd_t *sd = dev->ptr;
   panic_on(!sd, "no disk");
   uint32_t pos = 0;
@@ -40,7 +38,7 @@ static int sd_read(device_t *dev, int offset, void *buf, int count) {
   return pos;
 }
 
-static int sd_write(device_t *dev, int offset, const void *buf, int count) {
+static int sd_write(device_t *dev, size_t offset, const void *buf, int count) {
   sd_t *sd = dev->ptr;
   panic_on(!sd, "no disk");
   uint32_t pos = 0;

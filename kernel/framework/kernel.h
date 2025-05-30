@@ -1,5 +1,5 @@
 #include <am.h>
-
+#include <syscall.h>
 #define MODULE(mod) \
   typedef struct mod_##mod##_t mod_##mod##_t; \
   extern mod_##mod##_t *mod; \
@@ -49,11 +49,41 @@ MODULE(uproc) {
   void (*init)();
   int (*kputc)(task_t *task, char ch);
   int (*fork)(task_t *task);
-  int (*wait)(task_t *task, int *status);
+  int (*wait)(task_t *task, int pid,int *status,int options);
   int (*exit)(task_t *task, int status);
-  int (*kill)(task_t *task, int pid);
   void *(*mmap)(task_t *task, void *addr, int length, int prot, int flags);
   int (*getpid)(task_t *task);
+  int (*getppid)(task_t *task);
   int (*sleep)(task_t *task, int seconds);
-  int64_t (*uptime)(task_t *task);
+  int64_t (*uptime)(task_t *task, struct timespec *tv);
+};
+
+typedef struct vfs_file vfs_file_t;
+typedef struct vfs_inode vfs_inode_t;
+typedef struct vfs_dentry vfs_dentry_t;
+typedef struct vfs_file_system_type vfs_filesystem_type_t;
+typedef uint32_t mode_t;
+typedef long off_t;
+typedef long ssize_t;
+MODULE(vfs)
+{
+	
+	void (*init)(void);
+	int (*register_filesystem)(vfs_filesystem_type_t *fs_type);
+	int (*unregister_filesystem)(const char *name);
+	int (*mount)(const char *dev_name, const char *mount_point,
+		     const char *fs_type, int flags, void *data);
+	int (*umount)(const char *mount_point);
+	int (*open)(const char *pathname, int flags);
+	int (*close)(int fd);
+	ssize_t (*read)(int fd, void *buf, size_t count);
+	ssize_t (*write)(int fd, const void *buf, size_t count);
+	off_t (*seek)(int fd, off_t offset, int whence);
+	int (*mkdir)(const char *pathname, mode_t mode);
+	int (*rmdir)(const char *pathname);
+	int (*unlink)(const char *pathname);
+	int (*rename)(const char *oldpath, const char *newpath);
+	int (*opendir)(const char *pathname);
+	int (*readdir)(int fd, vfs_dentry_t *entry);
+	int (*stat)(const char *pathname, vfs_inode_t *stat);
 };

@@ -41,7 +41,7 @@ int fb_init(device_t *dev) {
   return 0;
 }
 
-static int fb_read(device_t *dev, int offset, void *buf, int count) {
+static int fb_read(device_t *dev, size_t offset, void *buf, int count) {
   fb_t *fb = dev->ptr;
   if (offset != 0) return 0;
   if (count != sizeof(struct display_info)) return 0;
@@ -49,7 +49,7 @@ static int fb_read(device_t *dev, int offset, void *buf, int count) {
   return 0;
 }
 
-static int fb_write(device_t *dev, int offset, const void *buf, int count) {
+static int fb_write(device_t *dev, size_t offset, const void *buf, int count) {
   fb_t *fb = dev->ptr;
   kmt->sem_wait(&fb_sem);
   if (offset == 0) {

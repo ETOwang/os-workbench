@@ -2,8 +2,8 @@
 #define _KERNEL_DEVICES_H
 typedef struct devops {
     int (*init)(device_t *dev);
-    int (*read)(device_t *dev, int offset, void *buf, int count);
-    int (*write)(device_t *dev, int offset, const void *buf, int count);
+    int (*read)(device_t *dev, size_t offset, void *buf, int count);
+    int (*write)(device_t *dev, size_t offset, const void *buf, int count);
 } devops_t;
 extern devops_t tty_ops, fb_ops, sd_ops, input_ops;
 

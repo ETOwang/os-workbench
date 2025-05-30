@@ -38,14 +38,15 @@
 #define EXT4_CONFIG_H_
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #if !CONFIG_USE_DEFAULT_CFG
-//#include "generated/ext4_config.h"
+// #include "generated/ext4_config.h"
 #endif
 
-/*****************************************************************************/
+    /*****************************************************************************/
 
 #define F_SET_EXT2 2
 #define F_SET_EXT3 3
@@ -55,7 +56,7 @@ extern "C" {
 #define CONFIG_EXT_FEATURE_SET_LVL F_SET_EXT4
 #endif
 
-/*****************************************************************************/
+    /*****************************************************************************/
 
 #if CONFIG_EXT_FEATURE_SET_LVL == F_SET_EXT2
 /*Superblock features flag EXT2*/
@@ -105,12 +106,12 @@ extern "C" {
 
 /**@brief   Debug printf enable (stdout)*/
 #ifndef CONFIG_DEBUG_PRINTF
-#define CONFIG_DEBUG_PRINTF 1
+//#define CONFIG_DEBUG_PRINTF 1
 #endif
 
 /**@brief   Assert printf enable (stdout)*/
 #ifndef CONFIG_DEBUG_ASSERT
-#define CONFIG_DEBUG_ASSERT 1
+//#define CONFIG_DEBUG_ASSERT 1
 #endif
 
 /**@brief   Include assert codes from ext4_debug or standard library.*/
@@ -128,12 +129,10 @@ extern "C" {
 #define CONFIG_BLOCK_DEV_CACHE_SIZE 8
 #endif
 
-
 /**@brief   Maximum block device name*/
 #ifndef CONFIG_EXT4_MAX_BLOCKDEV_NAME
 #define CONFIG_EXT4_MAX_BLOCKDEV_NAME 32
 #endif
-
 
 /**@brief   Maximum block device count*/
 #ifndef CONFIG_EXT4_BLOCKDEVS_COUNT
@@ -161,7 +160,6 @@ extern "C" {
 #define CONFIG_MAX_TRUNCATE_SIZE (16ul * 1024ul * 1024ul)
 #endif
 
-
 /**@brief Unaligned access switch on/off*/
 #ifndef CONFIG_UNALIGNED_ACCESS
 #define CONFIG_UNALIGNED_ACCESS 0
@@ -170,7 +168,7 @@ extern "C" {
 /**@brief Switches use of malloc/free functions family
  *        from standard library to user provided*/
 #ifndef CONFIG_USE_USER_MALLOC
-#define CONFIG_USE_USER_MALLOC 0
+#define CONFIG_USE_USER_MALLOC 1
 #endif
 
 #ifdef __cplusplus

@@ -583,8 +583,9 @@ struct ext4_dir_entry_tail {
 
 #define EXT4_GOOD_OLD_FIRST_INO 11
 #define EXT_MAX_BLOCKS (ext4_lblk_t) (-1)
+#ifndef IN_RANGE
 #define IN_RANGE(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
-
+#endif
 
 /******************************************************************************/
 
@@ -821,6 +822,11 @@ struct jbd_sb {
 
 
 #if CONFIG_USE_USER_MALLOC
+
+extern void *ext4_user_malloc(size_t size);
+extern void *ext4_user_calloc(size_t nmemb, size_t size);
+extern void *ext4_user_realloc(void *ptr, size_t size);
+extern void ext4_user_free(void *ptr);
 
 #define ext4_malloc  ext4_user_malloc
 #define ext4_calloc  ext4_user_calloc

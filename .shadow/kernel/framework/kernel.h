@@ -51,9 +51,9 @@ MODULE(uproc) {
   int (*fork)(task_t *task);
   int (*wait)(task_t *task, int pid,int *status,int options);
   int (*exit)(task_t *task, int status);
-  int (*kill)(task_t *task, int pid);
   void *(*mmap)(task_t *task, void *addr, int length, int prot, int flags);
   int (*getpid)(task_t *task);
+  int (*getppid)(task_t *task);
   int (*sleep)(task_t *task, int seconds);
   int64_t (*uptime)(task_t *task, struct timespec *tv);
 };

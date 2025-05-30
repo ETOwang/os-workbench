@@ -8,7 +8,7 @@
 static spinlock_t uproc_lock;
 static int next_pid = 1;
 extern void kmt_add_task(task_t *task);
-extern task_t* kmt_get_son();
+extern task_t *kmt_get_son();
 static int uproc_alloc_pid()
 {
     kmt->spin_lock(&uproc_lock);
@@ -23,8 +23,8 @@ static void user_init()
     task->pi = pmm->alloc(sizeof(procinfo_t));
     task->pi->parent = NULL;
     task->pi->pid = uproc_alloc_pid();
-    task->pi->cwd=pmm->alloc(PATH_MAX);
-    strcpy(task->pi->cwd,"/");
+    task->pi->cwd = pmm->alloc(PATH_MAX);
+    strcpy(task->pi->cwd, "/");
     panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
     protect(&task->pi->as);
     char *mem = pmm->alloc(task->pi->as.pgsize);
@@ -56,7 +56,7 @@ static int uproc_exit(task_t *task, int status)
     panic_on(task == NULL, "Task is NULL");
     panic_on(task->pi == NULL, "Task procinfo is NULL");
     task->pi->xstate = status;
-    task->status= TASK_ZOMBIE;
+    task->status = TASK_ZOMBIE;
     return 0;
 }
 
@@ -107,7 +107,7 @@ static int uproc_fork(task_t *task)
     son->status = TASK_READY;
     son->pi = pmm->alloc(sizeof(procinfo_t));
     son->pi->parent = task;
-    strcpy(son->pi->cwd,task->pi->cwd);
+    strcpy(son->pi->cwd, task->pi->cwd);
     protect(&son->pi->as);
     uvmcopy(&task->pi->as, &son->pi->as, UVMEND - UVSTART);
     son->pi->pid = pid;
@@ -120,20 +120,25 @@ static int uproc_fork(task_t *task)
     return pid;
 }
 
-static int uproc_wait(task_t *task, int pid,int *status,int options)
+static int uproc_wait(task_t *task, int pid, int *status, int options)
 {
     panic_on(task == NULL, "Task is NULL");
     panic_on(task->pi == NULL, "Task procinfo is NULL");
     bool found = false;
-    while (1) {
+    while (1)
+    {
         task_t *son = kmt_get_son();
-        while (son != NULL) {
+        while (son != NULL)
+        {
             kmt->spin_lock(&son->lock);
-            bool match_pid = pid == -1||son->pi->pid == pid;
+            bool match_pid = pid == -1 || son->pi->pid == pid;
             bool is_zombie = (son->status == TASK_ZOMBIE);
-            if (match_pid) {
-                if (is_zombie) {
-                    if (status != NULL) {
+            if (match_pid)
+            {
+                if (is_zombie)
+                {
+                    if (status != NULL)
+                    {
                         *status = son->pi->xstate;
                     }
                     int ret_pid = son->pi->pid;
@@ -147,12 +152,14 @@ static int uproc_wait(task_t *task, int pid,int *status,int options)
             kmt->spin_unlock(&son->lock);
             son = son->next;
         }
-        if (options & WNOHANG) {
-            if (!found) return -1; // 没有子进程
+        if (options & WNOHANG)
+        {
+            if (!found)
+                return -1; // 没有子进程
             return 0;
         }
-        //TODO:
-        //yield();
+        // TODO:
+        // yield();
     }
 }
 
@@ -161,7 +168,15 @@ static int uproc_getpid(task_t *task)
     panic_on(task->pi == NULL, "Task procinfo is NULL");
     return task->pi->pid;
 }
-
+static int uproc_getppid(task_t *task)
+{
+    panic_on(task->pi == NULL, "Task procinfo is NULL");
+    if (task->pi->parent != NULL)
+    {
+        return task->pi->parent->pi->pid;
+    }
+    return 0;
+}
 static int uproc_sleep(task_t *task, int seconds)
 {
     if (seconds > 0)
@@ -175,9 +190,10 @@ static int uproc_sleep(task_t *task, int seconds)
     return 0;
 }
 
-static int64_t uproc_uptime(task_t *task,struct timespec *ts)
+static int64_t uproc_uptime(task_t *task, struct timespec *ts)
 {
-    if (ts != NULL) {
+    if (ts != NULL)
+    {
         AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
         ts->tv_sec = uptime.us / 1000000;
         ts->tv_nsec = (uptime.us % 1000000) * 1000;
@@ -196,4 +212,5 @@ MODULE_DEF(uproc) = {
     .getpid = uproc_getpid,
     .sleep = uproc_sleep,
     .uptime = uproc_uptime,
+    .getppid = uproc_getppid
 };

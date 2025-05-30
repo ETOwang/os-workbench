@@ -84,7 +84,7 @@ static Context *kmt_syscall(Event ev, Context *ctx)
         ctx->GPRx = uproc->exit(get_current_task(), ctx->GPR1);
         break;
     case SYS_gettimeofday:
-        ctx->GPRx = uproc->uptime(get_current_task(),(struct timeval *)ctx->GPR1);
+        ctx->GPRx = uproc->uptime(get_current_task(),(struct timespec *)ctx->GPR1);
         break;
     case SYS_sleep:
         ctx->GPRx = uproc->sleep(get_current_task(), ctx->GPR1);

@@ -36,5 +36,5 @@
 
 #ifndef __ASSEMBLER__
 #include <sys/time.h>
-#include <stdio.h>
+#include <sys/wait.h>
 #endif

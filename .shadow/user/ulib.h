@@ -43,7 +43,7 @@ static inline int unlinkat(int dirfd, const char *pathname, int flags)
 {
   return syscall(SYS_unlinkat, dirfd, (uint64_t)pathname, flags, 0);
 }
-static inline int mkdirat(int dirfd, const char *pathname, mode_t mode)
+inline int mkdirat(int dirfd, const char *pathname, mode_t mode)
 {
   return syscall(SYS_mkdirat, dirfd, (uint64_t)pathname, mode, 0);
 }
@@ -55,7 +55,7 @@ static inline int mount(const char *source, const char *target, const char *file
 {
   return syscall(SYS_mount, (uint64_t)source, (uint64_t)target, (uint64_t)filesystemtype, flags);
 }
-static inline int fstat(int fd, struct stat *statbuf)
+inline int fstat(int fd, struct stat *statbuf)
 {
   return syscall(SYS_fstat, fd, (uint64_t)statbuf, 0, 0);
 }
@@ -142,11 +142,6 @@ static inline int fork()
 static inline int exit(int status)
 {
   return syscall(SYS_exit, status, 0, 0, 0);
-}
-
-static inline int kill(int pid)
-{
-  return syscall(SYS_kill, pid, 0, 0, 0);
 }
 
 static inline int getpid()

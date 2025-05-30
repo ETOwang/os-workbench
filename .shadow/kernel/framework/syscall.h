@@ -1,6 +1,5 @@
 #define SYS_kputc 1
 #define SYS_fork 2
-#define SYS_kill 7
 #define SYS_sleep 14
 #define SYS_open 16
 #define SYS_getcwd 17
@@ -35,6 +34,7 @@
 #define SYS_nanosleep 101
 
 #ifndef __ASSEMBLER__
-#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #endif

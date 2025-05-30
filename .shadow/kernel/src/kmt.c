@@ -92,6 +92,9 @@ static Context *kmt_syscall(Event ev, Context *ctx)
     case SYS_fork:
         ctx->GPRx = uproc->fork(get_current_task());
         break;
+    case SYS_wait4:
+        ctx->GPRx=uproc->wait(get_current_task(),ctx->GPR1,(int*)ctx->GPR2,ctx->GPR3);
+        break;
     default:
         panic("Unknown syscall number");
         break;

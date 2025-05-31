@@ -1,35 +1,38 @@
 #include <am.h>
 #include <syscall.h>
-#define MODULE(mod) \
+#define MODULE(mod)                           \
   typedef struct mod_##mod##_t mod_##mod##_t; \
-  extern mod_##mod##_t *mod; \
+  extern mod_##mod##_t *mod;                  \
   struct mod_##mod##_t
 
-#define MODULE_DEF(mod) \
-  extern mod_##mod##_t __##mod##_obj; \
+#define MODULE_DEF(mod)                \
+  extern mod_##mod##_t __##mod##_obj;  \
   mod_##mod##_t *mod = &__##mod##_obj; \
   mod_##mod##_t __##mod##_obj
 
 typedef Context *(*handler_t)(Event, Context *);
-MODULE(os) {
+MODULE(os)
+{
   void (*init)();
   void (*run)();
   Context *(*trap)(Event ev, Context *context);
   void (*on_irq)(int seq, int event, handler_t handler);
 };
 
-MODULE(pmm) {
-  void  (*init)();
+MODULE(pmm)
+{
+  void (*init)();
   void *(*alloc)(size_t size);
-  void  (*free)(void *ptr);
+  void (*free)(void *ptr);
 };
 
 typedef struct task task_t;
 typedef struct spinlock spinlock_t;
 typedef struct semaphore sem_t;
-MODULE(kmt) {
+MODULE(kmt)
+{
   void (*init)();
-  int  (*create)(task_t *task, const char *name, void (*entry)(void *arg), void *arg);
+  int (*create)(task_t *task, const char *name, void (*entry)(void *arg), void *arg);
   void (*teardown)(task_t *task);
   void (*spin_init)(spinlock_t *lk, const char *name);
   void (*spin_lock)(spinlock_t *lk);
@@ -40,16 +43,18 @@ MODULE(kmt) {
 };
 
 typedef struct device device_t;
-MODULE(dev) {
+MODULE(dev)
+{
   void (*init)();
   device_t *(*lookup)(const char *name);
 };
 typedef struct procinfo procinfo_t;
-MODULE(uproc) {
+MODULE(uproc)
+{
   void (*init)();
   int (*kputc)(task_t *task, char ch);
   int (*fork)(task_t *task);
-  int (*wait)(task_t *task, int pid,int *status,int options);
+  int (*wait)(task_t *task, int pid, int *status, int options);
   int (*exit)(task_t *task, int status);
   void *(*mmap)(task_t *task, void *addr, int length, int prot, int flags);
   int (*getpid)(task_t *task);
@@ -67,23 +72,29 @@ typedef long off_t;
 typedef long ssize_t;
 MODULE(vfs)
 {
-	
-	void (*init)(void);
-	int (*register_filesystem)(vfs_filesystem_type_t *fs_type);
-	int (*unregister_filesystem)(const char *name);
-	int (*mount)(const char *dev_name, const char *mount_point,
-		     const char *fs_type, int flags, void *data);
-	int (*umount)(const char *mount_point);
-	int (*open)(const char *pathname, int flags);
-	int (*close)(int fd);
-	ssize_t (*read)(int fd, void *buf, size_t count);
-	ssize_t (*write)(int fd, const void *buf, size_t count);
-	off_t (*seek)(int fd, off_t offset, int whence);
-	int (*mkdir)(const char *pathname, mode_t mode);
-	int (*rmdir)(const char *pathname);
-	int (*unlink)(const char *pathname);
-	int (*rename)(const char *oldpath, const char *newpath);
-	int (*opendir)(const char *pathname);
-	int (*readdir)(int fd, vfs_dentry_t *entry);
-	int (*stat)(const char *pathname, vfs_inode_t *stat);
+
+  void (*init)(void);
+  int (*register_filesystem)(vfs_filesystem_type_t *fs_type);
+  int (*unregister_filesystem)(const char *name);
+  int (*mount)(const char *dev_name, const char *mount_point,
+               const char *fs_type, int flags, void *data);
+  int (*umount)(const char *mount_point);
+  int (*open)(const char *pathname, int flags);
+  int (*close)(int fd);
+  ssize_t (*read)(int fd, void *buf, size_t count);
+  ssize_t (*write)(int fd, const void *buf, size_t count);
+  off_t (*seek)(int fd, off_t offset, int whence);
+  int (*mkdir)(const char *pathname, mode_t mode);
+  int (*rmdir)(const char *pathname);
+  int (*unlink)(const char *pathname);
+  int (*rename)(const char *oldpath, const char *newpath);
+  int (*opendir)(const char *pathname);
+  int (*readdir)(int fd, vfs_dentry_t *entry);
+  int (*closedir)(int fd);
+  int (*stat)(const char *pathname, vfs_inode_t *stat);
+};
+
+MODULE(syscall)
+{
+  uint64_t (*chdir)(task_t *task, const char *path);
 };

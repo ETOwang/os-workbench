@@ -144,6 +144,59 @@ int main() {
     }
     print("\n");
     
+    // 测试getcwd和chdir
+    print("4. Testing getcwd() and chdir():\n");
+    
+    // 测试getcwd - 获取当前工作目录
+    char cwd_buffer[256];
+    int getcwd_result = getcwd(cwd_buffer, sizeof(cwd_buffer));
+    
+    if (getcwd_result < 0) {
+        print("  Error: getcwd failed!\n");
+    } else {
+        print("  Success! Current working directory: ");
+        // 由于我们使用自定义print函数，需要null-terminated字符串
+        cwd_buffer[255] = '\0';  // 确保null终止
+        print(cwd_buffer);
+        print("\n");
+    }
+    
+    // 测试chdir - 改变当前工作目录到根目录
+    print("  Attempting to change directory to /...\n");
+    int chdir_result = chdir("/mount");
+    
+    if (chdir_result < 0) {
+        print("  Error: chdir to / failed!\n");
+    } else {
+        print("  Success! Changed directory to /\n");
+        
+        // 再次测试getcwd来验证目录变更
+        char new_cwd_buffer[256];
+        int new_getcwd_result = getcwd(new_cwd_buffer, sizeof(new_cwd_buffer));
+        
+        if (new_getcwd_result < 0) {
+            print("  Error: getcwd after chdir failed!\n");
+        } else {
+            print("  New current working directory: ");
+            new_cwd_buffer[255] = '\0';  // 确保null终止
+            print(new_cwd_buffer);
+            print("\n");
+        }
+    }
+    
+    // 测试getcwd with invalid buffer size
+    print("  Testing getcwd with small buffer...\n");
+    char small_buffer[1];
+    int small_getcwd_result = getcwd(small_buffer, sizeof(small_buffer));
+    
+    if (small_getcwd_result == 0) {
+        print("  Expected: getcwd with small buffer failed (this is normal)\n");
+    } else {
+        print("  Unexpected: getcwd with small buffer succeeded\n");
+    }
+    
+    print("\n");
+    
     print("All tests completed!\n");
     print("Exiting with status 0\n");
     exit(0);

@@ -98,4 +98,5 @@ MODULE(syscall)
 {
   uint64_t (*chdir)(task_t *task, const char *path);
   uint64_t (*getcwd)(task_t *task, char *buf, size_t size);
+  uint64_t (*openat)(task_t *task, int fd,const char *filename, int flags, mode_t mode);
 };

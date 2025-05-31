@@ -94,9 +94,11 @@ int vfs_open(const char *pathname, int flags)
 	}
 	panic_on(fd == -1, "No free file descriptor available");
 	const char *mode = "r";
-	if (flags & VFS_O_WRONLY)
+	if (flags & O_RDONLY)
+		mode = "r";
+	else if (flags & O_WRONLY)
 		mode = "w";
-	else if (flags & VFS_O_RDWR)
+	else if (flags & O_RDWR)
 		mode = "r+";
 	if (flags & VFS_O_CREAT)
 		mode = (flags & VFS_O_WRONLY) ? "w" : "w+";
@@ -132,10 +134,8 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 	int ret = ext4_fread(&open_files[fd].file, buf, count, &bytes_read);
 	if (ret != EOK)
 	{
-		printf("VFS: Read failed: %d\n", ret);
 		return VFS_ERROR;
 	}
-
 	return (ssize_t)bytes_read;
 }
 

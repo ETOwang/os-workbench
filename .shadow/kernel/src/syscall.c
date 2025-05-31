@@ -1,5 +1,5 @@
 #include <common.h>
-
+#include <syscall.h>
 static uint64_t syscall_chdir(task_t *task, const char *path)
 {
     if (path == NULL || strlen(path) >= PATH_MAX)
@@ -33,7 +33,12 @@ static uint64_t syscall_getcwd(task_t *task, char *buf, size_t size)
     strncpy(buf, task->pi->cwd, strlen(task->pi->cwd) + 1);
     return (uint64_t)buf;
 }
+static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int flags, mode_t mode)
+{
+   return 0;   
+}
 MODULE_DEF(syscall) = {
     .chdir = syscall_chdir,
     .getcwd = syscall_getcwd,
+    .openat = syscall_openat,
 };

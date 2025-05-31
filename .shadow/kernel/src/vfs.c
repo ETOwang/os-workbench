@@ -72,7 +72,7 @@ void vfs_init(void)
 
 int vfs_mount(const char *dev_name, const char *mount_point,
 			  const char *fs_type, int flags, void *data)
-{
+{	
 	int ret = ext4_device_register(&bd, dev_name);
 	panic_on(ret != EOK, "Failed to register ext4 device");
 	ret = ext4_mount(dev_name, mount_point, false);

@@ -106,6 +106,7 @@ static int uproc_fork(task_t *task)
     kmt->spin_init(&son->lock, son->name);
     son->status = TASK_READY;
     son->pi = pmm->alloc(sizeof(procinfo_t));
+    son->pi->cwd = pmm->alloc(PATH_MAX);
     son->pi->parent = task;
     strcpy(son->pi->cwd, task->pi->cwd);
     protect(&son->pi->as);
@@ -116,7 +117,6 @@ static int uproc_fork(task_t *task)
     son->context->GPRx = 0;
     son->context->cr3 = son->pi->as.ptr;
     son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
-    printf("Forked a new task with pid %d\n", pid);
     kmt_add_task(son);
     return pid;
 }

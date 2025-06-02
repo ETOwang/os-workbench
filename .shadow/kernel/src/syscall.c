@@ -4,12 +4,13 @@
 
 static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
 {
-    if(strlen(path)>PATH_MAX){
+    if (strlen(path) > PATH_MAX)
+    {
         return -1;
     }
     if (path[0] == '/')
     {
-        strcpy(buf,path);
+        strcpy(buf, path);
     }
     else if (dirfd == AT_FDCWD)
     {
@@ -87,8 +88,9 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
         return -1;
     }
     char full_path[PATH_MAX];
-    if(parse_path(full_path, task, fd, filename) < 0){
-          return -1;
+    if (parse_path(full_path, task, fd, filename) < 0)
+    {
+        return -1;
     }
     // TODO:use mode
     int vfd = vfs->open(full_path, flags);
@@ -127,7 +129,7 @@ static uint64_t syscall_getdents64(task_t *task, int fd, struct dirent *buf, siz
     {
         return -1;
     }
-    //TODO:check len
+    // TODO:check len
     return vfs->readdir(fd, buf);
 }
 
@@ -139,14 +141,16 @@ static uint64_t syscall_linkat(task_t *task, int olddirfd, const char *oldpath,
         return -1;
     }
     char old_full_path[PATH_MAX];
-    if(parse_path(old_full_path, task, olddirfd, oldpath) < 0){
+    if (parse_path(old_full_path, task, olddirfd, oldpath) < 0)
+    {
         return -1;
     }
     char new_full_path[PATH_MAX];
-    if(parse_path(new_full_path, task, newdirfd, newpath) < 0){
+    if (parse_path(new_full_path, task, newdirfd, newpath) < 0)
+    {
         return -1;
     }
-    //TODO:use flags
+    // TODO:use flags
     return vfs->link(old_full_path, new_full_path);
 }
 
@@ -175,7 +179,7 @@ static uint64_t syscall_mkdirat(task_t *task, int dirfd, const char *path, mode_
     {
         return -1;
     }
-    //TODO:use mode
+    // TODO:use mode
     return vfs->mkdir(full_path);
 }
 
@@ -317,7 +321,7 @@ static uint64_t syscall_uname(task_t *task, struct utsname *buf)
 
 static uint64_t syscall_sched_yield(task_t *task)
 {
-    //TODO:do something
+    // TODO:do something
     return 0;
 }
 
@@ -327,7 +331,7 @@ static uint64_t syscall_nanosleep(task_t *task, const struct timespec *req, stru
     {
         return -1;
     }
-    //TODO:real implementation
+    // TODO:real implementation
     return uproc->sleep(task, req->tv_sec);
 }
 
@@ -344,8 +348,13 @@ static uint64_t syscall_gettimeofday(task_t *task, struct timespec *ts, void *tz
 // 进程管理相关系统调用
 static uint64_t syscall_clone(task_t *task, int flags, void *stack, int *ptid, int *ctid, unsigned long newtls)
 {
+    // 添加调试信息
+    printf("clone called with flags=0x%x, stack=%p\n", flags, stack);
+
     // 简化实现 - 调用uproc的fork
-    return uproc->fork(task);
+    int result = uproc->fork(task);
+    printf("fork returned: %d\n", result);
+    return result;
 }
 
 static uint64_t syscall_execve(task_t *task, const char *pathname, char *const argv[], char *const envp[])

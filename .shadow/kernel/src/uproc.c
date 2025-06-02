@@ -129,7 +129,7 @@ static int uproc_wait(task_t *task, int pid, int *status, int options)
     while (1)
     {
         task_t *son = kmt_get_son();
-        while (son != NULL)
+        if (son != NULL)
         {
             kmt->spin_lock(&son->lock);
             bool match_pid = pid == -1 || son->pi->pid == pid;
@@ -151,7 +151,6 @@ static int uproc_wait(task_t *task, int pid, int *status, int options)
                 found = true;
             }
             kmt->spin_unlock(&son->lock);
-            son = son->next;
         }
         if (options & WNOHANG)
         {

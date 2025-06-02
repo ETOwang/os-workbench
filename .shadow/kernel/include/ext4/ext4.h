@@ -84,6 +84,10 @@ typedef struct ext4_file {
 
 	/**@brief   Actual file position.*/
 	uint64_t fpos;
+
+	/**@brief Reference count */
+	uint32_t refctr;
+
 } ext4_file;
 
 /*****************************DIRECTORY DESCRIPTOR***************************/

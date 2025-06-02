@@ -63,19 +63,12 @@ MODULE(uproc)
   int64_t (*uptime)(task_t *task, struct timespec *tv);
 };
 
-typedef struct vfs_file vfs_file_t;
-typedef struct vfs_inode vfs_inode_t;
-typedef struct vfs_dentry vfs_dentry_t;
-typedef struct vfs_file_system_type vfs_filesystem_type_t;
-typedef uint32_t mode_t;
 typedef long off_t;
 typedef long ssize_t;
 MODULE(vfs)
 {
 
   void (*init)(void);
-  int (*register_filesystem)(vfs_filesystem_type_t *fs_type);
-  int (*unregister_filesystem)(const char *name);
   int (*mount)(const char *dev_name, const char *mount_point,
                const char *fs_type, int flags, void *data);
   int (*umount)(const char *mount_point);
@@ -84,19 +77,43 @@ MODULE(vfs)
   ssize_t (*read)(int fd, void *buf, size_t count);
   ssize_t (*write)(int fd, const void *buf, size_t count);
   off_t (*seek)(int fd, off_t offset, int whence);
-  int (*mkdir)(const char *pathname, mode_t mode);
+  int (*mkdir)(const char *pathname);
   int (*rmdir)(const char *pathname);
+  int (*link)(const char *oldpath, const char *newpath);
   int (*unlink)(const char *pathname);
   int (*rename)(const char *oldpath, const char *newpath);
   int (*opendir)(const char *pathname);
-  int (*readdir)(int fd, vfs_dentry_t *entry);
+  int (*readdir)(int fd, struct dirent *entry);
   int (*closedir)(int fd);
-  int (*stat)(const char *pathname, vfs_inode_t *stat);
+  int (*stat)(int fd,  struct kstat *stat);
+  int (*dup)(int oldfd);
+  int (*dup3)(int oldfd, int newfd, int flags);
+  const char* (*getdirpath)(int fd);
 };
 
 MODULE(syscall)
 {
   uint64_t (*chdir)(task_t *task, const char *path);
   uint64_t (*getcwd)(task_t *task, char *buf, size_t size);
-  uint64_t (*openat)(task_t *task, int fd,const char *filename, int flags, mode_t mode);
+  uint64_t (*openat)(task_t *task, int fd, const char *filename, int flags, mode_t mode);
+  uint64_t (*pipe2)(task_t *task, int pipefd[2], int flags);
+  uint64_t (*dup)(task_t *task, int oldfd);
+  uint64_t (*dup3)(task_t *task, int oldfd, int newfd, int flags);
+  uint64_t (*getdents64)(task_t *task, int fd, struct dirent *buf, size_t len);
+  uint64_t (*linkat)(task_t *task, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
+  uint64_t (*unlinkat)(task_t *task, int dirfd, const char *path, int flags);
+  uint64_t (*mkdirat)(task_t *task, int dirfd, const char *path, mode_t mode);
+  uint64_t (*umount2)(task_t *task, const char *target, int flags);
+  uint64_t (*mount)(task_t *task, const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
+  uint64_t (*fstat)(task_t *task, int fd, struct kstat *statbuf);
+  uint64_t (*brk)(task_t *task, void *addr);
+  uint64_t (*munmap)(task_t *task, void *addr, size_t length);
+  uint64_t (*mmap)(task_t *task, void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+  uint64_t (*times)(task_t *task, struct tms *buf);
+  uint64_t (*uname)(task_t *task, struct utsname *buf);
+  uint64_t (*sched_yield)(task_t *task);
+  uint64_t (*nanosleep)(task_t *task, const struct timespec *req, struct timespec *rem);
+  uint64_t (*gettimeofday)(task_t *task, struct timespec *ts, void *tz);
+  uint64_t (*clone)(task_t *task, int flags, void *stack, int *ptid, int *ctid, unsigned long newtls);
+  uint64_t (*execve)(task_t *task, const char *pathname, char *const argv[], char *const envp[]);
 };

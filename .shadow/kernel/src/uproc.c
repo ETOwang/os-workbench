@@ -201,7 +201,20 @@ static int64_t uproc_uptime(task_t *task, struct timespec *ts)
     }
     return -1;
 }
-
+static void *uproc_mmap(task_t *task, void *addr, int length, int prot, int flags)
+{
+    panic_on(task == NULL, "Task is NULL");
+    panic_on(task->pi == NULL, "Task procinfo is NULL");
+    if (addr == NULL)
+    {
+        addr = (void *)UVSTART;
+    }
+    if (length <= 0)
+    {
+        return NULL;
+    }
+    return NULL;
+}
 // Define the uproc module structure with pointers to implemented functions
 MODULE_DEF(uproc) = {
     .init = uproc_init,
@@ -212,5 +225,5 @@ MODULE_DEF(uproc) = {
     .getpid = uproc_getpid,
     .sleep = uproc_sleep,
     .uptime = uproc_uptime,
-    .getppid = uproc_getppid
-};
+    .getppid = uproc_getppid,
+    .mmap = uproc_mmap};

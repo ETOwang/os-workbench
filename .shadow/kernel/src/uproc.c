@@ -55,6 +55,7 @@ static int uproc_exit(task_t *task, int status)
 {
     panic_on(task == NULL, "Task is NULL");
     panic_on(task->pi == NULL, "Task procinfo is NULL");
+    printf("uproc_exit called with status=%d\n", status);
     task->pi->xstate = status;
     task->status = TASK_ZOMBIE;
     return 0;

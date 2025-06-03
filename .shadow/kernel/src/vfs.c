@@ -115,7 +115,6 @@ int vfs_open(const char *pathname, int flags)
 	int ret = ext4_fopen(open_files[fd].file, pathname, mode);
 	if (ret != EOK)
 	{
-		printf("VFS: Open failed: %d\n", ret);
 		pmm->free(open_files[fd].file);
 		return VFS_ERROR;
 	}
@@ -223,7 +222,6 @@ int vfs_umount(const char *mount_point)
 	return VFS_SUCCESS;
 }
 
-
 int vfs_mkdir(const char *pathname)
 {
 	int ret = ext4_dir_mk(pathname);
@@ -282,14 +280,15 @@ int vfs_readdir(int fd, struct dirent *entry)
 		return VFS_ERROR;
 	}
 	ext4_dir *dir = open_dirs[fd].dir;
-	if(dir->de.name_length>strlen(entry->d_name)){
+	if (dir->de.name_length > strlen(entry->d_name))
+	{
 		return VFS_ERROR;
 	}
 	entry->d_ino = dir->de.inode;
 	entry->d_off = dir->next_off;
 	entry->d_reclen = dir->de.entry_length;
 	entry->d_type = dir->de.inode_type;
-	strncpy(entry->d_name, (const char *)dir->de.name,dir->de.name_length);
+	strncpy(entry->d_name, (const char *)dir->de.name, dir->de.name_length);
 	entry->d_name[dir->de.name_length] = '\0';
 	return VFS_SUCCESS;
 }
@@ -314,7 +313,7 @@ int vfs_closedir(int fd)
 int vfs_stat(int fd, struct kstat *stat)
 {
 
-    if(fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use)
+	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use)
 	{
 		return VFS_ERROR;
 	}

@@ -401,8 +401,42 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
 
-    // 清理当前进程的地址空间
-    // 注意：这是简化实现，实际应该更仔细地处理
+    // 计算参数和环境变量的数量和总大小
+    int argc = 0;
+    int envc = 0;
+    size_t args_size = 0;
+    size_t envs_size = 0;
+
+    if (argv != NULL)
+    {
+        while (argv[argc] != NULL)
+        {
+            args_size += strlen(argv[argc]) + 1;
+            argc++;
+        }
+    }
+
+    if (envp != NULL)
+    {
+        while (envp[envc] != NULL)
+        {
+            envs_size += strlen(envp[envc]) + 1;
+            envc++;
+        }
+    }
+
+    // 计算栈上需要的总空间
+    // argv指针数组 + envp指针数组 + 字符串数据 + 对齐
+    size_t stack_needed = (argc + 1) * sizeof(char *) + // argv数组
+                          (envc + 1) * sizeof(char *) + // envp数组
+                          args_size + envs_size +       // 字符串数据
+                          16;                           // 对齐空间
+
+    if (stack_needed > STACK_SIZE / 2)
+    {
+        pmm->free(program_data);
+        return -1;
+    }
 
     // 重新映射程序到用户空间
     char *entry = pmm->alloc(task->pi->as.pgsize);
@@ -420,9 +454,69 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     // 重新映射到用户空间起始地址
     map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
 
-    // 重置上下文，从新程序开始执行
+    // 设置新的栈，从栈顶开始向下构建参数
+    char *stack_top = (char *)task->stack + STACK_SIZE;
+    char *stack_ptr = stack_top;
+
+    // 首先复制字符串数据（从栈顶向下）
+    char **argv_ptrs = pmm->alloc((argc + 1) * sizeof(char *));
+    char **envp_ptrs = pmm->alloc((envc + 1) * sizeof(char *));
+
+    // 复制环境变量字符串
+    for (int i = envc - 1; i >= 0; i--)
+    {
+        size_t len = strlen(envp[i]) + 1;
+        stack_ptr -= len;
+        memcpy(stack_ptr, envp[i], len);
+        envp_ptrs[i] = stack_ptr;
+    }
+
+    // 复制参数字符串
+    for (int i = argc - 1; i >= 0; i--)
+    {
+        size_t len = strlen(argv[i]) + 1;
+        stack_ptr -= len;
+        memcpy(stack_ptr, argv[i], len);
+        argv_ptrs[i] = stack_ptr;
+    }
+
+    // 对齐到8字节边界
+    stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);
+
+    // 复制envp指针数组
+    stack_ptr -= (envc + 1) * sizeof(char *);
+    char **envp_array = (char **)stack_ptr;
+    for (int i = 0; i < envc; i++)
+    {
+        envp_array[i] = envp_ptrs[i];
+    }
+    envp_array[envc] = NULL;
+
+    // 复制argv指针数组
+    stack_ptr -= (argc + 1) * sizeof(char *);
+    char **argv_array = (char **)stack_ptr;
+    for (int i = 0; i < argc; i++)
+    {
+        argv_array[i] = argv_ptrs[i];
+    }
+    argv_array[argc] = NULL;
+
+    // 压入argc
+    stack_ptr -= sizeof(int);
+    *((int *)stack_ptr) = argc;
+
+    // 清理临时分配的内存
+    pmm->free(argv_ptrs);
+    pmm->free(envp_ptrs);
+
+    // 重置上下文，设置新的栈指针和程序入口
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
     task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
+
+    // 设置栈指针到我们构建的参数位置
+    // 注意：这里需要根据具体的架构调整寄存器设置
+    // 对于x86_64，栈指针在RSP中
+    task->context->rsp = (uintptr_t)stack_ptr;
 
     // execve成功时不返回到原程序
     return 0;

@@ -113,6 +113,7 @@ int vfs_open(const char *pathname, int flags)
 	}
 	open_files[fd].file = pmm->alloc(sizeof(ext4_file));
 	int ret = ext4_fopen(open_files[fd].file, pathname, mode);
+	printf("VFS: Opened %s\n", pathname);
 	if (ret != EOK)
 	{
 		printf("VFS: Open failed: %d\n", ret);

@@ -359,12 +359,13 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
 
     // 分配内存加载程序
     size_t file_size = stat.st_size;
+     printf("file size: %ld\n", file_size);
     if (file_size == 0 || file_size > 0x100000) // 限制1MB
     {
         vfs->close(fd);
         return -1;
     }
-    printf("file size: %ld\n", file_size);
+   
     char *program_data = pmm->alloc(file_size);
     if (program_data == NULL)
     {

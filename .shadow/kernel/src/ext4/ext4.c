@@ -1629,7 +1629,6 @@ int ext4_fopen(ext4_file *file, const char *path, const char *flags)
 {
 	struct ext4_mountpoint *mp = ext4_get_mount(path);
 	int r;
-
 	if (!mp)
 		return ENOENT;
 

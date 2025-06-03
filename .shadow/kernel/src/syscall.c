@@ -287,16 +287,13 @@ static uint64_t syscall_times(task_t *task, struct tms *buf)
     {
         return -1;
     }
-
-    // 获取当前时间
+    //TODO:real implementation
     AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
-    clock_t ticks = uptime.us / 10000; // 转换为10ms滴答数
-
-    // 简化实现 - 填充时间信息
-    buf->tms_utime = ticks / 2; // 用户时间
-    buf->tms_stime = ticks / 2; // 系统时间
-    buf->tms_cutime = 0;        // 子进程用户时间
-    buf->tms_cstime = 0;        // 子进程系统时间
+    clock_t ticks = uptime.us / 10000;
+    buf->tms_utime = ticks / 2; 
+    buf->tms_stime = ticks / 2;
+    buf->tms_cutime = 0;      
+    buf->tms_cstime = 0;    
 
     return ticks;
 }

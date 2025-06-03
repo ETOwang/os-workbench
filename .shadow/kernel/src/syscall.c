@@ -364,7 +364,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(fd);
         return -1;
     }
-
+    printf("file size: %ld\n", file_size);
     char *program_data = pmm->alloc(file_size);
     if (program_data == NULL)
     {

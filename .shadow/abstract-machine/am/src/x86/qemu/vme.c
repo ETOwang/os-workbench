@@ -158,7 +158,7 @@ void unprotect(AddrSpace *as)
 {
   teardown(0, (void *)&as->ptr);
 }
-
+  
 void map(AddrSpace *as, void *va, void *pa, int prot)
 {
   panic_on(!IN_RANGE(va, uvm_area), "mapping an invalid address");

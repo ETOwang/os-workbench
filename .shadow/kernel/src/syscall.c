@@ -364,20 +364,19 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(fd);
         return -1;
     }
-   
-    char *program_data = pmm->alloc(file_size);
-    if (program_data == NULL)
+
+    char *entry = pmm->alloc(file_size);
+    if (entry == NULL)
     {
         vfs->close(fd);
         return -1;
     }
-    printf("program data allocated at %p\n", program_data); 
     // 读取程序内容
-    ssize_t bytes_read = vfs->read(fd, program_data, file_size);
+    ssize_t bytes_read = vfs->read(fd, entry, file_size);
     vfs->close(fd);
     if (bytes_read != file_size)
     {
-        pmm->free(program_data);
+        pmm->free(entry);
         return -1;
     }
 
@@ -414,28 +413,29 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
 
     if (stack_needed > STACK_SIZE / 2)
     {
-        pmm->free(program_data);
+        pmm->free(entry);
         return -1;
     }
-
-    // 重新映射程序到用户空间
-    char *entry = pmm->alloc(task->pi->as.pgsize);
-    if (entry == NULL)
-    {
-        pmm->free(program_data);
-        return -1;
-    }
-
-    // 复制程序数据
-    size_t copy_size = file_size < task->pi->as.pgsize ? file_size : task->pi->as.pgsize;
-    memcpy(entry, program_data, copy_size);
-    pmm->free(program_data);
 
     // 重新映射到用户空间起始地址
-    map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
+    unprotect(&task->pi->as);
+    protect(&task->pi->as);
 
+    // 计算需要映射的页面数量
+    size_t pgsize = task->pi->as.pgsize;
+    size_t pages_needed = (file_size + pgsize - 1) / pgsize;
+    // 映射所有需要的页面
+    for (size_t i = 0; i < pages_needed; i++)
+    {
+        void *vaddr = (void *)((uintptr_t)UVSTART + i * pgsize);
+        void *paddr = (void *)((uintptr_t)entry + i * pgsize);
+        map(&task->pi->as, vaddr, paddr, MMAP_READ);
+    }
+    char *mem = pmm->alloc(task->pi->as.pgsize);
+    map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
+    task->context=ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), (void *)entry);
     // 设置新的栈，从栈顶开始向下构建参数
-    char *stack_top = (char *)task->stack + STACK_SIZE;
+    char *stack_top = (char *)task->context->rsp;
     char *stack_ptr = stack_top;
 
     // 首先复制字符串数据（从栈顶向下）
@@ -488,16 +488,10 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     // 清理临时分配的内存
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
-
-    // 重置上下文，设置新的栈指针和程序入口
-    Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
-    task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
-
     // 设置栈指针到我们构建的参数位置
     // 注意：这里需要根据具体的架构调整寄存器设置
     // 对于x86_64，栈指针在RSP中
     task->context->rsp = (uintptr_t)stack_ptr;
-
     // execve成功时不返回到原程序
     return 0;
 }

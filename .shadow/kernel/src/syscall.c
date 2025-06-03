@@ -93,6 +93,7 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
         return -1;
     }
     // TODO:use mode
+    printf("openat %s\n", full_path);
     int vfd = vfs->open(full_path, flags);
     if (vfd < 0)
     {

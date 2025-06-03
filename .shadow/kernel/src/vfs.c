@@ -91,6 +91,7 @@ int vfs_open(const char *pathname, int flags)
 			break;
 		}
 	}
+	printf("fd: %d\n", fd);
 	panic_on(fd == -1, "No free file descriptor available");
 	const char *mode = "r";
 	if (flags & O_RDONLY)

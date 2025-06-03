@@ -173,7 +173,7 @@ int main() {
         char new_cwd_buffer[256];
         int new_getcwd_result = getcwd(new_cwd_buffer, sizeof(new_cwd_buffer));
         
-        if (new_getcwd_result < 0) {
+        if (new_getcwd_result ==0) {
             print("  Error: getcwd after chdir failed!\n");
         } else {
             print("  New current working directory: ");

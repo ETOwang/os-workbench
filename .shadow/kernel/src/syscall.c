@@ -359,8 +359,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
 
     // 分配内存加载程序
     size_t file_size = stat.st_size;
-     printf("file size: %d\n", file_size);
-    if (file_size == 0 || file_size > 0x100000) // 限制1MB
+    if (file_size == 0)
     {
         vfs->close(fd);
         return -1;
@@ -372,11 +371,10 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(fd);
         return -1;
     }
-
+    printf("program data allocated at %p\n", program_data); 
     // 读取程序内容
     ssize_t bytes_read = vfs->read(fd, program_data, file_size);
     vfs->close(fd);
-
     if (bytes_read != file_size)
     {
         pmm->free(program_data);

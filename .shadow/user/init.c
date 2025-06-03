@@ -150,8 +150,7 @@ int main() {
     // 测试getcwd - 获取当前工作目录
     char cwd_buffer[256];
     int getcwd_result = getcwd(cwd_buffer, sizeof(cwd_buffer));
-    
-    if (getcwd_result < 0) {
+    if (getcwd_result == NULL) {
         print("  Error: getcwd failed!\n");
     } else {
         print("  Success! Current working directory: ");

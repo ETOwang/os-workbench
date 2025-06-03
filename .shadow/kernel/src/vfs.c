@@ -317,9 +317,8 @@ int vfs_stat(int fd, struct kstat *stat)
 	{
 		return VFS_ERROR;
 	}
-	// ext4_file* file=open_files[fd].file;
-	// stat->st_dev=
-
+	ext4_file* file=open_files[fd].file;
+	stat->st_size=file->fsize;
 	return VFS_SUCCESS;
 }
 

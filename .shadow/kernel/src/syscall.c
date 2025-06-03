@@ -211,25 +211,7 @@ static uint64_t syscall_fstat(task_t *task, int fd, struct kstat *statbuf)
     {
         return -1;
     }
-    // 简化实现 - 需要从文件描述符获取文件信息
-    // 这里暂时填充一些默认值
-    statbuf->st_dev = 0;
-    statbuf->st_ino = fd;
-    statbuf->st_mode = 0644;
-    statbuf->st_nlink = 1;
-    statbuf->st_uid = 0;
-    statbuf->st_gid = 0;
-    statbuf->st_rdev = 0;
-    statbuf->st_size = 0;
-    statbuf->st_blksize = 4096;
-    statbuf->st_blocks = 0;
-    statbuf->st_atime_sec = 0;
-    statbuf->st_atime_nsec = 0;
-    statbuf->st_mtime_sec = 0;
-    statbuf->st_mtime_nsec = 0;
-    statbuf->st_ctime_sec = 0;
-    statbuf->st_ctime_nsec = 0;
-    return 0;
+    return vfs->stat(fd, statbuf);
 }
 
 // 内存管理相关系统调用
@@ -365,10 +347,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     int fd = vfs->open(pathname, 0);
     if (fd < 0)
     {
-        printf("execve: failed to open %s\n", pathname);
         return -1;
     }
-
     // 获取文件大小
     struct kstat stat;
     if (syscall_fstat(task, fd, &stat) < 0)

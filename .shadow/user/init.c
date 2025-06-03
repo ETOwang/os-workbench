@@ -162,7 +162,7 @@ int main() {
     
     // 测试chdir - 改变当前工作目录到根目录
     print("  Attempting to change directory to /...\n");
-    int chdir_result = chdir("/mount");
+    int chdir_result = chdir("/");
     
     if (chdir_result < 0) {
         print("  Error: chdir to / failed!\n");

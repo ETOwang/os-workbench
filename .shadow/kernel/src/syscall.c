@@ -569,31 +569,8 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
         }
     }
 
-    // 验证并调整程序入口点
+    // 验证程序入口点
     uintptr_t entry_addr = ehdr->e_entry;
-
-    // 如果入口点也需要重定位，应用相同的偏移
-    // 这需要检查是否有任何段被重定位了
-    uintptr_t entry_offset = 0;
-    for (int i = 0; i < ehdr->e_phnum; i++)
-    {
-        if (phdr[i].p_type == PT_LOAD)
-        {
-            uintptr_t seg_start = phdr[i].p_vaddr;
-            uintptr_t seg_end = seg_start + phdr[i].p_memsz;
-
-            // 如果入口点在这个段内，且这个段被重定位了
-            if (entry_addr >= seg_start && entry_addr < seg_end && seg_start < UVSTART)
-            {
-                entry_offset = UVSTART - (seg_start & ~(task->pi->as.pgsize - 1));
-                entry_addr += entry_offset;
-                printf("Relocating entry point from 0x%lx to 0x%lx\n",
-                       ehdr->e_entry, entry_addr);
-                break;
-            }
-        }
-    }
-
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {
         printf("Invalid entry point: 0x%lx (valid range: 0x%lx - 0x%lx)\n",
@@ -628,24 +605,11 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
     uintptr_t vaddr_start = phdr->p_vaddr;
     uintptr_t vaddr_end = vaddr_start + phdr->p_memsz;
 
-    // 对于标准ELF文件，需要重新映射到我们的用户空间
-    // 如果虚拟地址不在我们的用户空间范围内，进行地址转换
-    uintptr_t addr_offset = 0;
-    if (vaddr_start < UVSTART)
+    // 验证虚拟地址范围是否在用户空间内
+    if (vaddr_start < UVSTART || vaddr_start >= UVMEND || vaddr_end > UVMEND)
     {
-        // 计算需要的偏移量，将ELF的虚拟地址映射到我们的用户空间
-        addr_offset = UVSTART - (vaddr_start & ~(task->pi->as.pgsize - 1));
-        printf("Relocating ELF from 0x%lx to 0x%lx (offset: 0x%lx)\n",
-               vaddr_start, vaddr_start + addr_offset, addr_offset);
-        vaddr_start += addr_offset;
-        vaddr_end += addr_offset;
-    }
-
-    // 验证调整后的虚拟地址范围
-    if (vaddr_start >= UVMEND || vaddr_end > UVMEND)
-    {
-        printf("Virtual address range too large: 0x%lx - 0x%lx (max: 0x%lx)\n",
-               vaddr_start, vaddr_end, (uintptr_t)UVMEND);
+        printf("Invalid virtual address range: 0x%lx - 0x%lx (valid: 0x%lx - 0x%lx)\n",
+               vaddr_start, vaddr_end, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }
 

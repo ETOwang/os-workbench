@@ -389,7 +389,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
 
-
     // 使用ELF加载器加载程序
     void *entry_point;
     if (load_elf(task, elf_data, file_size, &entry_point) < 0)
@@ -570,8 +569,18 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
         }
     }
 
+    // 验证程序入口点
+    uintptr_t entry_addr = ehdr->e_entry;
+    if (entry_addr < UVSTART || entry_addr >= UVMEND)
+    {
+        printf("Invalid entry point: 0x%lx (valid range: 0x%lx - 0x%lx)\n",
+               entry_addr, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
+        return -1;
+    }
+
     // 设置程序入口点
-    *entry_point = (void *)ehdr->e_entry;
+    *entry_point = (void *)entry_addr;
+    printf("ELF loaded successfully, entry point: 0x%lx\n", entry_addr);
     return 0;
 }
 
@@ -585,15 +594,44 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
  */
 static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size, Elf64_Phdr *phdr)
 {
+    // 验证段的基本信息
+    if (phdr->p_memsz == 0)
+    {
+        return 0; // 空段，跳过
+    }
+
     // 计算需要的页面数量
     size_t pgsize = task->pi->as.pgsize;
     uintptr_t vaddr_start = phdr->p_vaddr;
     uintptr_t vaddr_end = vaddr_start + phdr->p_memsz;
 
+    // 验证虚拟地址范围是否有效
+    if (vaddr_start >= UVMEND || vaddr_end > UVMEND)
+    {
+        printf("Invalid virtual address range: 0x%lx - 0x%lx (max: 0x%lx)\n",
+               vaddr_start, vaddr_end, (uintptr_t)UVMEND);
+        return -1;
+    }
+
+    // 检查地址是否在用户空间范围内
+    if (vaddr_start < UVSTART)
+    {
+        printf("Virtual address 0x%lx below user space start 0x%lx\n",
+               vaddr_start, (uintptr_t)UVSTART);
+        return -1;
+    }
+
     // 页面对齐
     uintptr_t page_start = vaddr_start & ~(pgsize - 1);
     uintptr_t page_end = (vaddr_end + pgsize - 1) & ~(pgsize - 1);
     size_t pages_needed = (page_end - page_start) / pgsize;
+
+    // 验证页面数量是否合理
+    if (pages_needed == 0 || pages_needed > 1024) // 限制最大1024页
+    {
+        printf("Invalid page count: %zu\n", pages_needed);
+        return -1;
+    }
 
     // 为每个页面分配物理内存并映射
     for (size_t j = 0; j < pages_needed; j++)
@@ -610,6 +648,14 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
         // 计算当前页面的虚拟地址
         uintptr_t page_vaddr = page_start + j * pgsize;
 
+        // 验证页面虚拟地址是否有效
+        if (page_vaddr >= UVMEND || page_vaddr < UVSTART)
+        {
+            printf("Invalid page virtual address: 0x%lx\n", page_vaddr);
+            pmm->free(page);
+            return -1;
+        }
+
         // 如果这个页面包含段数据，复制数据
         if (page_vaddr < vaddr_end && (page_vaddr + pgsize) > vaddr_start)
         {
@@ -620,7 +666,15 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
             }
         }
 
+        // 验证物理页面地址
+        if (page == NULL)
+        {
+            printf("Invalid physical page address\n");
+            return -1;
+        }
+
         // 映射页面
+        printf("Mapping vaddr=0x%lx to paddr=%p\n", page_vaddr, page);
         map(&task->pi->as, (void *)page_vaddr, page, MMAP_READ);
     }
 

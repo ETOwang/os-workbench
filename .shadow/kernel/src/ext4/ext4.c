@@ -993,7 +993,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 	f->mp = 0;
 
 	if (!mp)
-		return ENOENT*100;
+		return ENOENT;
 
 	struct ext4_fs *const fs = &mp->fs;
 	struct ext4_sblock *const sb = &mp->fs.sb;

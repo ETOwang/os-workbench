@@ -1,6 +1,14 @@
 #include <common.h>
 #include <syscall.h>
 #include <vfs.h>
+#include <elf.h>
+
+// ELF加载器函数声明
+static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point);
+static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size, Elf64_Phdr *phdr);
+static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr *phdr,
+                             void *page, uintptr_t page_vaddr, uintptr_t vaddr_start,
+                             uintptr_t vaddr_end, size_t pgsize);
 
 static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
 {
@@ -357,28 +365,41 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
 
-    // 分配内存加载程序
+    // 分配内存加载ELF文件
     size_t file_size = stat.st_size;
-    if (file_size == 0)
+    if (file_size == 0 || file_size < sizeof(Elf64_Ehdr))
     {
         vfs->close(fd);
         return -1;
     }
 
-    char *entry = pmm->alloc(file_size);
-    if (entry == NULL)
+    char *elf_data = pmm->alloc(file_size);
+    if (elf_data == NULL)
     {
         vfs->close(fd);
         return -1;
     }
-    // 读取程序内容
-    ssize_t bytes_read = vfs->read(fd, entry, file_size);
+
+    // 读取整个ELF文件
+    ssize_t bytes_read = vfs->read(fd, elf_data, file_size);
     vfs->close(fd);
     if (bytes_read != file_size)
     {
-        pmm->free(entry);
+        pmm->free(elf_data);
         return -1;
     }
+
+
+    // 使用ELF加载器加载程序
+    void *entry_point;
+    if (load_elf(task, elf_data, file_size, &entry_point) < 0)
+    {
+        pmm->free(elf_data);
+        return -1;
+    }
+
+    // 释放ELF数据
+    pmm->free(elf_data);
 
     // 计算参数和环境变量的数量和总大小
     int argc = 0;
@@ -413,27 +434,15 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
 
     if (stack_needed > STACK_SIZE / 2)
     {
-        pmm->free(entry);
         return -1;
     }
 
-    // 重新映射到用户空间起始地址
-    unprotect(&task->pi->as);
-    protect(&task->pi->as);
-
-    // 计算需要映射的页面数量
-    size_t pgsize = task->pi->as.pgsize;
-    size_t pages_needed = (file_size + pgsize - 1) / pgsize;
-    // 映射所有需要的页面
-    for (size_t i = 0; i < pages_needed; i++)
-    {
-        void *vaddr = (void *)((uintptr_t)UVSTART + i * pgsize);
-        void *paddr = (void *)((uintptr_t)entry + i * pgsize);
-        map(&task->pi->as, vaddr, paddr, MMAP_READ);
-    }
+    // 分配栈空间
     char *mem = pmm->alloc(task->pi->as.pgsize);
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
-    task->context=ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), (void *)entry);
+
+    // 创建新的上下文，使用ELF入口点
+    task->context = ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), entry_point);
     // 设置新的栈，从栈顶开始向下构建参数
     char *stack_top = (char *)task->context->rsp;
     char *stack_ptr = stack_top;
@@ -493,6 +502,159 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     // 对于x86_64，栈指针在RSP中
     task->context->rsp = (uintptr_t)stack_ptr;
     // execve成功时不返回到原程序
+    return 0;
+}
+
+/**
+ * ELF加载器 - 解析并加载ELF文件到进程地址空间
+ * @param task 目标任务
+ * @param elf_data ELF文件数据
+ * @param file_size 文件大小
+ * @param entry_point 输出参数，返回程序入口点
+ * @return 0成功，-1失败
+ */
+static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point)
+{
+    // 验证参数
+    if (task == NULL || elf_data == NULL || entry_point == NULL)
+    {
+        return -1;
+    }
+
+    // 验证文件大小
+    if (file_size < sizeof(Elf64_Ehdr))
+    {
+        return -1;
+    }
+
+    // 解析ELF头
+    Elf64_Ehdr *ehdr = (Elf64_Ehdr *)elf_data;
+
+    // 验证ELF魔数
+    if (ehdr->e_ident[EI_MAG0] != ELFMAG0 ||
+        ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
+        ehdr->e_ident[EI_MAG2] != ELFMAG2 ||
+        ehdr->e_ident[EI_MAG3] != ELFMAG3)
+    {
+        return -1;
+    }
+
+    // 检查是否为64位ELF
+    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64)
+    {
+        return -1;
+    }
+
+    // 验证程序头表偏移
+    if (ehdr->e_phoff >= file_size || ehdr->e_phnum == 0)
+    {
+        return -1;
+    }
+
+    // 获取程序头表
+    Elf64_Phdr *phdr = (Elf64_Phdr *)(elf_data + ehdr->e_phoff);
+
+    // 清理当前地址空间
+    unprotect(&task->pi->as);
+    protect(&task->pi->as);
+
+    // 加载所有LOAD段
+    for (int i = 0; i < ehdr->e_phnum; i++)
+    {
+        if (phdr[i].p_type == PT_LOAD)
+        {
+            if (load_elf_segment(task, elf_data, file_size, &phdr[i]) < 0)
+            {
+                return -1;
+            }
+        }
+    }
+
+    // 设置程序入口点
+    *entry_point = (void *)ehdr->e_entry;
+    return 0;
+}
+
+/**
+ * 加载单个ELF段
+ * @param task 目标任务
+ * @param elf_data ELF文件数据
+ * @param file_size 文件大小
+ * @param phdr 程序头
+ * @return 0成功，-1失败
+ */
+static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size, Elf64_Phdr *phdr)
+{
+    // 计算需要的页面数量
+    size_t pgsize = task->pi->as.pgsize;
+    uintptr_t vaddr_start = phdr->p_vaddr;
+    uintptr_t vaddr_end = vaddr_start + phdr->p_memsz;
+
+    // 页面对齐
+    uintptr_t page_start = vaddr_start & ~(pgsize - 1);
+    uintptr_t page_end = (vaddr_end + pgsize - 1) & ~(pgsize - 1);
+    size_t pages_needed = (page_end - page_start) / pgsize;
+
+    // 为每个页面分配物理内存并映射
+    for (size_t j = 0; j < pages_needed; j++)
+    {
+        void *page = pmm->alloc(pgsize);
+        if (page == NULL)
+        {
+            return -1;
+        }
+
+        // 清零页面
+        memset(page, 0, pgsize);
+
+        // 计算当前页面的虚拟地址
+        uintptr_t page_vaddr = page_start + j * pgsize;
+
+        // 如果这个页面包含段数据，复制数据
+        if (page_vaddr < vaddr_end && (page_vaddr + pgsize) > vaddr_start)
+        {
+            if (copy_segment_data(elf_data, file_size, phdr, page, page_vaddr, vaddr_start, vaddr_end, pgsize) < 0)
+            {
+                pmm->free(page);
+                return -1;
+            }
+        }
+
+        // 映射页面
+        map(&task->pi->as, (void *)page_vaddr, page, MMAP_READ);
+    }
+
+    return 0;
+}
+
+/**
+ * 复制段数据到页面
+ */
+static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr *phdr,
+                             void *page, uintptr_t page_vaddr, uintptr_t vaddr_start,
+                             uintptr_t vaddr_end, size_t pgsize)
+{
+    // 计算在页面内的偏移和大小
+    uintptr_t copy_start = page_vaddr > vaddr_start ? page_vaddr : vaddr_start;
+    uintptr_t copy_end = (page_vaddr + pgsize) < vaddr_end ? (page_vaddr + pgsize) : vaddr_end;
+
+    if (copy_start < copy_end && phdr->p_filesz > 0)
+    {
+        size_t file_offset = phdr->p_offset + (copy_start - vaddr_start);
+        size_t page_offset = copy_start - page_vaddr;
+        size_t copy_size = copy_end - copy_start;
+
+        // 确保不超出文件大小
+        if (file_offset + copy_size <= file_size)
+        {
+            memcpy((char *)page + page_offset, elf_data + file_offset, copy_size);
+        }
+        else
+        {
+            return -1;
+        }
+    }
+
     return 0;
 }
 

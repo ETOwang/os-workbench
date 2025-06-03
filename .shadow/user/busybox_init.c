@@ -26,17 +26,8 @@ int main()
 {
     print("BusyBox Init Process Starting...\n");
 
-    // 尝试挂载根文件系统
-    print("Mounting root filesystem...\n");
-    int mount_result = my_mount("/dev/sda", "/", "ext4", 0, (void *)0);
-    if (mount_result < 0)
-    {
-        print("Warning: Failed to mount root filesystem\n");
-    }
-    else
-    {
-        print("Root filesystem mounted successfully\n");
-    }
+    // 文件系统已经在VFS初始化时自动挂载了，不需要重新挂载
+    print("Root filesystem already mounted by kernel\n");
 
     // 切换到根目录
     if (my_chdir("/") < 0)

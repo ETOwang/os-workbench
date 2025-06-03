@@ -993,7 +993,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 	f->mp = 0;
 
 	if (!mp)
-		return ENOENT;
+		return ENOENT*100;
 
 	struct ext4_fs *const fs = &mp->fs;
 	struct ext4_sblock *const sb = &mp->fs.sb;
@@ -1630,7 +1630,7 @@ int ext4_fopen(ext4_file *file, const char *path, const char *flags)
 	struct ext4_mountpoint *mp = ext4_get_mount(path);
 	int r;
 	if (!mp)
-		return ENOENT*100;
+		return ENOENT;
 
 	EXT4_MP_LOCK(mp);	
 

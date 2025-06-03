@@ -37,10 +37,39 @@ int main()
 
     // 检查BusyBox是否存在
     print("Looking for BusyBox binary...\n");
+
+    // 先尝试列出根目录内容
+    print("Trying to list root directory contents...\n");
+    int root_fd = my_openat(AT_FDCWD, "/", O_RDONLY);
+    if (root_fd >= 0)
+    {
+        print("Root directory opened successfully\n");
+        my_close(root_fd);
+    }
+    else
+    {
+        print("Failed to open root directory\n");
+    }
+
+    // 尝试打开 /bin/busybox
+    print("Trying /bin/busybox...\n");
     int busybox_fd = my_openat(AT_FDCWD, "/bin/busybox", O_RDONLY);
     if (busybox_fd < 0)
     {
+        print("Failed to open /bin/busybox, trying /busybox...\n");
         busybox_fd = my_openat(AT_FDCWD, "/busybox", O_RDONLY);
+        if (busybox_fd < 0)
+        {
+            print("Failed to open /busybox too\n");
+        }
+        else
+        {
+            print("Found /busybox!\n");
+        }
+    }
+    else
+    {
+        print("Found /bin/busybox!\n");
     }
 
     if (busybox_fd < 0)

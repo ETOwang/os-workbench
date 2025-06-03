@@ -55,7 +55,6 @@ static int uproc_exit(task_t *task, int status)
 {
     panic_on(task == NULL, "Task is NULL");
     panic_on(task->pi == NULL, "Task procinfo is NULL");
-    printf("uproc_exit called with status=%d\n", status);
     task->pi->xstate = status;
     task->status = TASK_ZOMBIE;
     return 0;
@@ -79,7 +78,7 @@ int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
             break;
         }
         uintptr_t *ptep = ptewalk(old, current_va);
-        if (ptep && (*ptep & PROT_NONE))
+        if (ptep && (*ptep & PROT_READ))
         {
             int map_prot = MMAP_READ;
             if (*ptep & MMAP_WRITE)

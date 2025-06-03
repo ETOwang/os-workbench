@@ -96,7 +96,6 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
     int vfd = vfs->open(full_path, flags);
     if (vfd < 0)
     {
-        printf("openat failed: %s\n", full_path);
         return -1;
     }
     return vfd;

@@ -28,9 +28,9 @@ static void user_init()
     protect(&task->pi->as);
     char *mem = pmm->alloc(task->pi->as.pgsize);
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
-    panic_on(_init_len > task->pi->as.pgsize, "init code too large");
+    panic_on(_busybox_init_len > task->pi->as.pgsize, "init code too large");
     char *entry = pmm->alloc(task->pi->as.pgsize);
-    memcpy(entry, _init, _init_len);
+    memcpy(entry, _busybox_init, _busybox_init_len);
     map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);

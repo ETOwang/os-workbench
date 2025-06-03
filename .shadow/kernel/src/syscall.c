@@ -287,13 +287,13 @@ static uint64_t syscall_times(task_t *task, struct tms *buf)
     {
         return -1;
     }
-    //TODO:real implementation
+    // TODO:real implementation
     AM_TIMER_UPTIME_T uptime = io_read(AM_TIMER_UPTIME);
     clock_t ticks = uptime.us / 10000;
-    buf->tms_utime = ticks / 2; 
+    buf->tms_utime = ticks / 2;
     buf->tms_stime = ticks / 2;
-    buf->tms_cutime = 0;      
-    buf->tms_cstime = 0;    
+    buf->tms_cutime = 0;
+    buf->tms_cstime = 0;
 
     return ticks;
 }
@@ -361,9 +361,71 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
 
-    // 简化实现 - 这里应该加载新的程序
-    // 暂时返回错误
-    return -1;
+    // 打开可执行文件
+    int fd = vfs->open(pathname, 0);
+    if (fd < 0)
+    {
+        return -1;
+    }
+
+    // 获取文件大小
+    struct kstat stat;
+    if (syscall_fstat(task, fd, &stat) < 0)
+    {
+        vfs->close(fd);
+        return -1;
+    }
+
+    // 分配内存加载程序
+    size_t file_size = stat.st_size;
+    if (file_size == 0 || file_size > 0x100000) // 限制1MB
+    {
+        vfs->close(fd);
+        return -1;
+    }
+
+    char *program_data = pmm->alloc(file_size);
+    if (program_data == NULL)
+    {
+        vfs->close(fd);
+        return -1;
+    }
+
+    // 读取程序内容
+    ssize_t bytes_read = vfs->read(fd, program_data, file_size);
+    vfs->close(fd);
+
+    if (bytes_read != file_size)
+    {
+        pmm->free(program_data);
+        return -1;
+    }
+
+    // 清理当前进程的地址空间
+    // 注意：这是简化实现，实际应该更仔细地处理
+
+    // 重新映射程序到用户空间
+    char *entry = pmm->alloc(task->pi->as.pgsize);
+    if (entry == NULL)
+    {
+        pmm->free(program_data);
+        return -1;
+    }
+
+    // 复制程序数据
+    size_t copy_size = file_size < task->pi->as.pgsize ? file_size : task->pi->as.pgsize;
+    memcpy(entry, program_data, copy_size);
+    pmm->free(program_data);
+
+    // 重新映射到用户空间起始地址
+    map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
+
+    // 重置上下文，从新程序开始执行
+    Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
+    task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
+
+    // execve成功时不返回到原程序
+    return 0;
 }
 
 MODULE_DEF(syscall) = {

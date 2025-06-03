@@ -1,7 +1,6 @@
 #include <common.h>
 #include <string.h>
 #include <am.h>
-#include <user.h>
 #include "initcode.inc"
 #define PTE_ADDR(pte) ((pte) & 0x000ffffffffff000ULL)
 #define MAX_PID 32767

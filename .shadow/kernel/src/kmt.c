@@ -1,7 +1,6 @@
 #include <common.h>
 #include <limits.h>
 #include <syscall.h>
-#include <user.h>
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
 static int task_index;

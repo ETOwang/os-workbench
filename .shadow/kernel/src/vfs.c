@@ -91,7 +91,6 @@ int vfs_open(const char *pathname, int flags)
 			break;
 		}
 	}
-	printf("fd: %d\n", fd);
 	panic_on(fd == -1, "No free file descriptor available");
 	const char *mode = "r";
 	if (flags & O_RDONLY)
@@ -113,6 +112,7 @@ int vfs_open(const char *pathname, int flags)
 			mode = "r+";
 	}
 	open_files[fd].file = pmm->alloc(sizeof(ext4_file));
+	printf("VFS: Opening file %s with mode %s\n", pathname, mode);
 	int ret = ext4_fopen(open_files[fd].file, pathname, mode);
 	if (ret != EOK)
 	{

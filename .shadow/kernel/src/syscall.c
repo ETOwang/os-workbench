@@ -365,6 +365,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     int fd = vfs->open(pathname, 0);
     if (fd < 0)
     {
+        printf("execve: failed to open %s\n", pathname);
         return -1;
     }
 

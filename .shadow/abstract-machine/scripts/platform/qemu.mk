@@ -1,6 +1,6 @@
 .PHONY: build-arg
 
-smp        ?= 3
+smp        ?= 64
 LDFLAGS    += -N -Ttext-segment=0x00100000
 QEMU_FLAGS += -serial mon:stdio \
               -machine accel=tcg \

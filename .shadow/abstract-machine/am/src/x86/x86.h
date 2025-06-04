@@ -91,7 +91,7 @@
   _(129, USER, NOERR)
 
 // AM-specific configurations
-#define MAX_CPU       8
+#define MAX_CPU       64
 #define BOOTREC_ADDR  0x07000
 #define MAINARG_ADDR  0x10000
 

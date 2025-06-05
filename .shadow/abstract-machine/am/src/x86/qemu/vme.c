@@ -23,8 +23,8 @@ const struct mmu_config mmu = {
 
 static const struct vm_area vm_areas[] = {
 #ifdef __x86_64__
-    {RANGE(0x100000000000, 0x108000000000), 0}, // 512 GiB user space
-    {RANGE(0x000000000000, 0x008000000000), 1}, // 512 GiB kernel
+    {RANGE(0x100000000000, 0x108000000000), 1}, // 512 GiB user space
+    {RANGE(0x000000000000, 0x008000000000), 0}, // 512 GiB kernel
 #else
     {RANGE(0x40000000, 0x80000000), 0}, // 1 GiB user space
     {RANGE(0x00000000, 0x40000000), 1}, // 1 GiB kernel

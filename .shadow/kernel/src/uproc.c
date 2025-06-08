@@ -18,43 +18,29 @@ static int uproc_alloc_pid()
 }
 static void user_init()
 {
-    printf("user_init start\n");
+    printf("user_init\n");
     task_t *task = pmm->alloc(sizeof(task_t));
-    printf("allocated task\n");
     task->pi = pmm->alloc(sizeof(procinfo_t));
-    printf("allocated procinfo\n");
     task->pi->parent = NULL;
     task->pi->pid = uproc_alloc_pid();
-    printf("allocated pid: %d\n", task->pi->pid);
     task->pi->cwd = pmm->alloc(PATH_MAX);
     strcpy(task->pi->cwd, "/");
     panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
-    printf("about to protect address space\n");
     protect(&task->pi->as);
-    printf("protected address space\n");
     char *mem = pmm->alloc(task->pi->as.pgsize);
-    printf("allocated stack memory\n");
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
-    printf("mapped stack\n");
     panic_on(_busybox_init_len > task->pi->as.pgsize, "init code too large");
-    printf("init code size check passed: %d bytes\n", _busybox_init_len);
     char *entry = pmm->alloc(task->pi->as.pgsize);
-    printf("allocated entry page\n");
     memcpy(entry, _busybox_init, _busybox_init_len);
-    printf("copied init code\n");
     map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
-    printf("mapped entry point\n");
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
-    printf("about to create context\n");
     task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
-    printf("created context\n");
     task->name = "initproc";
     task->status = TASK_READY;
     task->cpu = -1;
     task->next = NULL;
     kmt->spin_init(&task->lock, task->name);
-    printf("about to add task to scheduler\n");
     kmt_add_task(task);
     printf("user_init end\n");
     TRACE_EXIT;

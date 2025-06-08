@@ -141,7 +141,7 @@ void protect(AddrSpace *as)
     {
       const struct ptinfo *info = &mmu.pgtables[1]; // level-1 page table
       for (uintptr_t cur = (uintptr_t)vma->area.start;
-           cur != (uintptr_t)vma->area.end;
+           cur < (uintptr_t)vma->area.end;
            cur += (1L << info->shift))
       {
         int index = indexof(cur, info);

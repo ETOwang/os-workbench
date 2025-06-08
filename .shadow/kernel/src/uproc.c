@@ -25,15 +25,14 @@ static void user_init()
     task->pi->cwd = pmm->alloc(PATH_MAX);
     strcpy(task->pi->cwd, "/");
     panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
-    printf("user_init protect\n");
     protect(&task->pi->as);
-    printf("user_init protect done\n");
     char *mem = pmm->alloc(task->pi->as.pgsize);
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
     panic_on(_busybox_init_len > task->pi->as.pgsize, "init code too large");
     char *entry = pmm->alloc(task->pi->as.pgsize);
     memcpy(entry, _busybox_init, _busybox_init_len);
     map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
+    printf("user_init protect\n");
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
     task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);

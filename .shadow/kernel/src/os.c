@@ -8,7 +8,6 @@ static void os_init()
     kmt->init();
     dev->init();
     uproc->init();
-    printf("pmm, kmt, dev, uproc init done\n");
     vfs->init();
 }
 static void os_run()

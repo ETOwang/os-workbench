@@ -46,6 +46,7 @@ static void user_init()
 static void uproc_init()
 {
     vme_init((void *(*)(int))pmm->alloc, pmm->free);
+    printf("vme init done\n");
     kmt->spin_init(&uproc_lock, "uproc_lock");
     user_init();
 }

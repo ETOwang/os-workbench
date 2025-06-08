@@ -1,6 +1,6 @@
 #ifndef _KERNEL_COMMON_H
 #define _KERNEL_COMMON_H
-//#define TRACE_F
+// #define TRACE_F
 #ifdef TRACE_F
 #define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
 #define TRACE_EXIT printf("[trace] %s:exit\n", __func__)
@@ -18,8 +18,8 @@
 #define MAX_CPU 32
 #define MAX_TASK 128
 #define PATH_MAX 128
-#define UVMEND 0x108000000000
-#define UVSTART 0x100000000000
+#define UVMEND 0x0000800000000000
+#define UVSTART 0x0000000008000000
 #include <kernel.h>
 #include <klib.h>
 #include <klib-macros.h>

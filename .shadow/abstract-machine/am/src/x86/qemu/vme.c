@@ -23,8 +23,8 @@ const struct mmu_config mmu = {
 
 static const struct vm_area vm_areas[] = {
 #ifdef __x86_64__
-    {RANGE(0x100000000000, 0x108000000000), 0}, // 512 GiB user space
-    {RANGE(0x000000000000, 0x008000000000), 1}, // 512 GiB kernel
+    {RANGE(0x0000000008000000, 0x0000800000000000), 0}, // 用户空间：128MB - 128TB
+    {RANGE(0x0000000000000000, 0x0000000008000000), 1}, // 内核空间：低128MB
 #else
     {RANGE(0x40000000, 0x80000000), 0}, // 1 GiB user space
     {RANGE(0x00000000, 0x40000000), 1}, // 1 GiB kernel
@@ -158,7 +158,7 @@ void unprotect(AddrSpace *as)
 {
   teardown(0, (void *)&as->ptr);
 }
-  
+
 void map(AddrSpace *as, void *va, void *pa, int prot)
 {
   panic_on(!IN_RANGE(va, uvm_area), "mapping an invalid address");

@@ -31,6 +31,7 @@ static void user_init()
     panic_on(_busybox_init_len > task->pi->as.pgsize, "init code too large");
     char *entry = pmm->alloc(task->pi->as.pgsize);
     memcpy(entry, _busybox_init, _busybox_init_len);
+    printf("user_init map\n");
     map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
     printf("user_init protect\n");
     task->fence = (void *)FENCE_PATTERN;

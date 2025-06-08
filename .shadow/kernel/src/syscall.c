@@ -335,12 +335,8 @@ static uint64_t syscall_gettimeofday(task_t *task, struct timespec *ts, void *tz
 // 进程管理相关系统调用
 static uint64_t syscall_clone(task_t *task, int flags, void *stack, int *ptid, int *ctid, unsigned long newtls)
 {
-    // 添加调试信息
-    printf("clone called with flags=0x%x, stack=%p\n", flags, stack);
-
     // 简化实现 - 调用uproc的fork
     int result = uproc->fork(task);
-    printf("fork returned: %d\n", result);
     return result;
 }
 
@@ -666,7 +662,6 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
         }
 
         // 映射页面
-        printf("Mapping vaddr=0x%lx to paddr=%p\n", page_vaddr, page);
         map(&task->pi->as, (void *)page_vaddr, page, MMAP_READ);
     }
 

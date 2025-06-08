@@ -18,7 +18,6 @@ static int uproc_alloc_pid()
 }
 static void user_init()
 {
-    printf("user_init\n");
     task_t *task = pmm->alloc(sizeof(task_t));
     task->pi = pmm->alloc(sizeof(procinfo_t));
     task->pi->parent = NULL;
@@ -26,7 +25,9 @@ static void user_init()
     task->pi->cwd = pmm->alloc(PATH_MAX);
     strcpy(task->pi->cwd, "/");
     panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
+    printf("user_init protect\n");
     protect(&task->pi->as);
+    printf("user_init protect done\n");
     char *mem = pmm->alloc(task->pi->as.pgsize);
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
     panic_on(_busybox_init_len > task->pi->as.pgsize, "init code too large");

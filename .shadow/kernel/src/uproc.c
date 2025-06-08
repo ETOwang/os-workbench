@@ -18,6 +18,7 @@ static int uproc_alloc_pid()
 }
 static void user_init()
 {
+    printf("user_init\n");
     task_t *task = pmm->alloc(sizeof(task_t));
     task->pi = pmm->alloc(sizeof(procinfo_t));
     task->pi->parent = NULL;
@@ -41,12 +42,12 @@ static void user_init()
     task->next = NULL;
     kmt->spin_init(&task->lock, task->name);
     kmt_add_task(task);
+    printf("user_init end\n");  
     TRACE_EXIT;
 }
 static void uproc_init()
 {
     vme_init((void *(*)(int))pmm->alloc, pmm->free);
-    printf("vme init done\n");
     kmt->spin_init(&uproc_lock, "uproc_lock");
     user_init();
 }

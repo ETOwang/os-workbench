@@ -174,6 +174,7 @@ void map(AddrSpace *as, void *va, void *pa, int prot)
   else
   {
     panic_on(*ptentry & PTE_P, "remapping a mapped page");
+     putstr("here\n");
     uintptr_t pte = (uintptr_t)pa | PTE_P | PTE_U | ((prot & MMAP_WRITE) ? PTE_W : 0);
     *ptentry = pte;
   }

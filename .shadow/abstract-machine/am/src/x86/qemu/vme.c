@@ -67,6 +67,7 @@ static uintptr_t *ptwalk(AddrSpace *as, uintptr_t addr, int flags)
     const struct ptinfo *ptinfo = &mmu.pgtables[i];
     uintptr_t *pt = (uintptr_t *)cur, next_page;
     int index = indexof(addr, ptinfo);
+    printf("ptwalk: level=%d addr=%p index=%d pt=%p\n", i, (void *)addr, index, pt);
     if (i == mmu.ptlevels)
       return &pt[index];
     if (!(pt[index] & PTE_P))

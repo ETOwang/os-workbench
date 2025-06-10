@@ -166,9 +166,10 @@ void map(AddrSpace *as, void *va, void *pa, int prot)
                (uintptr_t)pa != ROUNDDOWN(pa, mmu.pgsize),
            "non-page-boundary address");
   uintptr_t *ptentry = ptwalk(as, (uintptr_t)va, PTE_W | PTE_U);
+  putstr("here\n");
   if (prot == MMAP_NONE)
   {
-     putstr("here\n");
+     
     panic_on(!(*ptentry & PTE_P), "unmapping a non-mapped page");
     *ptentry = 0;
   }

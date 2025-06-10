@@ -18,8 +18,8 @@
 #define MAX_CPU 32
 #define MAX_TASK 128
 #define PATH_MAX 128
-#define UVMEND 0x0000800000000000
-#define UVSTART 0x0000000008000000
+#define UVMEND 0x108000000000
+#define UVSTART 0x100000000000
 #include <kernel.h>
 #include <klib.h>
 #include <klib-macros.h>

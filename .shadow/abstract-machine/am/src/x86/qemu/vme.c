@@ -1,5 +1,5 @@
 #include "x86-qemu.h"
-
+#include <klib.h>
 const struct mmu_config mmu = {
     .pgsize = 4096,
 #if __x86_64__
@@ -166,7 +166,7 @@ void map(AddrSpace *as, void *va, void *pa, int prot)
                (uintptr_t)pa != ROUNDDOWN(pa, mmu.pgsize),
            "non-page-boundary address");
   uintptr_t *ptentry = ptwalk(as, (uintptr_t)va, PTE_W | PTE_U);
-  putstr("here\n");
+  printf("map: va=%p pa=%p prot=%d ptentry=%p\n", va, pa, prot, ptentry);
   if (prot == MMAP_NONE)
   {
     panic_on(!(*ptentry & PTE_P), "unmapping a non-mapped page");
@@ -174,9 +174,7 @@ void map(AddrSpace *as, void *va, void *pa, int prot)
   }
   else
   {
-    putstr("here\n");
     panic_on(*ptentry & PTE_P, "remapping a mapped page");
-    putstr("here\n");
     uintptr_t pte = (uintptr_t)pa | PTE_P | PTE_U | ((prot & MMAP_WRITE) ? PTE_W : 0);
     *ptentry = pte;
   }

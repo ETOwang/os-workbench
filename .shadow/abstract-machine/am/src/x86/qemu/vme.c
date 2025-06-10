@@ -73,7 +73,6 @@ static uintptr_t *ptwalk(AddrSpace *as, uintptr_t addr, int flags)
     if (!(pt[index] & PTE_P))
     {
       next_page = (uintptr_t)pgallocz();
-      printf("ptwalk: level=%d addr=%p index=%d pt=%p allocating new page %p\n", i, (void *)addr, index, pt, (void *)next_page);
       pt[index] = next_page | PTE_P | flags;
     }
     else

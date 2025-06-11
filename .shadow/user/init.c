@@ -473,11 +473,17 @@ void test_fork()
     if (pid == 0)
     {
         // 子进程
+        int buf[2000];
+        buf[0] = 1;
+        buf[2] = 21200;
         print("son\n", NULL);
         syscall(SYS_exit, 0);
     }
     else if (pid > 0)
     {
+        int buf[100];
+        buf[0] = 1;
+        buf[2] = 21200;
         print("waitt for son..\n", NULL);
         syscall(SYS_wait4, -1, 0, 0, 0);
         print("son finished\n", NULL);
@@ -493,6 +499,6 @@ void test_fork()
 void main()
 {
     test_fork();
-    print("finish all test\n",NULL);
+    print("finish all test\n", NULL);
     syscall(SYS_exit, 0);
 }

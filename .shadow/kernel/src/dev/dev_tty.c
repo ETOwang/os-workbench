@@ -72,7 +72,6 @@ static int tty_cook(tty_t *tty, char ch) {
     case '\n':
       tty_enqueue(q, ch);
       tty_enqueue(q, '\0');
-      printf("tty: cooked line\n");
       kmt->sem_signal(&tty->cooked);
       break;
     case '\b':

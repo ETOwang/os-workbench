@@ -157,12 +157,10 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 	{
 		device_t *tty = dev->lookup("tty1");
 		tty_t *tty1 = tty->ptr;
-		printf("VFS: Read from %p\n",&tty1->cooked.value);
-		volatile int val = tty1->cooked.value;
-		while (val == 0)
-		{
-			val = tty1->cooked.value;
-		}
+		printf("VFS: Read from %p\n", &tty1->cooked.value);
+		int val = 0;
+		while (!atomic_xchg(&val, tty1->cooked.value))
+			;
 		printf("VFS: Read from tty1\n");
 		return tty->ops->read(tty, 0, buf, count);
 	}

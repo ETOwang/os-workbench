@@ -158,10 +158,12 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 		device_t *tty = dev->lookup("tty1");
 		tty_t *tty1 = tty->ptr;
 		printf("VFS: Read from tty1\n");
-		int val=tty1->cooked.value;
-		while (val== 0){
-			val=tty1->cooked.value;
+		kmt->spin_lock(&tty1->cooked.lock);
+		while (!tty1->cooked.value)
+		{
+			kmt->spin_unlock(&tty1->cooked.lock);
 		}
+		kmt->spin_unlock(&tty1->cooked.lock);
 		printf("VFS: Read from tty1\n");
 		return tty->ops->read(tty, 0, buf, count);
 	}

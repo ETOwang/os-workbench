@@ -143,7 +143,7 @@ int getcmd(char *buf, int nbuf)
 {
     syscall(SYS_getcwd, buf, nbuf);
     print("(sh-xv6):", NULL);
-    print(buf,NULL);
+    print(buf,"$ ",NULL);
     for (int i = 0; i < nbuf; i++)
     {
         buf[i] = '\0';

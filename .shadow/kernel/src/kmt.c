@@ -348,7 +348,7 @@ static void kmt_sem_wait(sem_t *sem)
 {
     TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
-    if (sem->name[0] != 'k')
+    if (sem->name[0] == 'c')
     {
         printf("wait name:%s\n", sem->name);
     }

@@ -157,7 +157,7 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 	{
 		device_t *tty = dev->lookup("tty1");
 		tty_t *tty1 = tty->ptr;
-		printf("VFS: Read from tty1\n");
+		printf("VFS: Read from %p\n",&tty1->cooked.value);
 		volatile int val = tty1->cooked.value;
 		while (val == 0)
 		{

@@ -72,7 +72,7 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
         return -1;
     }
     vfs->closedir(ret);
-    strncpy(task->pi->cwd, path, strlen(path) + 1);
+    strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
     return 0;
 }
 

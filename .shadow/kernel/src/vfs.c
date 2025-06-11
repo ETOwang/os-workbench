@@ -162,6 +162,7 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 		{
 			struct input_event ev;
 			int nr = in->ops->read(in, 0, &ev, sizeof(ev));
+			printf("VFS: Read %d bytes from input device\n", nr);
 			panic_on(nr == 0, "VFS: Read failed, no data available");
 			nread ++;
 			//TODO:maybe wrong

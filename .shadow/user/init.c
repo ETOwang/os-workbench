@@ -131,7 +131,7 @@ void runcmd(struct cmd *cmd) {
 int getcmd(char *buf, int nbuf) {
     print("(sh-xv6) > ", NULL);
     for (int i = 0; i < nbuf; i++){
-        print("i", NULL);
+       // print("i", NULL);
         buf[i] = '\0';
     }
     while (nbuf-- > 1) {

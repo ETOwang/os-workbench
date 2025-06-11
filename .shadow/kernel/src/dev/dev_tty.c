@@ -252,6 +252,7 @@ static int tty_write(device_t *dev, size_t offset, const void *buf, int count) {
   }
   kmt->spin_unlock(&tty->lock);
   tty_render(tty);
+  printf("(tty) Write %d bytes to %s.\n", count, dev->name);
   return count;
 }
 

@@ -149,7 +149,7 @@ int getcmd(char *buf, int nbuf)
         buf[i] = '\0';
     }
     int nread = syscall(SYS_read, 0, buf, nbuf);
-    print(buf, NULL);
+    print(buf, "\n", NULL);
     if (nread <= 0)
         return -1;
     return 0;
@@ -169,8 +169,8 @@ void main()
                 print("cannot cd ", buf + 3, "\n", NULL);
             continue;
         }
-        if (syscall(SYS_fork) == 0)
-            runcmd(parsecmd(buf));
+        // if (syscall(SYS_fork) == 0)
+        runcmd(parsecmd(buf));
         syscall(SYS_wait4, -1, 0, 0, 0);
     }
 }

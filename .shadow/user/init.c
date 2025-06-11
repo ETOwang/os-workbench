@@ -493,5 +493,6 @@ void test_fork()
 void main()
 {
     test_fork();
+    print("finish all test\n",NULL);
     syscall(SYS_exit, 0);
 }

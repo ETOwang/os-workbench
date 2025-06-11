@@ -155,12 +155,12 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 	}
 	if (open_files[fd].file == NULL)
 	{
-		device_t* tty=dev->lookup("tty1");
-		tty_t *tty1 = tty->ptr;
+		device_t *tty = dev->lookup("tty1");
+		// tty_t *tty1 = tty->ptr;
 		printf("VFS: Read from tty1\n");
-		while(tty1->cooked.value==0);
+		// while(tty1->cooked.value==0);
 		printf("VFS: Read from tty1\n");
-		return tty->ops->read(tty,0,buf,count);
+		return tty->ops->read(tty, 0, buf, count);
 	}
 	size_t bytes_read;
 	int ret = ext4_fread(open_files[fd].file, buf, count, &bytes_read);

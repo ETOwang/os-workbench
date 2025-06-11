@@ -59,9 +59,9 @@ struct cmd *parsecmd(char *);
 
 // cmd is the "abstract syntax tree" (AST) of the command;
 // runcmd() never returns.
-void  runcmd(struct cmd *cmd)
+void runcmd(struct cmd *cmd)
 {
-    print("runcmd 64\n",NULL);
+    print("runcmd 64\n", NULL);
     int p[2];
     struct backcmd *bcmd;
     struct execcmd *ecmd;
@@ -298,7 +298,7 @@ struct cmd *nulterminate(struct cmd *);
 
 struct cmd *parsecmd(char *s)
 {
-    print("parse cmd start\n",NULL);
+    print("parse cmd start\n", NULL);
     char *es;
     struct cmd *cmd;
 
@@ -307,7 +307,7 @@ struct cmd *parsecmd(char *s)
     peek(&s, es, "");
     assert(s == es);
     nulterminate(cmd);
-    print("parse cmd finish\n",NULL);
+    print("parse cmd finish\n", NULL);
     return cmd;
 }
 

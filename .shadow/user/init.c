@@ -149,6 +149,7 @@ int getcmd(char *buf, int nbuf)
         buf[i] = '\0';
     }
     int nread = syscall(SYS_read, 0, buf, nbuf);
+    print(buf, NULL);
     if (nread <= 0)
         return -1;
     return 0;
@@ -160,7 +161,6 @@ void main()
     // Read and run input commands.
     while (getcmd(buf, sizeof(buf)) >= 0)
     {
-        print(buf, NULL);
         if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ')
         {
             // Chdir must be called by the parent, not the child.

@@ -147,8 +147,8 @@ int getcmd(char *buf, int nbuf)
     }
     while (nbuf-- > 1)
     {
-        print("read\n");
         int nread = syscall(SYS_read, 0, buf, 1);
+        print(buf,NULL);
         if (nread <= 0)
             return -1;
         if (*(buf++) == '\n')

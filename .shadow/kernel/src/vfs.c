@@ -157,6 +157,7 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 	{
 		device_t *in = dev->lookup("input");
 		int nread = 0;
+		printf("VFS: Read from input device\n");
 		while (nread < count)
 		{
 			struct input_event ev;

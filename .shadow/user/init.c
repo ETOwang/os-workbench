@@ -129,11 +129,10 @@ void runcmd(struct cmd *cmd) {
 }
 
 int getcmd(char *buf, int nbuf) {
-    print("sh-xv6: ",NULL);
     print("(sh-xv6) > ", NULL);
+    assert(0);
     for (int i = 0; i < nbuf; i++)
         buf[i] = '\0';
-
     while (nbuf-- > 1) {
         int nread = syscall(SYS_read, 0, buf, 1);
         if (nread <= 0)

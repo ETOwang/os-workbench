@@ -466,29 +466,26 @@
 // Simple fork system call test function
 void test_fork()
 {
-    print("开始测试fork系统调用...\n", NULL);
+    print("start test...\n", NULL);
 
     int pid = syscall(SYS_fork);
 
     if (pid == 0)
     {
         // 子进程
-        print("这是子进程\n", NULL);
-        print("子进程即将退出\n", NULL);
+        print("son\n", NULL);
         syscall(SYS_exit, 0);
     }
     else if (pid > 0)
     {
-        // 父进程
-        print("这是父进程，已创建子进程\n", NULL);
-        print("父进程等待子进程结束...\n", NULL);
+        print("waitt for son..\n", NULL);
         syscall(SYS_wait4, -1, 0, 0, 0);
-        print("子进程已结束，fork测试完成\n", NULL);
+        print("son finished\n", NULL);
     }
     else
     {
         // fork失败
-        print("fork系统调用失败\n", NULL);
+        print("fork failed\n", NULL);
     }
 }
 

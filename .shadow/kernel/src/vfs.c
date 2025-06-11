@@ -186,7 +186,6 @@ ssize_t vfs_write(int fd, const void *buf, size_t count)
     if (open_files[fd].file == NULL)
 	{
 		device_t *tty = dev->lookup("tty1");
-		printf("VFS: Writing to tty1\n");
 		return tty->ops->write(tty, 0, buf, count);
 	}
 	size_t bytes_written;

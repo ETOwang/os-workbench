@@ -159,7 +159,7 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 		tty_t *tty1 = tty->ptr;
 		printf("VFS: Read from tty1\n");
 		volatile int val = tty1->cooked.value;
-		while (!val)
+		while (val == 0)
 		{
 			val = tty1->cooked.value;
 		}

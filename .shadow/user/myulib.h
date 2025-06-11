@@ -60,7 +60,7 @@ static inline long syscall(int num, ...) {
     register long a3 asm("rdx") = va_arg(ap, long);
     register long a4 asm("r10") = va_arg(ap, long);
     va_end(ap);
-    asm volatile("syscall"
+    asm volatile("int $0x80"
                  : "+r"(a0) : "r"(a1), "r"(a2), "r"(a3), "r"(a4)
                  : "memory", "rcx", "r8", "r9", "r11");
     return a0;
@@ -126,6 +126,7 @@ static inline int my_execve(const char *filename, char *const argv[], char *cons
   return syscall(SYS_execve, (uint64_t)filename, (uint64_t)argv, (uint64_t)envp, 0);
 }
 
+
 static inline size_t strlen(const char *s) {
     size_t len = 0;
     for (; *s; s++)
@@ -178,4 +179,5 @@ static inline void *zalloc(size_t sz) {
     freem += sz;
     return ret;
 }
+
 #endif // __MYULIB_H__

@@ -227,7 +227,7 @@ static int tty_read(device_t *dev, size_t offset, void *buf, int count) {
   tty_t *tty = dev->ptr;
   kmt->sem_wait(&tty->cooked);
   kmt->spin_lock(&tty->lock);
-  int nread = 0;
+  int nread = 0;  
 
   struct tty_queue *q = &tty->queue;
   while (1) {
@@ -248,6 +248,7 @@ static int tty_write(device_t *dev, size_t offset, const void *buf, int count) {
   tty_t *tty = dev->ptr;
   kmt->spin_lock(&tty->lock);
   for (int i = 0; i < count; i++) {
+    printf("tty_write: %c\n", ((const char *)buf)[i]);
     tty_putc(tty, ((const char *)buf)[i]);
   }
   kmt->spin_unlock(&tty->lock);

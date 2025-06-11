@@ -155,20 +155,10 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 	}
 	if (open_files[fd].file == NULL)
 	{
-		device_t *in = dev->lookup("input");
-		int nread = 0;
-		printf("VFS: Read from input device\n");
-		while (nread < count)
-		{
-			struct input_event ev;
-			int nr = in->ops->read(in, 0, &ev, sizeof(ev));
-			printf("VFS: Read %c\n", ev.data);
-			panic_on(nr == 0, "VFS: Read failed, no data available");
-			nread ++;
-			//TODO:maybe wrong
-			((char*)buf)[nread - 1] = ev.data;
-		}
-		return nread;
+		device_t* tty=dev->lookup("tty1");
+		tty_t *tty1 = tty->ptr;
+		while(!tty1->cooked.value);
+		return tty->ops->read(tty,0,buf,count);
 	}
 	size_t bytes_read;
 	int ret = ext4_fread(open_files[fd].file, buf, count, &bytes_read);
@@ -185,7 +175,7 @@ ssize_t vfs_write(int fd, const void *buf, size_t count)
 	{
 		return VFS_ERROR;
 	}
-    if (open_files[fd].file == NULL)
+	if (open_files[fd].file == NULL)
 	{
 		device_t *tty = dev->lookup("tty1");
 		return tty->ops->write(tty, 0, buf, count);

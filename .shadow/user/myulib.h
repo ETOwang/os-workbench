@@ -154,7 +154,7 @@ static inline char *strchr(const char *s, int c) {
 static inline void print(const char *s, ...) {
     va_list ap;
     va_start(ap, s);
-    while (s) {
+    while (s!=NULL) {
         syscall(SYS_write, 2, s, strlen(s));
         s = va_arg(ap, const char *);
     }

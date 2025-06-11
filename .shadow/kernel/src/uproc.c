@@ -34,7 +34,7 @@ static void user_init()
     //TODO:better function
     for (size_t i = 0; i < 3; i++)
     {
-        map(&task->pi->as, (void *)UVSTART+i*task->pi->as.pgsize, (void *)entry, MMAP_READ);
+        map(&task->pi->as, (void *)UVSTART+i*task->pi->as.pgsize, (void *)entry+i*task->pi->as.pgsize, MMAP_READ);
     }
 
     task->fence = (void *)FENCE_PATTERN;

@@ -163,7 +163,6 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 		{
 			kmt->spin_unlock(&tty1->cooked.lock);
 		}
-		kmt->spin_unlock(&tty1->cooked.lock);
 		printf("VFS: Read from tty1\n");
 		return tty->ops->read(tty, 0, buf, count);
 	}

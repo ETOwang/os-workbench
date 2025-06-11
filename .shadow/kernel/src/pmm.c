@@ -199,6 +199,7 @@ void *kalloc(size_t size)
     }
 
     kmt->spin_unlock(&thread_lock[tid]);
+    printf("alloc ptr:%p\n",user_ptr);
     return user_ptr;
 }
 

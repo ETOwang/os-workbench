@@ -73,6 +73,7 @@ static int tty_cook(tty_t *tty, char ch) {
       tty_enqueue(q, ch);
       tty_enqueue(q, '\0');
       kmt->sem_signal(&tty->cooked);
+
       break;
     case '\b':
       ret = tty_pop_back(q);

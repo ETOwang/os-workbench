@@ -251,6 +251,7 @@ static int tty_write(device_t *dev, size_t offset, const void *buf, int count) {
   for (int i = 0; i < count; i++) {
     tty_putc(tty, ((const char *)buf)[i]);
   }
+  printf("here\n");
   kmt->spin_unlock(&tty->lock);
   tty_render(tty);
   return count;

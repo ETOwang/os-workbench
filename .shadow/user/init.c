@@ -241,6 +241,8 @@ void simple_shell()
 
         // 读取命令行
         int len = read_line(command_line, sizeof(command_line));
+        print("Read command line: ");
+        print(command_line);
         if (len == 0)
         {
             my_write(STDOUT_FILENO, "\n", 1);

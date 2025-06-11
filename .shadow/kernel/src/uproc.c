@@ -83,7 +83,7 @@ int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
         if (ptep && (*ptep & PROT_READ))
         {
             int map_prot = MMAP_READ;
-            if (*ptep & MMAP_WRITE)
+            if (*ptep & PROT_WRITE)
             {
                 map_prot |= MMAP_WRITE;
             }

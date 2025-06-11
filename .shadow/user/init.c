@@ -143,7 +143,7 @@ int getcmd(char *buf, int nbuf)
 {
     syscall(SYS_getcwd, buf, nbuf);
     print("(sh-xv6):", NULL);
-    print(buf,"$ ",NULL);
+    print(buf, "$ ", NULL);
     for (int i = 0; i < nbuf; i++)
     {
         buf[i] = '\0';
@@ -155,7 +155,7 @@ int getcmd(char *buf, int nbuf)
 }
 void main()
 {
-    static char buf[10];
+    static char buf[3];
 
     // Read and run input commands.
     while (getcmd(buf, sizeof(buf)) >= 0)
@@ -169,8 +169,8 @@ void main()
                 print("cannot cd ", buf + 3, "\n", NULL);
             continue;
         }
-        //if (syscall(SYS_fork) == 0)
-            runcmd(parsecmd(buf));
+        // if (syscall(SYS_fork) == 0)
+        runcmd(parsecmd(buf));
         syscall(SYS_wait4, -1, 0, 0, 0);
     }
 }
@@ -457,7 +457,6 @@ struct cmd *nulterminate(struct cmd *cmd)
     }
     return cmd;
 }
-
 
 // #include "myulib.h"
 

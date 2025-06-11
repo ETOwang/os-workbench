@@ -66,7 +66,7 @@ static inline void tty_upd_putc(tty_t *tty, char ch) {
 
 static int tty_cook(tty_t *tty, char ch) {
   int ret = 0;
-  kmt->sem_wait(&tty->lock);
+  kmt->spin_lock(&tty->lock);
   struct tty_queue *q = &tty->queue;
   switch (ch) {
     case '\n':
@@ -80,7 +80,7 @@ static int tty_cook(tty_t *tty, char ch) {
     default:
       tty_enqueue(q, ch);
   }
-  kmt->sem_signal(&tty->lock);
+  kmt->spin_unlock(&tty->lock);
   return ret;
 }
 
@@ -91,7 +91,7 @@ static void tty_render(tty_t *tty) {
   struct character *ch = tty->buf;
   uint8_t *d = tty->dirty;
   struct sprite *sp = tty->sp_buf;
-  kmt->sem_wait(&tty->lock);
+  kmt->spin_lock(&tty->lock);
   for (int y = 0; y < tty->lines; y++) {
     for (int x = 0; x < tty->columns; x++) {
       if (*d) {
@@ -110,7 +110,7 @@ static void tty_render(tty_t *tty) {
   tty->fbdev->ops->write(tty->fbdev, SPRITE_BRK, tty->sp_buf, nsp * sizeof(*sp));
   // clear dirty marks
   memset(tty->dirty, 0, tty->size * sizeof(tty->dirty[0]));
-  kmt->sem_signal(&tty->lock);
+  kmt->spin_unlock(&tty->lock);
 }
 
 static void tty_mark(tty_t *tty, struct character *ch) {
@@ -217,7 +217,7 @@ static int tty_init(device_t *ttydev) {
   struct tty_queue *q = &tty->queue;
   q->front = q->rear = q->buf = pmm->alloc(TTY_COOK_BUF_SZ);
   q->end = q->buf + TTY_COOK_BUF_SZ;
-  kmt->sem_init(&tty->lock, "tty lock", 1);
+  kmt->spin_init(&tty->lock, "tty lock");
   kmt->sem_init(&tty->cooked, "tty cooked lines", 0);
   welcome(ttydev);
   return 0;
@@ -226,7 +226,7 @@ static int tty_init(device_t *ttydev) {
 static int tty_read(device_t *dev, size_t offset, void *buf, int count) {
   tty_t *tty = dev->ptr;
   kmt->sem_wait(&tty->cooked);
-  kmt->sem_wait(&tty->lock);
+  kmt->spin_lock(&tty->lock);
   int nread = 0;
 
   struct tty_queue *q = &tty->queue;
@@ -240,17 +240,17 @@ static int tty_read(device_t *dev, size_t offset, void *buf, int count) {
     if (q->front == q->end) q->front = q->buf;
     if (ch == '\0') break;
   }
-  kmt->sem_signal(&tty->lock);
+  kmt->spin_unlock(&tty->lock);
   return nread;
 }
 
 static int tty_write(device_t *dev, size_t offset, const void *buf, int count) {
   tty_t *tty = dev->ptr;
-  kmt->sem_wait(&tty->lock);
+  kmt->spin_lock(&tty->lock);
   for (int i = 0; i < count; i++) {
     tty_putc(tty, ((const char *)buf)[i]);
   }
-  kmt->sem_signal(&tty->lock);
+  kmt->spin_unlock(&tty->lock);
   tty_render(tty);
   return count;
 }

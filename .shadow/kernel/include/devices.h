@@ -84,7 +84,8 @@ struct tty_queue {
 };
 
 typedef struct {
-    sem_t lock, cooked;
+    sem_t cooked;
+    spinlock_t lock;
     device_t *fbdev;
     int display;
     int lines, columns, size;

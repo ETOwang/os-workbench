@@ -141,7 +141,9 @@ void runcmd(struct cmd *cmd)
 
 int getcmd(char *buf, int nbuf)
 {
-    print("(sh-xv6) > ", NULL);
+    syscall(SYS_getcwd, buf, nbuf);
+    print("(sh-xv6):", NULL);
+    print(buf,NULL);
     for (int i = 0; i < nbuf; i++)
     {
         buf[i] = '\0';

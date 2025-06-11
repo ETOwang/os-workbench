@@ -183,7 +183,6 @@ ssize_t vfs_write(int fd, const void *buf, size_t count)
 	{
 		return VFS_ERROR;
 	}
-	printf("VFS: Writing %zu bytes to file descriptor %d\n", count, fd);
     if (open_files[fd].file == NULL)
 	{
 		device_t *tty = dev->lookup("tty1");

@@ -8,6 +8,7 @@
 #define TRACE_ENTRY ((void)0)
 #define TRACE_EXIT ((void)0)
 #endif
+#define PTE_ADDR(pte) ((pte) & 0x000ffffffffff000ULL)
 #define STACK_SIZE (1 << 16)
 #define FENCE_PATTERN 0xABCDABCD
 #define TASK_READY 1

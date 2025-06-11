@@ -700,13 +700,15 @@ static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr 
 }
 static uint64_t syscall_read(task_t *task, int fd, char *buf, size_t count)
 {
-    buf = (char *)*ptewalk(&task->pi->as, (uintptr_t)buf);
+    uintptr_t *ptep = ptewalk(&task->pi->as, (uintptr_t)buf);
+    buf = (char *)PTE_ADDR(*ptep);
     panic_on(buf == NULL, "Invalid buffer address");
     return vfs->read(fd, buf, count);
 }
 static uint64_t syscall_write(task_t *task, int fd, const char *buf, size_t count)
 {
-    buf = (const char*)*ptewalk(&task->pi->as, (uintptr_t)buf);
+    uintptr_t *ptep = ptewalk(&task->pi->as, (uintptr_t)buf);
+    buf = (const char*)PTE_ADDR(*ptep);
     panic_on(buf == NULL, "Invalid buffer address");
     return vfs->write(fd, buf, count);
 }

@@ -2,7 +2,6 @@
 #include <string.h>
 #include <am.h>
 #include "initcode.inc"
-#define PTE_ADDR(pte) ((pte) & 0x000ffffffffff000ULL)
 #define MAX_PID 32767
 static spinlock_t uproc_lock;
 static int next_pid = 1;

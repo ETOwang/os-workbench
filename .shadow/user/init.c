@@ -68,7 +68,6 @@ void runcmd(struct cmd *cmd) {
         ecmd = (struct execcmd *)cmd;
         if (ecmd->argv[0] == 0)
             syscall(SYS_exit, 1);
-
         char *c = zalloc(5 + strlen(ecmd->argv[0]) + 1);
         strcpy(c, "/bin/");
         strcpy(c + strlen(c), ecmd->argv[0]);
@@ -130,6 +129,7 @@ void runcmd(struct cmd *cmd) {
 }
 
 int getcmd(char *buf, int nbuf) {
+    print("sh-xv6: ",NULL);
     print("(sh-xv6) > ", NULL);
     for (int i = 0; i < nbuf; i++)
         buf[i] = '\0';

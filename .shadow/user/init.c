@@ -169,7 +169,7 @@ void main()
                 print("cannot cd ", buf + 3, "\n", NULL);
             continue;
         }
-        if (syscall(SYS_fork) == 0)
+        //if (syscall(SYS_fork) == 0)
             runcmd(parsecmd(buf));
         syscall(SYS_wait4, -1, 0, 0, 0);
     }

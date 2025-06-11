@@ -197,7 +197,6 @@ static Context *kmt_pgfault(Event ev, Context *ctx)
     printf("Page fault at %p\n", ev.ref);
     printf("Page fault msg: %s\n", ev.msg);
     printf("Page fault cause: %p\n", ev.cause);
-    printf("data in ref:%s\n",ev.ref);
     halt(1);
     return NULL;
 }

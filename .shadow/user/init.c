@@ -155,7 +155,7 @@ int getcmd(char *buf, int nbuf)
 }
 void main()
 {
-    static char buf[100];
+    static char buf[10];
 
     // Read and run input commands.
     while (getcmd(buf, sizeof(buf)) >= 0)

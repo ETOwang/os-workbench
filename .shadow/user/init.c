@@ -169,7 +169,7 @@ void main()
         }
         if (syscall(SYS_fork) == 0)
             runcmd(parsecmd(buf));
-        // syscall(SYS_wait4, -1, 0, 0, 0);
+        syscall(SYS_wait4, -1, 0, 0, 0);
     }
 }
 

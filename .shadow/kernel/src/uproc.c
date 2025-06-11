@@ -27,13 +27,13 @@ static void user_init()
     protect(&task->pi->as);
     char *mem = pmm->alloc(task->pi->as.pgsize);
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
-    panic_on(_init_len > 3*task->pi->as.pgsize, "init code too large");
-    char *entry = pmm->alloc(3*task->pi->as.pgsize);
+    panic_on(_init_len > 3 * task->pi->as.pgsize, "init code too large");
+    char *entry = pmm->alloc(3 * task->pi->as.pgsize);
     memcpy(entry, _init, _init_len);
-    //TODO:better function
+    // TODO:better function
     for (size_t i = 0; i < 3; i++)
     {
-        map(&task->pi->as, (void *)UVSTART+i*task->pi->as.pgsize, (void *)entry+i*task->pi->as.pgsize, MMAP_READ| MMAP_WRITE);
+        map(&task->pi->as, (void *)UVSTART + i * task->pi->as.pgsize, (void *)entry + i * task->pi->as.pgsize, MMAP_READ | MMAP_WRITE);
     }
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
@@ -120,6 +120,7 @@ static int uproc_fork(task_t *task)
     son->context->cr3 = son->pi->as.ptr;
     son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
     kmt_add_task(son);
+    printf("fork finish\n");
     return pid;
 }
 

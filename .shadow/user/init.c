@@ -302,7 +302,7 @@ struct cmd *parsecmd(char *s)
 {
     char *es;
     struct cmd *cmd;
-    print("parsecmd\n",NULL);
+    print("parsecmd\n", NULL);
     es = s + strlen(s);
     cmd = parseline(&s, es);
     peek(&s, es, "");

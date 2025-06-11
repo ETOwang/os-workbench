@@ -185,6 +185,7 @@ ssize_t vfs_write(int fd, const void *buf, size_t count)
 	}
     if (open_files[fd].file == NULL)
 	{
+		printf("buf ptr: %p\n", buf);
 		device_t *tty = dev->lookup("tty1");
 		return tty->ops->write(tty, 0, buf, count);
 	}

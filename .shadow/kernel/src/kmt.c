@@ -192,6 +192,7 @@ void kmt_add_task(task_t *task)
 }
 static Context *kmt_pgfault(Event ev, Context *ctx)
 {
+    printf("rsp:%p\n", ctx->rsp);
     printf("Page fault at %p\n", ev.ref);
     printf("Page fault msg: %s\n", ev.msg);
     printf("Page fault cause: %p\n", ev.cause);

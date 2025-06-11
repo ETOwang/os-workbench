@@ -1,6 +1,9 @@
 #include <common.h>
 #include <vfs.h>
 #include <ext4.h>
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
 // 简单的块设备接口实现 - 直接使用AM磁盘接口
 static struct ext4_blockdev_iface bi;
 static struct ext4_blockdev bd;
@@ -68,6 +71,9 @@ void vfs_init(void)
 	bd.bdif = &bi;
 	bd.part_size = bd.bdif->ph_bcnt * (uint64_t)bd.bdif->ph_bsize;
 	vfs->mount("disk", "/", "ext4", 0, NULL);
+	open_files[STDIN_FILENO].in_use = true;
+	open_files[STDOUT_FILENO].in_use = true;
+	open_files[STDERR_FILENO].in_use = true;
 }
 
 int vfs_mount(const char *dev_name, const char *mount_point,
@@ -142,11 +148,26 @@ int vfs_close(int fd)
 
 ssize_t vfs_read(int fd, void *buf, size_t count)
 {
+
 	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use || !buf)
 	{
 		return VFS_ERROR;
 	}
-
+	if (open_files[fd].file == NULL)
+	{
+		device_t *in = dev->lookup("input");
+		int nread = 0;
+		while (nread < count)
+		{
+			struct input_event ev;
+			int nr = in->ops->read(in, 0, &ev, sizeof(ev));
+			panic_on(nr == 0, "VFS: Read failed, no data available");
+			nread ++;
+			//TODO:maybe wrong
+			((char*)buf)[nread - 1] = ev.data;
+		}
+		return nread;
+	}
 	size_t bytes_read;
 	int ret = ext4_fread(open_files[fd].file, buf, count, &bytes_read);
 	if (ret != EOK)
@@ -162,7 +183,11 @@ ssize_t vfs_write(int fd, const void *buf, size_t count)
 	{
 		return VFS_ERROR;
 	}
-
+    if (open_files[fd].file == NULL)
+	{
+		device_t *tty = dev->lookup("tty");
+		return tty->ops->write(tty, 0, buf, count);
+	}
 	size_t bytes_written;
 	int ret = ext4_fwrite(open_files[fd].file, buf, count, &bytes_written);
 	if (ret != EOK)
@@ -317,8 +342,8 @@ int vfs_stat(int fd, struct kstat *stat)
 	{
 		return VFS_ERROR;
 	}
-	ext4_file* file=open_files[fd].file;
-	stat->st_size=file->fsize;
+	ext4_file *file = open_files[fd].file;
+	stat->st_size = file->fsize;
 	return VFS_SUCCESS;
 }
 

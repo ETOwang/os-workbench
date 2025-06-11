@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-
 // 避免包含系统头文件，直接定义需要的常量和结构
 #define SYS_kputc 1
 #define SYS_fork 2

@@ -1,25 +1,48 @@
 #include "myulib.h"
 
+// 标准文件描述符定义
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
+
 void print(const char *s)
 {
-    for (int i = 0; s[i]; i++)
-    {
-        my_kputc(s[i]);
-    }
+    int len = 0;
+    // 计算字符串长度
+    while (s[len])
+        len++;
+    // 使用write系统调用输出到STDOUT
+    my_write(STDOUT_FILENO, s, len);
 }
 
 void print_int(int x)
 {
+    char buffer[32];
+    int i = 0;
+    int is_negative = 0;
+
     if (x < 0)
     {
-        my_kputc('-');
+        is_negative = 1;
         x = -x;
     }
-    if (x >= 10)
+
+    // 将数字转换为字符串（逆序）
+    do
     {
-        print_int(x / 10);
+        buffer[i++] = '0' + (x % 10);
+        x /= 10;
+    } while (x > 0);
+
+    if (is_negative)
+        buffer[i++] = '-';
+
+    // 反转字符串并输出
+    for (int j = i - 1; j >= 0; j--)
+    {
+        my_write(STDOUT_FILENO, &buffer[j], 1);
     }
-    my_kputc('0' + x % 10);
 }
 
 // 简单的字符串比较函数
@@ -51,7 +74,7 @@ int strlen(const char *s)
     return len;
 }
 
-// 简单的读取一行输入
+// 从标准输入读取一行
 int read_line(char *buffer, int max_len)
 {
     int i = 0;
@@ -59,36 +82,37 @@ int read_line(char *buffer, int max_len)
 
     while (i < max_len - 1)
     {
-        // 这里模拟从标准输入读取，实际上我们需要实现键盘输入
-        // 暂时使用一个简单的方法
-        ch = 0;
-        // 由于没有标准输入，我们暂时返回一些预设命令用于测试
-        if (i == 0)
+        // 从STDIN读取一个字符
+        int bytes_read = my_read(STDIN_FILENO, &ch, 1);
+        if (bytes_read <= 0)
         {
-            // 模拟输入一些测试命令
-            static int cmd_count = 0;
-            cmd_count++;
+            // 读取失败或EOF
+            break;
+        }
 
-            switch (cmd_count % 5)
+        if (ch == '\n')
+        {
+            // 遇到换行符，结束输入
+            break;
+        }
+        else if (ch == '\b' || ch == 127) // 退格键
+        {
+            if (i > 0)
             {
-            case 1:
-                strcpy(buffer, "pwd");
-                return strlen(buffer);
-            case 2:
-                strcpy(buffer, "ls");
-                return strlen(buffer);
-            case 3:
-                strcpy(buffer, "help");
-                return strlen(buffer);
-            case 4:
-                strcpy(buffer, "exit");
-                return strlen(buffer);
-            default:
-                strcpy(buffer, "echo hello");
-                return strlen(buffer);
+                i--;
+                // 回显退格：输出退格+空格+退格来清除字符
+                my_write(STDOUT_FILENO, "\b \b", 3);
             }
         }
+        else if (ch >= 32 && ch <= 126) // 可打印字符
+        {
+            buffer[i++] = ch;
+            // 回显字符
+            my_write(STDOUT_FILENO, &ch, 1);
+        }
+        // 忽略其他控制字符
     }
+
     buffer[i] = '\0';
     return i;
 }
@@ -168,10 +192,10 @@ int execute_builtin(int argc, char **argv)
         for (int i = 1; i < argc; i++)
         {
             if (i > 1)
-                my_kputc(' ');
+                my_write(STDOUT_FILENO, " ", 1);
             print(argv[i]);
         }
-        my_kputc('\n');
+        my_write(STDOUT_FILENO, "\n", 1);
         return 1;
     }
     else if (strcmp(argv[0], "help") == 0)
@@ -218,10 +242,12 @@ void simple_shell()
         // 读取命令行
         int len = read_line(command_line, sizeof(command_line));
         if (len == 0)
+        {
+            my_write(STDOUT_FILENO, "\n", 1);
             continue;
+        }
 
-        print(command_line);
-        print("\n");
+        my_write(STDOUT_FILENO, "\n", 1);
 
         // 解析命令
         argc = parse_command(command_line, argv, 32);
@@ -279,8 +305,77 @@ void simple_shell()
 
 int main()
 {
-    simple_shell();
-    
+    print("BusyBox Init Process Starting...\n");
+
+    // 文件系统已经在VFS初始化时自动挂载了，不需要重新挂载
+    print("Root filesystem already mounted by kernel\n");
+
+    // 切换到根目录
+    if (my_chdir("/") < 0)
+    {
+        print("Warning: Failed to change to root directory\n");
+    }
+
+    // 检查BusyBox是否存在
+    print("Looking for BusyBox binary...\n");
+
+    // 尝试打开 /bin/busybox
+    print("Trying /bin/busybox...\n");
+    int busybox_fd = my_openat(AT_FDCWD, "/bin/busybox", O_RDONLY);
+    if (busybox_fd < 0)
+    {
+        print("Failed to open /bin/busybox, trying /busybox...\n");
+        busybox_fd = my_openat(AT_FDCWD, "/busybox", O_RDONLY);
+        if (busybox_fd < 0)
+        {
+            print("Failed to open /busybox too\n");
+        }
+        else
+        {
+            print("Found /busybox!\n");
+        }
+    }
+    else
+    {
+        print("Found /bin/busybox!\n");
+    }
+
+    if (busybox_fd < 0)
+    {
+        print("Error: BusyBox binary not found!\n");
+        print("Starting simple shell instead...\n\n");
+
+        // 启动简单shell
+        simple_shell();
+    }
+    else
+    {
+        my_close(busybox_fd);
+        print("BusyBox found! Executing...\n");
+
+        // 准备参数
+        char *argv[] = {"busybox", "sh", (char *)0};
+        char *envp[] = {"PATH=/bin:/usr/bin", "HOME=/", (char *)0};
+
+        // 尝试执行BusyBox shell
+        int exec_result = my_execve("/bin/busybox", argv, envp);
+        if (exec_result < 0)
+        {
+            exec_result = my_execve("/busybox", argv, envp);
+        }
+
+        if (exec_result < 0)
+        {
+            print("Error: Failed to execute BusyBox!\n");
+            print("Error code: ");
+            print_int(exec_result);
+            print("\n");
+        }
+
+        // 如果execve失败，进入简单shell
+        print("Falling back to simple shell...\n\n");
+        simple_shell();
+    }
 
     return 0;
 }

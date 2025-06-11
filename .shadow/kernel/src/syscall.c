@@ -82,6 +82,7 @@ static uint64_t syscall_getcwd(task_t *task, char *buf, size_t size)
     {
         return (uint64_t)NULL;
     }
+    printf("buf:%p\n", buf);
     if (!buf)
     {
         buf = (char *)pmm->alloc(PATH_MAX);

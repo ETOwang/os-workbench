@@ -36,7 +36,6 @@ static void user_init()
     {
         map(&task->pi->as, (void *)UVSTART+i*task->pi->as.pgsize, (void *)entry+i*task->pi->as.pgsize, MMAP_READ| MMAP_WRITE);
     }
-
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
     task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);

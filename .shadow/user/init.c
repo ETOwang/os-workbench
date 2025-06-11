@@ -307,6 +307,7 @@ void simple_shell()
 
 int main()
 {
-    simple_shell();
+    //simple_shell();
+    print("hello from shell\n");
     return 0;
 }

@@ -162,6 +162,9 @@ static int uproc_wait(task_t *task, int pid, int *status, int options)
                 return -1; // 没有子进程
             return 0;
         }
+        if(!found){
+           return 0;
+        }
         // TODO:
         // yield();
     }

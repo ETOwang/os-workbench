@@ -31,9 +31,7 @@ static void user_init()
     panic_on(_init_len > task->pi->as.pgsize, "init code too large");
     char *entry = pmm->alloc(task->pi->as.pgsize);
     memcpy(entry, _init, _init_len);
-    printf("user_init map\n");
     map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
-    printf("user_init protect\n");
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
     task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
@@ -43,7 +41,6 @@ static void user_init()
     task->next = NULL;
     kmt->spin_init(&task->lock, task->name);
     kmt_add_task(task);
-    printf("user_init end\n");
     TRACE_EXIT;
 }
 static void uproc_init()

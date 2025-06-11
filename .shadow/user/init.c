@@ -1,313 +1,422 @@
+// Linux port of xv6-riscv shell (no libc)
+
 #include "myulib.h"
+#include <fcntl.h>
 
-// 标准文件描述符定义
-#define STDIN_FILENO 0
-#define STDOUT_FILENO 1
-#define STDERR_FILENO 2
+// EXEC:   ls
+// REDIR:  ls > a.txt
+// PIPE:   ls | wc -l
+// LIST:   (ls ; ls)
+enum {
+    EXEC = 1,
+    REDIR,
+    PIPE,
+    LIST,
+    BACK
+};
 
+#define MAXARGS 10
+#define NULL ((void *)0)
 
-void print(const char *s)
-{
-    int len = 0;
-    // 计算字符串长度
-    while (s[len])
-        len++;
-    // 使用write系统调用输出到STDOUT
-    my_write(STDOUT_FILENO, s, len);
-}
+struct cmd {
+    int type;
+};
 
-void print_int(int x)
-{
-    char buffer[32];
-    int i = 0;
-    int is_negative = 0;
+struct execcmd {
+    int type;
+    char *argv[MAXARGS], *eargv[MAXARGS];
+};
 
-    if (x < 0)
-    {
-        is_negative = 1;
-        x = -x;
+struct redircmd {
+    int type, fd, mode;
+    char *file, *efile;
+    struct cmd *cmd;
+};
+
+struct pipecmd {
+    int type;
+    struct cmd *left, *right;
+};
+
+struct listcmd {
+    int type;
+    struct cmd *left, *right;
+};
+
+struct backcmd {
+    int type;
+    struct cmd *cmd;
+};
+
+struct cmd *parsecmd(char *);
+
+// cmd is the "abstract syntax tree" (AST) of the command;
+// runcmd() never returns.
+void runcmd(struct cmd *cmd) {
+    int p[2];
+    struct backcmd *bcmd;
+    struct execcmd *ecmd;
+    struct listcmd *lcmd;
+    struct pipecmd *pcmd;
+    struct redircmd *rcmd;
+
+    if (cmd == 0)
+        syscall(SYS_exit, 1);
+
+    switch (cmd->type) {
+    case EXEC:
+        ecmd = (struct execcmd *)cmd;
+        if (ecmd->argv[0] == 0)
+            syscall(SYS_exit, 1);
+
+        char *c = zalloc(5 + strlen(ecmd->argv[0]) + 1);
+        strcpy(c, "/bin/");
+        strcpy(c + strlen(c), ecmd->argv[0]);
+        syscall(SYS_execve, c, ecmd->argv, NULL);
+        print("fail to exec ", c, "\n", NULL);
+        break;
+
+    case REDIR:
+        rcmd = (struct redircmd *)cmd;
+        syscall(SYS_close, rcmd->fd);
+        if (syscall(SYS_openat,AT_FDCWD,rcmd->file, rcmd->mode, 0644) < 0) {
+            print("fail to open ", rcmd->file, "\n", NULL);
+            syscall(SYS_exit, 1);
+        }
+        runcmd(rcmd->cmd);
+        break;
+
+    case LIST:
+        lcmd = (struct listcmd *)cmd;
+        if (syscall(SYS_fork) == 0)
+            runcmd(lcmd->left);
+        syscall(SYS_wait4, -1, 0, 0, 0);
+        runcmd(lcmd->right);
+        break;
+
+    // case PIPE:
+    //     pcmd = (struct pipecmd *)cmd;
+    //     assert(syscall(SYS_pipe, p) >= 0);
+    //     if (syscall(SYS_fork) == 0) {
+    //         syscall(SYS_close, 1);
+    //         syscall(SYS_dup, p[1]);
+    //         syscall(SYS_close, p[0]);
+    //         syscall(SYS_close, p[1]);
+    //         runcmd(pcmd->left);
+    //     }
+    //     if (syscall(SYS_fork) == 0) {
+    //         syscall(SYS_close, 0);
+    //         syscall(SYS_dup, p[0]);
+    //         syscall(SYS_close, p[0]);
+    //         syscall(SYS_close, p[1]);
+    //         runcmd(pcmd->right);
+    //     }
+    //     syscall(SYS_close, p[0]);
+    //     syscall(SYS_close, p[1]);
+    //     syscall(SYS_wait4, -1, 0, 0, 0);
+    //     syscall(SYS_wait4, -1, 0, 0, 0);
+    //     break;
+
+    case BACK:
+        bcmd = (struct backcmd *)cmd;
+        if (syscall(SYS_fork) == 0)
+            runcmd(bcmd->cmd);
+        break;
+
+    default:
+        assert(0);
     }
+    syscall(SYS_exit, 0);
+}
 
-    // 将数字转换为字符串（逆序）
-    do
-    {
-        buffer[i++] = '0' + (x % 10);
-        x /= 10;
-    } while (x > 0);
+int getcmd(char *buf, int nbuf) {
+    print("(sh-xv6) > ", NULL);
+    for (int i = 0; i < nbuf; i++)
+        buf[i] = '\0';
 
-    if (is_negative)
-        buffer[i++] = '-';
+    while (nbuf-- > 1) {
+        int nread = syscall(SYS_read, 0, buf, 1);
+        if (nread <= 0)
+            return -1;
+        if (*(buf++) == '\n')
+            break;
+    }
+    return 0;
+}
 
-    // 反转字符串并输出
-    for (int j = i - 1; j >= 0; j--)
-    {
-        my_write(STDOUT_FILENO, &buffer[j], 1);
+void main() {
+    static char buf[100];
+
+    // Read and run input commands.
+    while (getcmd(buf, sizeof(buf)) >= 0) {
+        if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
+            // Chdir must be called by the parent, not the child.
+            buf[strlen(buf) - 1] = 0; // chop \n
+            if (syscall(SYS_chdir, buf + 3) < 0)
+                print("cannot cd ", buf + 3, "\n", NULL);
+            continue;
+        }
+        if (syscall(SYS_fork) == 0)
+            runcmd(parsecmd(buf));
+        syscall(SYS_wait4, -1, 0, 0, 0);
     }
 }
 
-// 简单的字符串比较函数
-int strcmp(const char *s1, const char *s2)
-{
-    while (*s1 && (*s1 == *s2))
-    {
-        s1++;
-        s2++;
+struct cmd *execcmd(void) {
+    struct execcmd *cmd;
+
+    cmd = zalloc(sizeof(*cmd));
+    cmd->type = EXEC;
+    return (struct cmd *)cmd;
+}
+
+struct cmd *redircmd(struct cmd *subcmd, char *file, char *efile, int mode,
+                     int fd) {
+    struct redircmd *cmd;
+
+    cmd = zalloc(sizeof(*cmd));
+    cmd->type = REDIR;
+    cmd->cmd = subcmd;
+    cmd->file = file;
+    cmd->efile = efile;
+    cmd->mode = mode;
+    cmd->fd = fd;
+    return (struct cmd *)cmd;
+}
+
+struct cmd *pipecmd(struct cmd *left, struct cmd *right) {
+    struct pipecmd *cmd;
+
+    cmd = zalloc(sizeof(*cmd));
+    cmd->type = PIPE;
+    cmd->left = left;
+    cmd->right = right;
+    return (struct cmd *)cmd;
+}
+
+struct cmd *listcmd(struct cmd *left, struct cmd *right) {
+    struct listcmd *cmd;
+
+    cmd = zalloc(sizeof(*cmd));
+    cmd->type = LIST;
+    cmd->left = left;
+    cmd->right = right;
+    return (struct cmd *)cmd;
+}
+
+struct cmd *backcmd(struct cmd *subcmd) {
+    struct backcmd *cmd;
+
+    cmd = zalloc(sizeof(*cmd));
+    cmd->type = BACK;
+    cmd->cmd = subcmd;
+    return (struct cmd *)cmd;
+}
+
+// Parsing
+
+char whitespace[] = " \t\r\n\v";
+char symbols[] = "<|>&;()";
+
+int gettoken(char **ps, char *es, char **q, char **eq) {
+    char *s;
+    int ret;
+
+    s = *ps;
+    while (s < es && strchr(whitespace, *s))
+        s++;
+    if (q)
+        *q = s;
+    ret = *s;
+    switch (*s) {
+    case 0:
+        break;
+    case '|':
+    case '(':
+    case ')':
+    case ';':
+    case '&':
+    case '<':
+        s++;
+        break;
+    case '>':
+        s++;
+        if (*s == '>') {
+            ret = '+';
+            s++;
+        }
+        break;
+    default:
+        ret = 'a';
+        while (s < es && !strchr(whitespace, *s) && !strchr(symbols, *s))
+            s++;
+        break;
     }
-    return *(unsigned char *)s1 - *(unsigned char *)s2;
+    if (eq)
+        *eq = s;
+
+    while (s < es && strchr(whitespace, *s))
+        s++;
+    *ps = s;
+    return ret;
 }
 
-// 简单的字符串复制函数
-char *strcpy(char *dest, const char *src)
-{
-    char *d = dest;
-    while ((*d++ = *src++))
-        ;
-    return dest;
+int peek(char **ps, char *es, char *toks) {
+    char *s;
+
+    s = *ps;
+    while (s < es && strchr(whitespace, *s))
+        s++;
+    *ps = s;
+    return *s && strchr(toks, *s);
 }
 
-// 简单的字符串长度函数
-int strlen(const char *s)
-{
-    int len = 0;
-    while (s[len])
-        len++;
-    return len;
+struct cmd *parseline(char **, char *);
+struct cmd *parsepipe(char **, char *);
+struct cmd *parseexec(char **, char *);
+struct cmd *nulterminate(struct cmd *);
+
+struct cmd *parsecmd(char *s) {
+    char *es;
+    struct cmd *cmd;
+
+    es = s + strlen(s);
+    cmd = parseline(&s, es);
+    peek(&s, es, "");
+    assert(s == es);
+    nulterminate(cmd);
+    return cmd;
 }
 
-// 从标准输入读取一行
-int read_line(char *buffer, int max_len)
-{
-    int i = 0;
-    char ch;
+struct cmd *parseline(char **ps, char *es) {
+    struct cmd *cmd;
 
-    while (i < max_len - 1)
-    {
-        // 从STDIN读取一个字符
-        int bytes_read = my_read(STDIN_FILENO, &ch, 1);
-        if (bytes_read <= 0)
-        {
-            // 读取失败或EOF
+    cmd = parsepipe(ps, es);
+    while (peek(ps, es, "&")) {
+        gettoken(ps, es, 0, 0);
+        cmd = backcmd(cmd);
+    }
+    if (peek(ps, es, ";")) {
+        gettoken(ps, es, 0, 0);
+        cmd = listcmd(cmd, parseline(ps, es));
+    }
+    return cmd;
+}
+
+struct cmd *parsepipe(char **ps, char *es) {
+    struct cmd *cmd;
+
+    cmd = parseexec(ps, es);
+    if (peek(ps, es, "|")) {
+        gettoken(ps, es, 0, 0);
+        cmd = pipecmd(cmd, parsepipe(ps, es));
+    }
+    return cmd;
+}
+
+struct cmd *parseredirs(struct cmd *cmd, char **ps, char *es) {
+    int tok;
+    char *q, *eq;
+
+    while (peek(ps, es, "<>")) {
+        tok = gettoken(ps, es, 0, 0);
+        assert(gettoken(ps, es, &q, &eq) == 'a');
+        switch (tok) {
+        case '<':
+            cmd = redircmd(cmd, q, eq, O_RDONLY, 0);
+            break;
+        case '>':
+            cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREAT | O_TRUNC, 1);
+            break;
+        case '+': // >>
+            cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREAT, 1);
             break;
         }
-
-        if (ch == '\n')
-        {
-            // 遇到换行符，结束输入
-            break;
-        }
-        else if (ch == '\b' || ch == 127) // 退格键
-        {
-            if (i > 0)
-            {
-                i--;
-                // 回显退格：输出退格+空格+退格来清除字符
-                my_write(STDOUT_FILENO, "\b \b", 3);
-            }
-        }
-        else if (ch >= 32 && ch <= 126) // 可打印字符
-        {
-            buffer[i++] = ch;
-            // 回显字符
-            my_write(STDOUT_FILENO, &ch, 1);
-        }
-        // 忽略其他控制字符
     }
-
-    buffer[i] = '\0';
-    return i;
+    return cmd;
 }
 
-// 解析命令行参数
-int parse_command(char *line, char **argv, int max_args)
-{
-    int argc = 0;
-    char *token = line;
+struct cmd *parseblock(char **ps, char *es) {
+    struct cmd *cmd;
 
-    while (*token && argc < max_args - 1)
-    {
-        // 跳过空格
-        while (*token == ' ' || *token == '\t')
-            token++;
-
-        if (*token == '\0')
-            break;
-
-        argv[argc++] = token;
-
-        // 找到下一个空格或字符串结尾
-        while (*token && *token != ' ' && *token != '\t')
-            token++;
-
-        if (*token)
-        {
-            *token = '\0';
-            token++;
-        }
-    }
-
-    argv[argc] = (char *)0;
-    return argc;
+    assert(peek(ps, es, "("));
+    gettoken(ps, es, 0, 0);
+    cmd = parseline(ps, es);
+    assert(peek(ps, es, ")"));
+    gettoken(ps, es, 0, 0);
+    cmd = parseredirs(cmd, ps, es);
+    return cmd;
 }
 
-// 执行内置命令
-int execute_builtin(int argc, char **argv)
-{
-    if (argc == 0)
+struct cmd *parseexec(char **ps, char *es) {
+    char *q, *eq;
+    int tok, argc;
+    struct execcmd *cmd;
+    struct cmd *ret;
+
+    if (peek(ps, es, "("))
+        return parseblock(ps, es);
+
+    ret = execcmd();
+    cmd = (struct execcmd *)ret;
+
+    argc = 0;
+    ret = parseredirs(ret, ps, es);
+    while (!peek(ps, es, "|)&;")) {
+        if ((tok = gettoken(ps, es, &q, &eq)) == 0)
+            break;
+        assert(tok == 'a');
+        cmd->argv[argc] = q;
+        cmd->eargv[argc] = eq;
+        assert(++argc < MAXARGS);
+        ret = parseredirs(ret, ps, es);
+    }
+    cmd->argv[argc] = 0;
+    cmd->eargv[argc] = 0;
+    return ret;
+}
+
+// NUL-terminate all the counted strings.
+struct cmd *nulterminate(struct cmd *cmd) {
+    int i;
+    struct backcmd *bcmd;
+    struct execcmd *ecmd;
+    struct listcmd *lcmd;
+    struct pipecmd *pcmd;
+    struct redircmd *rcmd;
+
+    if (cmd == 0)
         return 0;
 
-    if (strcmp(argv[0], "pwd") == 0)
-    {
-        // 显示当前工作目录
-        print("Current directory: /\n");
-        return 1;
+    switch (cmd->type) {
+    case EXEC:
+        ecmd = (struct execcmd *)cmd;
+        for (i = 0; ecmd->argv[i]; i++)
+            *ecmd->eargv[i] = 0;
+        break;
+
+    case REDIR:
+        rcmd = (struct redircmd *)cmd;
+        nulterminate(rcmd->cmd);
+        *rcmd->efile = 0;
+        break;
+
+    case PIPE:
+        pcmd = (struct pipecmd *)cmd;
+        nulterminate(pcmd->left);
+        nulterminate(pcmd->right);
+        break;
+
+    case LIST:
+        lcmd = (struct listcmd *)cmd;
+        nulterminate(lcmd->left);
+        nulterminate(lcmd->right);
+        break;
+
+    case BACK:
+        bcmd = (struct backcmd *)cmd;
+        nulterminate(bcmd->cmd);
+        break;
     }
-    else if (strcmp(argv[0], "cd") == 0)
-    {
-        // 改变目录
-        if (argc > 1)
-        {
-            if (my_chdir(argv[1]) == 0)
-            {
-                print("Changed to directory: ");
-                print(argv[1]);
-                print("\n");
-            }
-            else
-            {
-                print("cd: cannot access '");
-                print(argv[1]);
-                print("': No such file or directory\n");
-            }
-        }
-        else
-        {
-            my_chdir("/");
-            print("Changed to root directory\n");
-        }
-        return 1;
-    }
-    else if (strcmp(argv[0], "echo") == 0)
-    {
-        // 回显命令
-        for (int i = 1; i < argc; i++)
-        {
-            if (i > 1)
-                my_write(STDOUT_FILENO, " ", 1);
-            print(argv[i]);
-        }
-        my_write(STDOUT_FILENO, "\n", 1);
-        return 1;
-    }
-    else if (strcmp(argv[0], "help") == 0)
-    {
-        print("Available commands:\n");
-        print("  pwd       - show current directory\n");
-        print("  cd [dir]  - change directory\n");
-        print("  echo ...  - print arguments\n");
-        print("  ls        - list files (if available)\n");
-        print("  help      - show this help\n");
-        print("  exit      - exit shell\n");
-        return 1;
-    }
-    else if (strcmp(argv[0], "exit") == 0)
-    {
-        print("Goodbye!\n");
-        my_exit(0);
-        return 1;
-    }
-    else if (strcmp(argv[0], "ls") == 0)
-    {
-        print("ls: command not fully implemented\n");
-        print("(file listing requires directory reading syscalls)\n");
-        return 1;
-    }
-
-    return 0; // 不是内置命令
-}
-
-// 简单的shell主循环
-void simple_shell()
-{
-    char command_line[256];
-    char *argv[32];
-    int argc;
-
-    print("Simple Shell v1.0\n");
-    print("Type 'help' for available commands, 'exit' to quit\n\n");
-
-    while (1)
-    {
-        print("$ ");
-
-        // 读取命令行
-        int len = read_line(command_line, sizeof(command_line));
-        print("Read command line: ");
-        print(command_line);
-        if (len == 0)
-        {
-            my_write(STDOUT_FILENO, "\n", 1);
-            continue;
-        }
-
-        my_write(STDOUT_FILENO, "\n", 1);
-
-        // 解析命令
-        argc = parse_command(command_line, argv, 32);
-        if (argc == 0)
-            continue;
-
-        // 执行内置命令
-        if (execute_builtin(argc, argv))
-            continue;
-
-        // 尝试执行外部命令
-        print("Trying to execute: ");
-        print(argv[0]);
-        print("\n");
-
-        int pid = my_fork();
-        if (pid == 0)
-        {
-            // 子进程：尝试执行命令
-            char *envp[] = {"PATH=/bin:/usr/bin", "HOME=/", (char *)0};
-
-            // 尝试不同的路径
-            char full_path[256];
-            strcpy(full_path, "/bin/");
-            strcpy(full_path + 5, argv[0]);
-
-            if (my_execve(full_path, argv, envp) < 0)
-            {
-                strcpy(full_path, "/usr/bin/");
-                strcpy(full_path + 9, argv[0]);
-                if (my_execve(full_path, argv, envp) < 0)
-                {
-                    if (my_execve(argv[0], argv, envp) < 0)
-                    {
-                        print("Command not found: ");
-                        print(argv[0]);
-                        print("\n");
-                        my_exit(1);
-                    }
-                }
-            }
-        }
-        else if (pid > 0)
-        {
-            // 父进程：等待子进程完成
-            // 注意：这里应该用 waitpid，但我们暂时简单等待
-            my_sleep(1);
-        }
-        else
-        {
-            print("Fork failed\n");
-        }
-    }
-}
-
-int main()
-{
-    //simple_shell();
-    print("hello from shell\n");
-    return 0;
+    return cmd;
 }

@@ -39,7 +39,7 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
-    {    
+    {
         if (tasks[i] != NULL)
         {
             kmt->spin_lock(&tasks[i]->lock);
@@ -53,7 +53,7 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
                 {
                     unprotect(&tasks[i]->pi->as);
                     pmm->free(tasks[i]->pi);
-                    tasks[i]->pi=NULL;
+                    tasks[i]->pi = NULL;
                 }
             }
             kmt->spin_unlock(&tasks[i]->lock);
@@ -75,9 +75,12 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 static Context *kmt_syscall(Event ev, Context *ctx)
 {
     SyscallHandler handler = syscall_table[ctx->GPRx];
-    if (handler) {
+    if (handler)
+    {
         ctx->GPRx = handler(ctx);
-    } else {
+    }
+    else
+    {
         panic("Unknown syscall number");
     }
     return NULL;
@@ -161,7 +164,7 @@ task_t *kmt_get_son()
             continue;
         }
         kmt->spin_lock(&tasks[i]->lock);
-        if (tasks[i]->pi != NULL && tasks[i]->pi->parent == cur&&tasks[i]->status!=TASK_DEAD)
+        if (tasks[i]->pi != NULL && tasks[i]->pi->parent == cur && tasks[i]->status != TASK_DEAD)
         {
             son = tasks[i];
             kmt->spin_unlock(&tasks[i]->lock);
@@ -345,8 +348,9 @@ static void kmt_sem_wait(sem_t *sem)
 {
     TRACE_ENTRY;
     panic_on(sem == NULL, "Semaphore is NULL");
-    if(sem->name[0]!='k'){
-    printf("wait name:%s\n",sem->name);
+    if (sem->name[0] != 'k')
+    {
+        printf("wait name:%s\n", sem->name);
     }
 
     kmt->spin_lock(&sem->lock);

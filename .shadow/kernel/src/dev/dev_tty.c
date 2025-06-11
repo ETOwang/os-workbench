@@ -294,6 +294,7 @@ static int tty_read(device_t *dev, size_t offset, void *buf, int count)
     if (ch == '\0')
       break;
   }
+  printf("content:%s\n",buf);
   kmt->spin_unlock(&tty->lock);
   return nread;
 }

@@ -703,7 +703,6 @@ static uint64_t syscall_read(task_t *task, int fd, char *buf, size_t count)
     uintptr_t *ptep = ptewalk(&task->pi->as, (uintptr_t)buf);
     buf = (char *)(PTE_ADDR(*ptep)|((uintptr_t)buf & 0xFFF));
     panic_on(buf == NULL, "Invalid buffer address");
-    printf("buf ptr:%p\n",buf);
     return vfs->read(fd, buf, count);
 }
 static uint64_t syscall_write(task_t *task, int fd, const char *buf, size_t count)

@@ -300,6 +300,7 @@ struct cmd *nulterminate(struct cmd *);
 
 struct cmd *parsecmd(char *s)
 {
+    print("parse cmd 64\n", NULL);
     print("parse cmd start\n", NULL);
     char *es;
     struct cmd *cmd;

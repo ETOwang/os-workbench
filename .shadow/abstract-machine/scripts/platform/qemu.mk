@@ -3,6 +3,7 @@
 smp        ?= 8
 LDFLAGS    += -N -Ttext-segment=0x00100000
 QEMU_FLAGS += -serial mon:stdio \
+              -D /tmp/debug.log \
               -machine accel=tcg \
               -smp "cores=1,sockets=$(smp)" \
               -drive format=raw,file=$(IMAGE) \

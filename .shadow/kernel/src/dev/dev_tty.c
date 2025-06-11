@@ -217,7 +217,7 @@ static int tty_init(device_t *ttydev) {
   struct tty_queue *q = &tty->queue;
   q->front = q->rear = q->buf = pmm->alloc(TTY_COOK_BUF_SZ);
   q->end = q->buf + TTY_COOK_BUF_SZ;
-  kmt->sem_init(&tty->lock, "tty lock", 1);
+  kmt->sem_init(&tty->lock, "tty lock", 100);
   kmt->sem_init(&tty->cooked, "tty cooked lines", 0);
   welcome(ttydev);
   return 0;
@@ -246,7 +246,6 @@ static int tty_read(device_t *dev, size_t offset, void *buf, int count) {
 
 static int tty_write(device_t *dev, size_t offset, const void *buf, int count) {
   tty_t *tty = dev->ptr;
-  printf("(tty) Write %d bytes to tty%d.\n", count, tty->display + 1);
   kmt->sem_wait(&tty->lock);
   for (int i = 0; i < count; i++) {
     tty_putc(tty, ((const char *)buf)[i]);

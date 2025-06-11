@@ -116,4 +116,6 @@ MODULE(syscall)
   uint64_t (*gettimeofday)(task_t *task, struct timespec *ts, void *tz);
   uint64_t (*clone)(task_t *task, int flags, void *stack, int *ptid, int *ctid, unsigned long newtls);
   uint64_t (*execve)(task_t *task, const char *pathname, char *const argv[], char *const envp[]);
+   uint64_t (*read)(task_t *task, int fd, char *buf, size_t count);
+  uint64_t (*write)(task_t *task, int fd, const char *buf, size_t count);
 };

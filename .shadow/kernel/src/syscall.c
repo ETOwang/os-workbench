@@ -698,7 +698,18 @@ static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr 
 
     return 0;
 }
-
+static uint64_t syscall_read(task_t *task, int fd, char *buf, size_t count)
+{
+    buf = (char *)*ptewalk(&task->pi->as, (uintptr_t)buf);
+    panic_on(buf == NULL, "Invalid buffer address");
+    return vfs->read(fd, buf, count);
+}
+static uint64_t syscall_write(task_t *task, int fd, const char *buf, size_t count)
+{
+    buf = (const char*)*ptewalk(&task->pi->as, (uintptr_t)buf);
+    panic_on(buf == NULL, "Invalid buffer address");
+    return vfs->write(fd, buf, count);
+}
 MODULE_DEF(syscall) = {
     .chdir = syscall_chdir,
     .getcwd = syscall_getcwd,
@@ -723,4 +734,6 @@ MODULE_DEF(syscall) = {
     .gettimeofday = syscall_gettimeofday,
     .clone = syscall_clone,
     .execve = syscall_execve,
+    .read = syscall_read,
+    .write = syscall_write
 };

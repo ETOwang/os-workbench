@@ -54,7 +54,6 @@ static void cmd_help(device_t *tty, char *args)
     tty_write_str(tty, "  graphics   - Test graphics display\n");
     tty_write_str(tty, "  uptime     - Show system uptime\n");
     tty_write_str(tty, "  clear      - Clear screen\n");
-    tty_write_str(tty, "  exit       - Exit shell\n");
 }
 
 static void cmd_sysinfo(device_t *tty, char *args)

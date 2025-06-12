@@ -45,8 +45,6 @@ static void dev_init()
 
   kmt->create(pmm->alloc(sizeof(task_t)), "input-task", dev_input_task, NULL);
   kmt->create(pmm->alloc(sizeof(task_t)), "tty-task", dev_tty_task, NULL);
-
-  // 启动内核演示任务
   kmt->create(pmm->alloc(sizeof(task_t)), "kernel-demo", kernel_demo_task, NULL);
 }
 

@@ -33,7 +33,7 @@ static void user_init()
     // TODO:better function
     for (size_t i = 0; i < 3; i++)
     {
-        map(&task->pi->as, (void *)(UVSTART + i * task->pi->as.pgsize), (void *)(entry + i * task->pi->as.pgsize), MMAP_READ);
+        map(&task->pi->as, (void *)(UVSTART + i * task->pi->as.pgsize), (void *)(entry + i * task->pi->as.pgsize), MMAP_READ | MMAP_WRITE);
     }
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);

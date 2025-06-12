@@ -322,9 +322,9 @@ static void cmd_graphics(device_t *tty, char *args)
 
     if (sprite_count >= tiles_needed * 0.8)
     {
-        tty_write_str(tty, "✓ Beautiful gradient background activated!\n");
-        tty_write_str(tty, "Your terminal now has a gorgeous deep blue gradient background!\n");
-        tty_write_str(tty, "The background creates a modern, elegant look for your terminal.\n");
+        tty_write_str(tty, "✓ Beautiful background activated!\n");
+        tty_write_str(tty, "Your terminal now has an elegant dark blue background!\n");
+        tty_write_str(tty, "The background creates a modern, professional look for your terminal.\n");
     }
     else
     {

@@ -47,7 +47,6 @@ static void cmd_help(device_t *tty, char *args)
     tty_write_str(tty, "  devinfo    - Show device information\n");
     tty_write_str(tty, "  memtest    - Run memory allocation test\n");
     tty_write_str(tty, "  disktest   - Test disk read/write\n");
-    tty_write_str(tty, "  perftest   - Run performance benchmark\n");
     tty_write_str(tty, "  taskinfo   - Show task information\n");
     tty_write_str(tty, "  uptime     - Show system uptime\n");
     tty_write_str(tty, "  clear      - Clear screen\n");
@@ -187,47 +186,6 @@ static void cmd_disktest(device_t *tty, char *args)
         tty_write_str(tty, "Disk test: FAILED\n");
     }
 }
-static void cmd_perftest(device_t *tty, char *args)
-{
-    tty_write_str(tty, "=== Performance Benchmark ===\n");
-
-    tty_write_str(tty, "Running CPU benchmark...\n");
-    uint64_t start_time = io_read(AM_TIMER_UPTIME).us;
-
-    volatile long long sum = 0;
-    for (int i = 0; i < 500000; i++)
-    {
-        sum += i * i;
-    }
-
-    uint64_t end_time = io_read(AM_TIMER_UPTIME).us;
-    uint64_t cpu_time = end_time - start_time;
-    tty_printf(tty, "CPU computation time: %llu microseconds\n", cpu_time);
-
-    tty_write_str(tty, "Running memory benchmark...\n");
-    size_t test_size = 64 * 1024;
-    char *src = pmm->alloc(test_size);
-    char *dst = pmm->alloc(test_size);
-
-    if (src && dst)
-    {
-        start_time = io_read(AM_TIMER_UPTIME).us;
-        memcpy(dst, src, test_size);
-        end_time = io_read(AM_TIMER_UPTIME).us;
-
-        uint64_t mem_time = end_time - start_time;
-        tty_printf(tty, "Memory copy time: %llu microseconds (64KB)\n", mem_time);
-
-        pmm->free(src);
-        pmm->free(dst);
-    }
-    else
-    {
-        tty_write_str(tty, "Memory allocation failed for benchmark.\n");
-    }
-
-    tty_write_str(tty, "Performance benchmark completed.\n");
-}
 
 static void cmd_taskinfo(device_t *tty, char *args)
 {
@@ -236,7 +194,6 @@ static void cmd_taskinfo(device_t *tty, char *args)
     tty_write_str(tty, "Scheduler: Round-robin with preemption\n");
     tty_write_str(tty, "Task States: READY, RUNNING, BLOCKED, DEAD\n");
 }
-
 
 static void cmd_uptime(device_t *tty, char *args)
 {
@@ -276,7 +233,6 @@ static struct command commands[] = {
     {"devinfo", cmd_devinfo, "Show device information"},
     {"memtest", cmd_memtest, "Run memory allocation test"},
     {"disktest", cmd_disktest, "Test disk read/write"},
-    {"perftest", cmd_perftest, "Run performance benchmark"},
     {"taskinfo", cmd_taskinfo, "Show task information"},
     {"uptime", cmd_uptime, "Show system uptime"},
     {"clear", cmd_clear, "Clear screen"},

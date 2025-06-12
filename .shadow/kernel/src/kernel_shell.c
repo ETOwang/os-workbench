@@ -494,11 +494,5 @@ void kernel_shell(void *arg)
     }
     printf("Switch to TTY1 (Alt+1) or TTY2 (Alt+2) to use the shell.\n");
 
-    while (1)
-    {
-        for (int i = 0; i < 10000000; i++)
-        {
-            yield();
-        }
-    }
+    while (1);
 }

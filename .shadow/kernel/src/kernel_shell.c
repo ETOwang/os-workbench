@@ -313,7 +313,7 @@
 
 void kernel_shell(void *arg)
 {
-   // init_shell_state();
+    // init_shell_state();
     // task_t *shell1_task = pmm->alloc(sizeof(task_t));
     // if (shell1_task)
     // {

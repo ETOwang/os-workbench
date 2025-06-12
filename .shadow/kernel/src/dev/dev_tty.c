@@ -306,6 +306,7 @@ static int tty_write(device_t *dev, size_t offset, const void *buf, int count)
   {
     tty_putc(tty, ((const char *)buf)[i]);
   }
+  printf("tty locked 309\n");
   kmt->spin_unlock(&tty->lock);
   tty_render(tty);
   return count;

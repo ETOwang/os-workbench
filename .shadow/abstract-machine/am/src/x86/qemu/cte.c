@@ -109,10 +109,12 @@ void __am_irq_handle(struct trap_frame *tf)
   case EX_PF:
     MSG("PF #14, page fault, @cause: PROT_XXX")
     ev.event = EVENT_PAGEFAULT;
-    ev.cause = tf->errcode;
-    // if (tf->errcode & 0x1) ev.cause |= MMAP_NONE;
-    // if (tf->errcode & 0x2) ev.cause |= MMAP_WRITE;
-    // else                   ev.cause |= MMAP_READ;
+    if (tf->errcode & 0x1)
+      ev.cause |= MMAP_NONE;
+    if (tf->errcode & 0x2)
+      ev.cause |= MMAP_WRITE;
+    else
+      ev.cause |= MMAP_READ;
     ev.ref = get_cr2();
     break;
   default:

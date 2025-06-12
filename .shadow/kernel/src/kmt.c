@@ -75,7 +75,6 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 static Context *kmt_syscall(Event ev, Context *ctx)
 {
     SyscallHandler handler = syscall_table[ctx->GPRx];
-    printf("syscaall:%d\n", ctx->GPRx);
     if (handler)
     {
         ctx->GPRx = handler(ctx);

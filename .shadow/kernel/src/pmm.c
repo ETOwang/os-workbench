@@ -198,7 +198,6 @@ void *kalloc(size_t size)
         block->offset = header_size;
     }
     kmt->spin_unlock(&thread_lock[tid]);
-    printf("alloc ptr:%p count :%d\n",user_ptr,size);
     return user_ptr;
 }
 

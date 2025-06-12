@@ -412,15 +412,9 @@ static void execute_command(device_t *tty, char *input)
 }
 
 // Main shell task for a TTY
-static void demo_shell_task(void *arg)
+static void shell_task(void *arg)
 {
     device_t *tty = dev->lookup((char *)arg);
-    if (!tty)
-    {
-        printf("Failed to find TTY device: %s\n", (char *)arg);
-        return;
-    }
-
     char cmd[128];
     char prompt[32];
     snprintf(prompt, sizeof(prompt), "(%s) $ ", (char *)arg);
@@ -472,7 +466,7 @@ static void init_shell_state()
     shell_state.fb_dev = dev->lookup("fb");
     shell_state.input_dev = dev->lookup("input");
     shell_state.disk_dev = dev->lookup("sda");
-    shell_state.active_tasks = 1;
+    shell_state.active_tasks = 0;
     shell_state.memory_usage = 512; // Initial estimate
 
     // Get display information
@@ -485,31 +479,21 @@ static void init_shell_state()
 // Main demo task - creates shell instances
 void kernel_shell(void *arg)
 {
-
-    // Initialize shell state
     init_shell_state();
-
-    // Create shell tasks for TTY1 and TTY2
     task_t *shell1_task = pmm->alloc(sizeof(task_t));
     if (shell1_task)
     {
-        kmt->create(shell1_task, "demo-shell-tty1", demo_shell_task, "tty1");
+        kmt->create(shell1_task, "tty1", shell_task, "tty1");
         shell_state.active_tasks++;
-        printf("Created shell for tty1\n");
     }
-
     task_t *shell2_task = pmm->alloc(sizeof(task_t));
     if (shell2_task)
     {
-        kmt->create(shell2_task, "demo-shell-tty2", demo_shell_task, "tty2");
+        kmt->create(shell2_task, "tty2", shell_task, "tty2");
         shell_state.active_tasks++;
-        printf("Created shell for tty2\n");
     }
-
-    printf("Demo shell system initialized.\n");
     printf("Switch to TTY1 (Alt+1) or TTY2 (Alt+2) to use the shell.\n");
 
-    // Main task just sleeps
     while (1)
     {
         for (int i = 0; i < 10000000; i++)

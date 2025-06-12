@@ -476,7 +476,6 @@ static void init_shell_state()
     }
 }
 
-// Main demo task - creates shell instances
 void kernel_shell(void *arg)
 {
     init_shell_state();

@@ -306,10 +306,10 @@ static int tty_write(device_t *dev, size_t offset, const void *buf, int count)
   {
     tty_putc(tty, ((const char *)buf)[i]);
   }
-  printf("%s try unlock 309\n",dev->name);
   kmt->spin_unlock(&tty->lock);
-  printf("%s unlock 311\n",dev->name);
+  printf("%s start render\n",dev->name);
   tty_render(tty);
+  printf("%s rendered\n",dev->name);
   return count;
 }
 

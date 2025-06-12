@@ -423,7 +423,22 @@ static void cmd_graphics(device_t *tty, char *args)
                                    sprite_count * sizeof(struct sprite));
 
     tty_printf(tty, "Beautiful graphics demo displayed! (%d sprites)\n", sprite_count);
-    tty_write_str(tty, "Switch between TTY1/TTY2 to see the graphics on display.\n");
+    tty_write_str(tty, "Graphics are rendered to the framebuffer.\n");
+    tty_write_str(tty, "The graphics appear as background behind the text.\n");
+    tty_write_str(tty, "Try switching TTY (Alt+1/Alt+2) to see different views.\n");
+
+    // Also update the current display to show the graphics immediately
+    device_t *fb_dev = shell_state.fb_dev;
+    if (fb_dev)
+    {
+        tty_t *current_tty = tty->ptr;
+        fb_t *fb = fb_dev->ptr;
+        if (fb && fb->info)
+        {
+            fb->info->current = current_tty->display;
+            fb_dev->ops->write(fb_dev, 0, fb->info, sizeof(struct display_info));
+        }
+    }
 }
 
 static void cmd_uptime(device_t *tty, char *args)
@@ -435,35 +450,27 @@ static void cmd_uptime(device_t *tty, char *args)
 
 static void cmd_clear(device_t *tty, char *args)
 {
-    // Clear the TTY buffer by filling with spaces and resetting cursor
+    // Clear the TTY buffer directly
     tty_t *tty_ptr = tty->ptr;
 
-    // Create a buffer filled with spaces to clear the screen
-    int total_chars = tty_ptr->lines * tty_ptr->columns;
-    char *clear_buf = pmm->alloc(total_chars + 1);
-    if (clear_buf)
+    // Clear the character buffer
+    for (int i = 0; i < tty_ptr->size; i++)
     {
-        memset(clear_buf, ' ', total_chars);
-        clear_buf[total_chars] = '\0';
-
-        // Write spaces to fill the entire screen
-        tty->ops->write(tty, 0, clear_buf, total_chars);
-
-        // Send carriage returns and line feeds to position cursor at top
-        for (int i = 0; i < tty_ptr->lines; i++)
-        {
-            tty_write_str(tty, "\r\n");
-        }
-
-        // Move cursor to top-left
-        for (int i = 0; i < tty_ptr->lines; i++)
-        {
-            tty_write_str(tty, "\033[A"); // Move cursor up
-        }
-        tty_write_str(tty, "\r"); // Move to beginning of line
-
-        pmm->free(clear_buf);
+        tty_ptr->buf[i].ch = ' ';
+        tty_ptr->buf[i].metadata = 0;
     }
+
+    // Reset cursor to top-left
+    tty_ptr->cursor = tty_ptr->buf;
+
+    // Mark all positions as dirty for re-rendering
+    for (int i = 0; i < tty_ptr->size; i++)
+    {
+        tty_ptr->dirty[i] = 1;
+    }
+
+    // Force a render to update the display
+    tty->ops->write(tty, 0, "", 0);
 }
 
 struct command

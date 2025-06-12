@@ -16,6 +16,7 @@ struct Context {
 #define GPR2 rsi
 #define GPR3 rdx
 #define GPR4 rcx
+#define GPR5 r8
 #define GPRx rax
 
 #endif

@@ -1,7 +1,6 @@
 #include <common.h>
 #include <limits.h>
 #include <syscall.h>
-#include <user.h>
 static spinlock_t task_lock;
 static task_t *tasks[MAX_TASK];
 static int task_index;
@@ -40,7 +39,7 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
     TRACE_ENTRY;
     kmt->spin_lock(&task_lock);
     for (int i = 0; i < MAX_TASK; i++)
-    {    
+    {
         if (tasks[i] != NULL)
         {
             kmt->spin_lock(&tasks[i]->lock);
@@ -54,7 +53,7 @@ static Context *kmt_mark_as_free(Event ev, Context *ctx)
                 {
                     unprotect(&tasks[i]->pi->as);
                     pmm->free(tasks[i]->pi);
-                    tasks[i]->pi=NULL;
+                    tasks[i]->pi = NULL;
                 }
             }
             kmt->spin_unlock(&tasks[i]->lock);
@@ -76,9 +75,12 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 static Context *kmt_syscall(Event ev, Context *ctx)
 {
     SyscallHandler handler = syscall_table[ctx->GPRx];
-    if (handler) {
+    if (handler)
+    {
         ctx->GPRx = handler(ctx);
-    } else {
+    }
+    else
+    {
         panic("Unknown syscall number");
     }
     return NULL;
@@ -162,7 +164,7 @@ task_t *kmt_get_son()
             continue;
         }
         kmt->spin_lock(&tasks[i]->lock);
-        if (tasks[i]->pi != NULL && tasks[i]->pi->parent == cur&&tasks[i]->status!=TASK_DEAD)
+        if (tasks[i]->pi != NULL && tasks[i]->pi->parent == cur && tasks[i]->status != TASK_DEAD)
         {
             son = tasks[i];
             kmt->spin_unlock(&tasks[i]->lock);
@@ -189,6 +191,8 @@ void kmt_add_task(task_t *task)
 }
 static Context *kmt_pgfault(Event ev, Context *ctx)
 {
+    printf("rsp:%p\n", ctx->rsp);
+    printf("rsp0:%p\n", ctx->rsp0);
     printf("Page fault at %p\n", ev.ref);
     printf("Page fault msg: %s\n", ev.msg);
     printf("Page fault cause: %p\n", ev.cause);
@@ -274,6 +278,13 @@ static bool holding(spinlock_t *lk)
     TRACE_ENTRY;
     panic_on(!lk, "Spinlock is NULL");
     TRACE_EXIT;
+    // if(!lk->locked){
+    //     panic("lk is unlocked");
+    // }
+    // if(lk->cpu!=cpu_current()){
+    //    printf("cpu:%d, lk->cpu:%d\n",cpu_current(),lk->cpu);
+    //    panic("cpu is not the same");
+    // }
     return lk->locked && lk->cpu == cpu_current();
 }
 static void push_off()

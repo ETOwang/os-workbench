@@ -1,6 +1,6 @@
 #ifndef _KERNEL_COMMON_H
 #define _KERNEL_COMMON_H
-//#define TRACE_F
+// #define TRACE_F
 #ifdef TRACE_F
 #define TRACE_ENTRY printf("[trace] %s:entry\n", __func__)
 #define TRACE_EXIT printf("[trace] %s:exit\n", __func__)
@@ -8,6 +8,7 @@
 #define TRACE_ENTRY ((void)0)
 #define TRACE_EXIT ((void)0)
 #endif
+#define PTE_ADDR(pte) ((pte) & 0x000ffffffffff000ULL)
 #define STACK_SIZE (1 << 16)
 #define FENCE_PATTERN 0xABCDABCD
 #define TASK_READY 1

@@ -10,21 +10,22 @@ static int print_lock = 0;
 static bool intena[MAX_CPU];
 static inline void print_lock_acquire()
 {
-  bool cur=ienabled();
+  bool cur = ienabled();
   iset(false);
-  while (__sync_lock_test_and_set(&print_lock, 1));
-  intena[cpu_current()]=cur;
+  while (__sync_lock_test_and_set(&print_lock, 1))
+    ;
+  intena[cpu_current()] = cur;
 }
 
 static inline void print_lock_release()
 {
   __sync_lock_release(&print_lock);
-   iset(intena[cpu_current()]);
+  iset(intena[cpu_current()]);
 }
 
 int printf(const char *fmt, ...)
 {
-  //stackoverflow!
+  // stackoverflow!
   char buf[2560];
   va_list ap;
 

@@ -1,9 +1,7 @@
 #include <common.h>
 #include <string.h>
 #include <am.h>
-#include <user.h>
 #include "initcode.inc"
-#define PTE_ADDR(pte) ((pte) & 0x000ffffffffff000ULL)
 #define MAX_PID 32767
 static spinlock_t uproc_lock;
 static int next_pid = 1;
@@ -29,10 +27,14 @@ static void user_init()
     protect(&task->pi->as);
     char *mem = pmm->alloc(task->pi->as.pgsize);
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
-    panic_on(_init_len > task->pi->as.pgsize, "init code too large");
-    char *entry = pmm->alloc(task->pi->as.pgsize);
+    panic_on(_init_len > 3 * task->pi->as.pgsize, "init code too large");
+    char *entry = pmm->alloc(3 * task->pi->as.pgsize);
     memcpy(entry, _init, _init_len);
-    map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ);
+    // TODO:better function
+    for (size_t i = 0; i < 3; i++)
+    {
+        map(&task->pi->as, (void *)(UVSTART + i * task->pi->as.pgsize), (void *)(entry + i * task->pi->as.pgsize), MMAP_READ | MMAP_WRITE);
+    }
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
     task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
@@ -78,10 +80,10 @@ int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
             break;
         }
         uintptr_t *ptep = ptewalk(old, current_va);
-        if (ptep && (*ptep & PROT_NONE))
+        if (ptep && (*ptep & PROT_READ))
         {
             int map_prot = MMAP_READ;
-            if (*ptep & MMAP_WRITE)
+            if (*ptep & PROT_WRITE)
             {
                 map_prot |= MMAP_WRITE;
             }
@@ -106,6 +108,7 @@ static int uproc_fork(task_t *task)
     kmt->spin_init(&son->lock, son->name);
     son->status = TASK_READY;
     son->pi = pmm->alloc(sizeof(procinfo_t));
+    son->pi->cwd = pmm->alloc(PATH_MAX);
     son->pi->parent = task;
     strcpy(son->pi->cwd, task->pi->cwd);
     protect(&son->pi->as);
@@ -117,6 +120,7 @@ static int uproc_fork(task_t *task)
     son->context->cr3 = son->pi->as.ptr;
     son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
     kmt_add_task(son);
+    printf("fork finished\n");
     return pid;
 }
 
@@ -128,7 +132,8 @@ static int uproc_wait(task_t *task, int pid, int *status, int options)
     while (1)
     {
         task_t *son = kmt_get_son();
-        while (son != NULL)
+        printf("son: %p\n", son);
+        if (son != NULL)
         {
             kmt->spin_lock(&son->lock);
             bool match_pid = pid == -1 || son->pi->pid == pid;
@@ -150,12 +155,15 @@ static int uproc_wait(task_t *task, int pid, int *status, int options)
                 found = true;
             }
             kmt->spin_unlock(&son->lock);
-            son = son->next;
         }
         if (options & WNOHANG)
         {
             if (!found)
                 return -1; // 没有子进程
+            return 0;
+        }
+        if (!found)
+        {
             return 0;
         }
         // TODO:
@@ -201,7 +209,20 @@ static int64_t uproc_uptime(task_t *task, struct timespec *ts)
     }
     return -1;
 }
-
+static void *uproc_mmap(task_t *task, void *addr, int length, int prot, int flags)
+{
+    panic_on(task == NULL, "Task is NULL");
+    panic_on(task->pi == NULL, "Task procinfo is NULL");
+    if (addr == NULL)
+    {
+        addr = (void *)UVSTART;
+    }
+    if (length <= 0)
+    {
+        return NULL;
+    }
+    return NULL;
+}
 // Define the uproc module structure with pointers to implemented functions
 MODULE_DEF(uproc) = {
     .init = uproc_init,
@@ -212,5 +233,5 @@ MODULE_DEF(uproc) = {
     .getpid = uproc_getpid,
     .sleep = uproc_sleep,
     .uptime = uproc_uptime,
-    .getppid = uproc_getppid
-};
+    .getppid = uproc_getppid,
+    .mmap = uproc_mmap};

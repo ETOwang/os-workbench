@@ -1,7 +1,6 @@
 #define SYS_kputc 1
 #define SYS_fork 2
 #define SYS_sleep 14
-#define SYS_open 16
 #define SYS_getcwd 17
 #define SYS_pipe2 59
 #define SYS_dup 23
@@ -34,7 +33,39 @@
 #define SYS_nanosleep 101
 
 #ifndef __ASSEMBLER__
+#ifndef __SYSCALL_H
+#define __SYSCALL_H
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/times.h>
+#include <sys/utsname.h>
+#include <time.h>
+#include <dirent.h>
+#include <sys/mman.h>
+// 定义kstat结构体（如果与标准stat有冲突）
+struct kstat
+{
+    uint64_t st_dev;
+    uint64_t st_ino;
+    uint32_t st_mode;
+    uint32_t st_nlink;
+    uint32_t st_uid;
+    uint32_t st_gid;
+    uint64_t st_rdev;
+    uint64_t __pad;
+    int64_t st_size;
+    uint32_t st_blksize;
+    int __pad2;
+    uint64_t st_blocks;
+    long st_atime_sec;
+    long st_atime_nsec;
+    long st_mtime_sec;
+    long st_mtime_nsec;
+    long st_ctime_sec;
+    long st_ctime_nsec;
+    uint32_t __unused[2];
+};
+#endif
 #endif

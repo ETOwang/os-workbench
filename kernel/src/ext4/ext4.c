@@ -1629,11 +1629,10 @@ int ext4_fopen(ext4_file *file, const char *path, const char *flags)
 {
 	struct ext4_mountpoint *mp = ext4_get_mount(path);
 	int r;
-
 	if (!mp)
 		return ENOENT;
 
-	EXT4_MP_LOCK(mp);
+	EXT4_MP_LOCK(mp);	
 
 	ext4_block_cache_write_back(mp->fs.bdev, 1);
 	r = ext4_generic_open(file, path, flags, true, 0, 0);

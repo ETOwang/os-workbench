@@ -1,216 +1,461 @@
-#include "ulib.h"
-// 自定义打印字符串函数（使用kputc）
-void print(const char *str) {
-    for (; *str != '\0'; str++) {
-        kputc(*str);
-    }
-}
+// // Linux port of xv6-riscv shell (no libc)
 
-// 自定义打印整数函数（使用kputc）
-void print_int(int num) {
-    if (num == 0) {
-        kputc('0');
-        return;
-    }
-    
-    char buffer[16];
-    int i = 0;
-    int is_negative = 0;
-    
-    if (num < 0) {
-        is_negative = 1;
-        num = -num;
-    }
-    
-    while (num > 0) {
-        buffer[i++] = '0' + (num % 10);
-        num /= 10;
-    }
-    
-    if (is_negative) {
-        kputc('-');
-    }
-    
-    for (int j = i - 1; j >= 0; j--) {
-        kputc(buffer[j]);
-    }
-}
+// #include "myulib.h"
+// #include <fcntl.h>
 
-// 自定义打印十六进制函数（使用kputc）
-void print_hex(uint64_t num) {
-    if (num == 0) {
-        kputc('0');
-        return;
-    }
-    
-    char buffer[16];
-    int i = 0;
-    
-    while (num > 0) {
-        int digit = num % 16;
-        buffer[i++] = digit < 10 ? '0' + digit : 'a' + (digit - 10);
-        num /= 16;
-    }
-    
-    kputc('0');
-    kputc('x');
-    for (int j = i - 1; j >= 0; j--) {
-        kputc(buffer[j]);
-    }
-}
+// // EXEC:   ls
+// // REDIR:  ls > a.txt
+// // PIPE:   ls | wc -l
+// // LIST:   (ls ; ls)
+// enum
+// {
+//     EXEC = 1,
+//     REDIR,
+//     PIPE,
+//     LIST,
+//     BACK
+// };
 
-int main() {
-    print("Starting system call tests for implemented functions...\n\n");
-    
-    // 测试kputc
-    print("1. Testing kputc():\n");
-    print("  Hello from kputc!\n");
-    print("  This is a test message.\n\n");
-    
-    // 测试gettimeofday
-    print("2. Testing gettimeofday():\n");
-    struct timespec ts;
-    int time_result = gettimeofday(&ts);
-    
-    if (time_result < 0) {
-        print("  Error: gettimeofday failed!\n");
-    } else {
-        print("  Success! Time value stored at address: ");
-        print_hex((uint64_t)&ts);
-        print("\n");
-    }
-    print("\n");
-    
-    // 测试fork, wait4和exit
-    print("3. Testing fork(), wait4() and exit():\n");
-    int child_pid = fork();
-    
-    if (child_pid < 0) {
-        print("  Error: Fork failed!\n");
-    } else if (child_pid == 0) {
-        // 子进程
-        print("  Child process started\n");
-        
-        // 测试gettimeofday
-        struct timespec child_ts;
-        if (gettimeofday(&child_ts) < 0) {
-            print("  Child: gettimeofday failed!\n");
-        } else {
-            print("  Child: Current time (seconds): ");
-            print_int(child_ts.tv_sec);
-            print("\n");
-        }
-        
-        // 测试sleep
-        print("  Child: Sleeping for 1 second...\n");
-        sleep(1);
-        print("  Child: Awake now!\n");
-        
-        // 测试exit
-        print("  Child: Exiting with status 42\n");
-        exit(42);
-        
-        // 子进程不会执行到这里
-        print("  Child: This should not be printed!\n");
-    } else {
-        // 父进程
-        print("  Parent: Forked child with PID: ");
-        print_int(child_pid);
-        print("\n");
-        
-        print("  Parent: Waiting for child...\n");
-        int status;
-        int wpid = wait4(-1, &status, 0);
-        
-        if (wpid < 0) {
-            print("  Parent: Error: wait4 failed!\n");
-        } else {
-            print("  Parent: Child process ");
-            print_int(wpid);
-            print(" exited\n");
-            
-            // 注意：status的具体格式取决于内核实现
-            print("  Parent: Exit status value: ");
-            print_int(status);
-            print(" (hex: ");
-            print_hex(status);
-            print(")\n");
-        }
-        
-        // 测试sleep
-        print("  Parent: Sleeping for 2 seconds...\n");
-        sleep(2);
-        print("  Parent: Awake now!\n");
-    }
-    print("\n");
-    
-    // 测试getcwd和chdir
-    print("4. Testing getcwd() and chdir():\n");
-    
-    // 测试getcwd - 获取当前工作目录
-    char cwd_buffer[256];
-    int getcwd_result = getcwd(cwd_buffer, sizeof(cwd_buffer));
-    
-    if (getcwd_result < 0) {
-        print("  Error: getcwd failed!\n");
-    } else {
-        print("  Success! Current working directory: ");
-        // 由于我们使用自定义print函数，需要null-terminated字符串
-        cwd_buffer[255] = '\0';  // 确保null终止
-        print(cwd_buffer);
-        print("\n");
-    }
-    
-    // 测试chdir - 改变当前工作目录到根目录
-    print("  Attempting to change directory to /...\n");
-    int chdir_result = chdir("/");
-    
-    if (chdir_result < 0) {
-        print("  Error: chdir to / failed!\n");
-    } else {
-        print("  Success! Changed directory to /\n");
-        
-        // 再次测试getcwd来验证目录变更
-        char new_cwd_buffer[256];
-        int new_getcwd_result = getcwd(new_cwd_buffer, sizeof(new_cwd_buffer));
-        
-        if (new_getcwd_result < 0) {
-            print("  Error: getcwd after chdir failed!\n");
-        } else {
-            print("  New current working directory: ");
-            new_cwd_buffer[255] = '\0';  // 确保null终止
-            print(new_cwd_buffer);
-            print("\n");
-        }
-    }
-    
-    // 尝试切换到一个可能不存在的目录来测试错误处理
-    print("  Testing chdir to non-existent directory /nonexistent...\n");
-    int bad_chdir_result = chdir("/nonexistent");
-    
-    if (bad_chdir_result < 0) {
-        print("  Expected: chdir to /nonexistent failed (this is normal)\n");
-    } else {
-        print("  Unexpected: chdir to /nonexistent succeeded\n");
-    }
-    
-    // 测试getcwd with invalid buffer size
-    print("  Testing getcwd with small buffer...\n");
-    char small_buffer[1];
-    int small_getcwd_result = getcwd(small_buffer, sizeof(small_buffer));
-    
-    if (small_getcwd_result < 0) {
-        print("  Expected: getcwd with small buffer failed (this is normal)\n");
-    } else {
-        print("  Unexpected: getcwd with small buffer succeeded\n");
-    }
-    
-    print("\n");
-    
-    print("All tests completed!\n");
-    print("Exiting with status 0\n");
-    exit(0);
-    
-    // 永远不会执行到这里
+// #define MAXARGS 10
+// #define NULL ((void *)0)
+
+// struct cmd
+// {
+//     int type;
+// };
+
+// struct execcmd
+// {
+//     int type;
+//     char *argv[MAXARGS], *eargv[MAXARGS];
+// };
+
+// struct redircmd
+// {
+//     int type, fd, mode;
+//     char *file, *efile;
+//     struct cmd *cmd;
+// };
+
+// struct pipecmd
+// {
+//     int type;
+//     struct cmd *left, *right;
+// };
+
+// struct listcmd
+// {
+//     int type;
+//     struct cmd *left, *right;
+// };
+
+// struct backcmd
+// {
+//     int type;
+//     struct cmd *cmd;
+// };
+
+// struct cmd *parsecmd(char *);
+
+// // cmd is the "abstract syntax tree" (AST) of the command;
+// // runcmd() never returns.
+// void runcmd(struct cmd *cmd)
+// {
+//     print("runcmd 64\n", NULL);
+//     int p[2];
+//     struct backcmd *bcmd;
+//     struct execcmd *ecmd;
+//     struct listcmd *lcmd;
+//     struct pipecmd *pcmd;
+//     struct redircmd *rcmd;
+
+//     if (cmd == 0)
+//         syscall(SYS_exit, 1);
+
+//     switch (cmd->type)
+//     {
+//     case EXEC:
+//         ecmd = (struct execcmd *)cmd;
+//         if (ecmd->argv[0] == 0)
+//             syscall(SYS_exit, 1);
+//         char *c = zalloc(5 + strlen(ecmd->argv[0]) + 1);
+//         strcpy(c, "/bin/");
+//         strcpy(c + strlen(c), ecmd->argv[0]);
+//         syscall(SYS_execve, c, ecmd->argv, NULL);
+//         print("fail to exec ", c, "\n", NULL);
+//         break;
+
+//     case REDIR:
+//         rcmd = (struct redircmd *)cmd;
+//         syscall(SYS_close, rcmd->fd);
+//         if (syscall(SYS_openat, AT_FDCWD, rcmd->file, rcmd->mode, 0644) < 0)
+//         {
+//             print("fail to open ", rcmd->file, "\n", NULL);
+//             syscall(SYS_exit, 1);
+//         }
+//         runcmd(rcmd->cmd);
+//         break;
+
+//     case LIST:
+//         lcmd = (struct listcmd *)cmd;
+//         if (syscall(SYS_fork) == 0)
+//             runcmd(lcmd->left);
+//         syscall(SYS_wait4, -1, 0, 0, 0);
+//         runcmd(lcmd->right);
+//         break;
+
+//         // case PIPE:
+//         //     pcmd = (struct pipecmd *)cmd;
+//         //     assert(syscall(SYS_pipe, p) >= 0);
+//         //     if (syscall(SYS_fork) == 0) {
+//         //         syscall(SYS_close, 1);
+//         //         syscall(SYS_dup, p[1]);
+//         //         syscall(SYS_close, p[0]);
+//         //         syscall(SYS_close, p[1]);
+//         //         runcmd(pcmd->left);
+//         //     }
+//         //     if (syscall(SYS_fork) == 0) {
+//         //         syscall(SYS_close, 0);
+//         //         syscall(SYS_dup, p[0]);
+//         //         syscall(SYS_close, p[0]);
+//         //         syscall(SYS_close, p[1]);
+//         //         runcmd(pcmd->right);
+//         //     }
+//         //     syscall(SYS_close, p[0]);
+//         //     syscall(SYS_close, p[1]);
+//         //     syscall(SYS_wait4, -1, 0, 0, 0);
+//         //     syscall(SYS_wait4, -1, 0, 0, 0);
+//         //     break;
+
+//     case BACK:
+//         bcmd = (struct backcmd *)cmd;
+//         if (syscall(SYS_fork) == 0)
+//             runcmd(bcmd->cmd);
+//         break;
+
+//     default:
+//         assert(0);
+//     }
+//     syscall(SYS_exit, 0);
+// }
+
+// int getcmd(char *buf, int nbuf)
+// {
+//     syscall(SYS_getcwd, buf, nbuf);
+//     print("(sh-xv6):", NULL);
+//     print(buf, "$ ", NULL);
+//     for (int i = 0; i < nbuf; i++)
+//     {
+//         buf[i] = '\0';
+//     }
+//     int nread = syscall(SYS_read, 0, buf, nbuf);
+//     print(buf, NULL);
+//     if (nread <= 0)
+//         return -1;
+//     return 0;
+// }
+// void main()
+// {
+//     static char buf[100];
+
+//     // Read and run input commands.
+//     while (getcmd(buf, sizeof(buf)) >= 0)
+//     {
+//         if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ')
+//         {
+//             // Chdir must be called by the parent, not the child.
+//             buf[strlen(buf) - 1] = 0; // chop \n
+//             if (syscall(SYS_chdir, buf + 3) < 0)
+//                 print("cannot cd ", buf + 3, "\n", NULL);
+//             continue;
+//         }
+//         if (syscall(SYS_fork) == 0)
+//             runcmd(parsecmd(buf));
+//         syscall(SYS_wait4, -1, 0, 0, 0);
+//     }
+// }
+
+// struct cmd *execcmd(void)
+// {
+//     struct execcmd *cmd;
+
+//     cmd = zalloc(sizeof(*cmd));
+//     cmd->type = EXEC;
+//     return (struct cmd *)cmd;
+// }
+
+// struct cmd *redircmd(struct cmd *subcmd, char *file, char *efile, int mode,
+//                      int fd)
+// {
+//     struct redircmd *cmd;
+
+//     cmd = zalloc(sizeof(*cmd));
+//     cmd->type = REDIR;
+//     cmd->cmd = subcmd;
+//     cmd->file = file;
+//     cmd->efile = efile;
+//     cmd->mode = mode;
+//     cmd->fd = fd;
+//     return (struct cmd *)cmd;
+// }
+
+// struct cmd *pipecmd(struct cmd *left, struct cmd *right)
+// {
+//     struct pipecmd *cmd;
+
+//     cmd = zalloc(sizeof(*cmd));
+//     cmd->type = PIPE;
+//     cmd->left = left;
+//     cmd->right = right;
+//     return (struct cmd *)cmd;
+// }
+
+// struct cmd *listcmd(struct cmd *left, struct cmd *right)
+// {
+//     struct listcmd *cmd;
+
+//     cmd = zalloc(sizeof(*cmd));
+//     cmd->type = LIST;
+//     cmd->left = left;
+//     cmd->right = right;
+//     return (struct cmd *)cmd;
+// }
+
+// struct cmd *backcmd(struct cmd *subcmd)
+// {
+//     struct backcmd *cmd;
+
+//     cmd = zalloc(sizeof(*cmd));
+//     cmd->type = BACK;
+//     cmd->cmd = subcmd;
+//     return (struct cmd *)cmd;
+// }
+
+// // Parsing
+
+// char whitespace[] = " \t\r\n\v";
+// char symbols[] = "<|>&;()";
+
+// int gettoken(char **ps, char *es, char **q, char **eq)
+// {
+//     char *s;
+//     int ret;
+
+//     s = *ps;
+//     while (s < es && strchr(whitespace, *s))
+//         s++;
+//     if (q)
+//         *q = s;
+//     ret = *s;
+//     switch (*s)
+//     {
+//     case 0:
+//         break;
+//     case '|':
+//     case '(':
+//     case ')':
+//     case ';':
+//     case '&':
+//     case '<':
+//         s++;
+//         break;
+//     case '>':
+//         s++;
+//         if (*s == '>')
+//         {
+//             ret = '+';
+//             s++;
+//         }
+//         break;
+//     default:
+//         ret = 'a';
+//         while (s < es && !strchr(whitespace, *s) && !strchr(symbols, *s))
+//             s++;
+//         break;
+//     }
+//     if (eq)
+//         *eq = s;
+
+//     while (s < es && strchr(whitespace, *s))
+//         s++;
+//     *ps = s;
+//     return ret;
+// }
+
+// int peek(char **ps, char *es, char *toks)
+// {
+//     char *s;
+
+//     s = *ps;
+//     while (s < es && strchr(whitespace, *s))
+//         s++;
+//     *ps = s;
+//     return *s && strchr(toks, *s);
+// }
+
+// struct cmd *parseline(char **, char *);
+// struct cmd *parsepipe(char **, char *);
+// struct cmd *parseexec(char **, char *);
+// struct cmd *nulterminate(struct cmd *);
+// struct cmd *parsecmd(char *s)
+// {
+//     char *es;
+//     struct cmd *cmd;
+//     es = s + strlen(s);
+//     cmd = parseline(&s, es);
+//     print("parsecmd\n", NULL);
+//     peek(&s, es, "");
+//     assert(s == es);
+//     nulterminate(cmd);
+//     print("parse cmd finish\n", NULL);
+//     return cmd;
+// }
+
+// struct cmd *parseline(char **ps, char *es)
+// {
+//     struct cmd *cmd;
+
+//     cmd = parsepipe(ps, es);
+//     while (peek(ps, es, "&"))
+//     {
+//         gettoken(ps, es, 0, 0);
+//         cmd = backcmd(cmd);
+//     }
+//     if (peek(ps, es, ";"))
+//     {
+//         gettoken(ps, es, 0, 0);
+//         cmd = listcmd(cmd, parseline(ps, es));
+//     }
+//     return cmd;
+// }
+
+// struct cmd *parsepipe(char **ps, char *es)
+// {
+//     struct cmd *cmd;
+
+//     cmd = parseexec(ps, es);
+//     if (peek(ps, es, "|"))
+//     {
+//         gettoken(ps, es, 0, 0);
+//         cmd = pipecmd(cmd, parsepipe(ps, es));
+//     }
+//     return cmd;
+// }
+
+// struct cmd *parseredirs(struct cmd *cmd, char **ps, char *es)
+// {
+//     int tok;
+//     char *q, *eq;
+
+//     while (peek(ps, es, "<>"))
+//     {
+//         tok = gettoken(ps, es, 0, 0);
+//         assert(gettoken(ps, es, &q, &eq) == 'a');
+//         switch (tok)
+//         {
+//         case '<':
+//             cmd = redircmd(cmd, q, eq, O_RDONLY, 0);
+//             break;
+//         case '>':
+//             cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREAT | O_TRUNC, 1);
+//             break;
+//         case '+': // >>
+//             cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREAT, 1);
+//             break;
+//         }
+//     }
+//     return cmd;
+// }
+
+// struct cmd *parseblock(char **ps, char *es)
+// {
+//     struct cmd *cmd;
+
+//     assert(peek(ps, es, "("));
+//     gettoken(ps, es, 0, 0);
+//     cmd = parseline(ps, es);
+//     assert(peek(ps, es, ")"));
+//     gettoken(ps, es, 0, 0);
+//     cmd = parseredirs(cmd, ps, es);
+//     return cmd;
+// }
+
+// struct cmd *parseexec(char **ps, char *es)
+// {
+//     char *q, *eq;
+//     int tok, argc;
+//     struct execcmd *cmd;
+//     struct cmd *ret;
+
+//     if (peek(ps, es, "("))
+//         return parseblock(ps, es);
+
+//     ret = execcmd();
+//     cmd = (struct execcmd *)ret;
+
+//     argc = 0;
+//     ret = parseredirs(ret, ps, es);
+//     while (!peek(ps, es, "|)&;"))
+//     {
+//         if ((tok = gettoken(ps, es, &q, &eq)) == 0)
+//             break;
+//         assert(tok == 'a');
+//         cmd->argv[argc] = q;
+//         cmd->eargv[argc] = eq;
+//         assert(++argc < MAXARGS);
+//         ret = parseredirs(ret, ps, es);
+//     }
+//     cmd->argv[argc] = 0;
+//     cmd->eargv[argc] = 0;
+//     return ret;
+// }
+
+// // NUL-terminate all the counted strings.
+// struct cmd *nulterminate(struct cmd *cmd)
+// {
+//     int i;
+//     struct backcmd *bcmd;
+//     struct execcmd *ecmd;
+//     struct listcmd *lcmd;
+//     struct pipecmd *pcmd;
+//     struct redircmd *rcmd;
+
+//     if (cmd == 0)
+//         return 0;
+
+//     switch (cmd->type)
+//     {
+//     case EXEC:
+//         ecmd = (struct execcmd *)cmd;
+//         for (i = 0; ecmd->argv[i]; i++)
+//             *ecmd->eargv[i] = 0;
+//         break;
+
+//     case REDIR:
+//         rcmd = (struct redircmd *)cmd;
+//         nulterminate(rcmd->cmd);
+//         *rcmd->efile = 0;
+//         break;
+
+//     case PIPE:
+//         pcmd = (struct pipecmd *)cmd;
+//         nulterminate(pcmd->left);
+//         nulterminate(pcmd->right);
+//         break;
+
+//     case LIST:
+//         lcmd = (struct listcmd *)cmd;
+//         nulterminate(lcmd->left);
+//         nulterminate(lcmd->right);
+//         break;
+
+//     case BACK:
+//         bcmd = (struct backcmd *)cmd;
+//         nulterminate(bcmd->cmd);
+//         break;
+//     }
+//     return cmd;
+// }
+int main(){
     return 0;
 }

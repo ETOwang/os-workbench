@@ -11,6 +11,7 @@ CFLAGS += -fno-asynchronous-unwind-tables
 LDFLAGS  = -static --omagic --pic-executable --no-dynamic-linker
 LDFLAGS += --gc-sections
 
+# Default target - test init
 _init: $(SRCS) ulib.h Makefile
 	$(CROSS_COMPILE)gcc $(CFLAGS) -c $(SRCS)
 	$(CROSS_COMPILE)ld $(LDFLAGS) -o $@ -e _start $(OBJS)

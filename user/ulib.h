@@ -1,8 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "../kernel/framework/syscall.h"
-#include "../kernel/framework/user.h"
-
 static inline long syscall(int num, long x1, long x2, long x3, long x4)
 {
   register long a0 asm("rax") = num;
@@ -21,7 +19,7 @@ static inline int gettimeofday(struct timespec *ts)
 }
 static inline int open(const char *pathname, int flags)
 {
-  return syscall(SYS_open, (uint64_t)pathname, flags, 0, 0);
+  return syscall(SYS_openat,(uint64_t)pathname, flags, 0, 0);
 }
 static inline int close(int fd)
 {

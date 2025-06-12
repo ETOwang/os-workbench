@@ -1,48 +1,5 @@
 #include <common.h>
 
-// Simple integer-based trigonometric functions for graphics
-// Using fixed-point arithmetic to avoid floating point operations
-#define TRIG_SCALE 1000
-
-// Precomputed sine table for angles 0-90 degrees (scaled by 1000)
-static int sine_table[91] = {
-    0, 17, 35, 52, 70, 87, 105, 122, 139, 156, 174, 191, 208, 225, 242, 259, 276, 292, 309, 326,
-    342, 358, 375, 391, 407, 423, 438, 454, 469, 485, 500, 515, 530, 545, 559, 574, 588, 602, 616, 629,
-    643, 656, 669, 682, 695, 707, 719, 731, 743, 755, 766, 777, 788, 799, 809, 819, 829, 839, 848, 857,
-    866, 875, 883, 891, 899, 906, 914, 921, 927, 934, 940, 946, 951, 956, 961, 966, 970, 974, 978, 982,
-    985, 988, 990, 993, 995, 996, 998, 999, 999, 1000, 1000};
-
-static int my_sin_int(int angle_deg)
-{
-    // Normalize angle to 0-359 range
-    angle_deg = angle_deg % 360;
-    if (angle_deg < 0)
-        angle_deg += 360;
-
-    if (angle_deg <= 90)
-    {
-        return sine_table[angle_deg];
-    }
-    else if (angle_deg <= 180)
-    {
-        return sine_table[180 - angle_deg];
-    }
-    else if (angle_deg <= 270)
-    {
-        return -sine_table[angle_deg - 180];
-    }
-    else
-    {
-        return -sine_table[360 - angle_deg];
-    }
-}
-
-static int my_cos_int(int angle_deg)
-{
-    // cos(x) = sin(x + 90)
-    return my_sin_int(angle_deg + 90);
-}
-
 static char *my_strchr(const char *s, int c)
 {
     while (*s != '\0')
@@ -283,7 +240,7 @@ static void cmd_taskinfo(device_t *tty, char *args)
 
 static void cmd_graphics(device_t *tty, char *args)
 {
-    tty_write_str(tty, "=== Graphics Demo ===\n");
+    tty_write_str(tty, "=== Beautiful Background Mode ===\n");
 
     if (!shell_state.fb_dev)
     {
@@ -299,112 +256,82 @@ static void cmd_graphics(device_t *tty, char *args)
     }
 
     tty_t *current_tty = tty->ptr;
-    tty_printf(tty, "Creating graphics demo on display %d...\n", current_tty->display);
+    tty_write_str(tty, "Creating beautiful gradient background...\n");
 
-    // Create simple solid color textures first (easier to debug)
-    uint32_t base_colors[] = {
-        0xFF0000, // Red
-        0x00FF00, // Green
-        0x0000FF, // Blue
-        0xFFFF00, // Yellow
-        0xFF00FF, // Magenta
-        0x00FFFF, // Cyan
-        0xFFFFFF, // White
-        0xFF8000, // Orange
-        0x8000FF, // Purple
-        0x80FF00  // Lime
+    // Define beautiful gradient colors for background
+    uint32_t gradient_colors[] = {
+        0x1a1a2e, // Dark blue
+        0x16213e, // Navy blue
+        0x0f3460, // Deep blue
+        0x533483, // Purple
+        0x7209b7, // Magenta
+        0x2d1b69, // Dark purple
+        0x11998e, // Teal
+        0x38ada9, // Light teal
     };
 
-    // Create simple solid color textures for easier debugging
-    for (int tex = 0; tex < 10 && tex < fb->info->num_textures - 512; tex++)
+    // Create gradient background textures
+    for (int i = 0; i < 8; i++)
     {
-        uint32_t color = base_colors[tex];
-        for (int i = 0; i < TEXTURE_W * TEXTURE_H; i++)
+        uint32_t color = gradient_colors[i];
+        for (int j = 0; j < TEXTURE_W * TEXTURE_H; j++)
         {
-            fb->textures[512 + tex].pixels[i] = color;
+            fb->textures[600 + i].pixels[j] = color;
         }
     }
 
-    // Write textures to framebuffer
+    // Write background textures to framebuffer
     shell_state.fb_dev->ops->write(shell_state.fb_dev,
-                                   512 * sizeof(struct texture),
-                                   &fb->textures[512],
-                                   10 * sizeof(struct texture));
+                                   600 * sizeof(struct texture),
+                                   &fb->textures[600],
+                                   8 * sizeof(struct texture));
 
-    // Create an attractive sprite arrangement
-    struct sprite sprites[50];
+    // Create background sprites to cover the screen
+    struct sprite background_sprites[20];
     int sprite_count = 0;
 
     // Get current TTY display number
     int current_display = current_tty->display;
+    int screen_width = shell_state.display_info.width;
+    int screen_height = shell_state.display_info.height;
 
-    // Create a spiral pattern
-    int angle_deg = 0;
-    int center_x = shell_state.display_info.width / 2;
-    int center_y = shell_state.display_info.height / 2;
-
-    for (int i = 0; i < 10 && sprite_count < 50; i++)
+    // Create a tiled background pattern
+    for (int y = 0; y < screen_height && sprite_count < 20; y += TEXTURE_H * 2)
     {
-        int radius = 50 + i * 15;
-        // Use integer trigonometry with scaling
-        int x = center_x + (radius * my_cos_int(angle_deg)) / TRIG_SCALE;
-        int y = center_y + (radius * my_sin_int(angle_deg)) / TRIG_SCALE;
-
-        // Ensure sprites stay within screen bounds
-        if (x >= 0 && x < shell_state.display_info.width - TEXTURE_W &&
-            y >= 0 && y < shell_state.display_info.height - TEXTURE_H)
+        for (int x = 0; x < screen_width && sprite_count < 20; x += TEXTURE_W * 2)
         {
-            sprites[sprite_count] = (struct sprite){
-                .texture = 512 + (i % 10),
+            // Use different colors based on position for gradient effect
+            int color_idx = ((x / (TEXTURE_W * 2)) + (y / (TEXTURE_H * 2))) % 8;
+
+            background_sprites[sprite_count] = (struct sprite){
+                .texture = 600 + color_idx,
                 .x = x,
                 .y = y,
                 .display = current_display,
-                .z = i};
+                .z = -10 // Behind text
+            };
             sprite_count++;
         }
-
-        angle_deg += 46; // Approximately golden angle (137.5°) for nice spiral
     }
 
-    // Add some corner decorations
-    int corner_positions[][2] = {{50, 50}, {shell_state.display_info.width - 100, 50}, {50, shell_state.display_info.height - 100}, {shell_state.display_info.width - 100, shell_state.display_info.height - 100}};
-
-    for (int i = 0; i < 4 && sprite_count < 50; i++)
-    {
-        sprites[sprite_count] = (struct sprite){
-            .texture = 512 + (i + 6) % 10,
-            .x = corner_positions[i][0],
-            .y = corner_positions[i][1],
-            .display = current_display,
-            .z = 20 + i};
-        sprite_count++;
-    }
-
-    // Write sprites to framebuffer
+    // Write background sprites to framebuffer
     shell_state.fb_dev->ops->write(shell_state.fb_dev,
                                    SPRITE_BRK,
-                                   sprites,
+                                   background_sprites,
                                    sprite_count * sizeof(struct sprite));
 
-    tty_printf(tty, "Graphics demo created: %d sprites on display %d\n", sprite_count, current_display);
-    tty_write_str(tty, "Colorful spiral pattern with textured graphics!\n");
-    tty_write_str(tty, "Graphics appear as background behind this text.\n");
-
-    // Force immediate display update
+    // Force display update
     device_t *fb_dev = shell_state.fb_dev;
-    if (fb_dev)
+    if (fb_dev && fb->info)
     {
-        fb_t *fb = fb_dev->ptr;
-        if (fb && fb->info)
-        {
-            // Ensure current display is set correctly
-            fb->info->current = current_display;
-            fb_dev->ops->write(fb_dev, 0, fb->info, sizeof(struct display_info));
-
-            // Also trigger a re-render by writing an empty sprite update
-            fb_dev->ops->write(fb_dev, SPRITE_BRK, sprites, 0);
-        }
+        fb->info->current = current_display;
+        fb_dev->ops->write(fb_dev, 0, fb->info, sizeof(struct display_info));
     }
+
+    tty_printf(tty, "Beautiful gradient background activated! (%d tiles)\n", sprite_count);
+    tty_write_str(tty, "Your terminal now has a gorgeous deep blue gradient background!\n");
+    tty_write_str(tty, "The background creates a modern, elegant look for your terminal.\n");
+    tty_write_str(tty, "Text remains clearly readable with the subtle background colors.\n");
 }
 
 static void cmd_uptime(device_t *tty, char *args)

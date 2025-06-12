@@ -266,7 +266,7 @@ static int tty_init(device_t *ttydev)
   struct tty_queue *q = &tty->queue;
   q->front = q->rear = q->buf = pmm->alloc(TTY_COOK_BUF_SZ);
   q->end = q->buf + TTY_COOK_BUF_SZ;
-  kmt->spin_init(&tty->lock, "tty lock");
+  kmt->spin_init(&tty->lock, ttydev->name);
   kmt->sem_init(&tty->cooked, "tty cooked lines", 0);
   welcome(ttydev);
   return 0;

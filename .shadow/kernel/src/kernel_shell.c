@@ -314,11 +314,11 @@ static void init_shell_state()
 void kernel_shell(void *arg)
 {
     init_shell_state();
-    task_t *shell1_task = pmm->alloc(sizeof(task_t));
-    if (shell1_task)
-    {
-        kmt->create(shell1_task, "tty1", shell_task, "tty1");
-    }
+    // task_t *shell1_task = pmm->alloc(sizeof(task_t));
+    // if (shell1_task)
+    // {
+    //     kmt->create(shell1_task, "tty1", shell_task, "tty1");
+    // }
     task_t *shell2_task = pmm->alloc(sizeof(task_t));
     if (shell2_task)
     {

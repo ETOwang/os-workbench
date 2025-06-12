@@ -297,7 +297,6 @@ struct cmd *parseline(char **, char *);
 struct cmd *parsepipe(char **, char *);
 struct cmd *parseexec(char **, char *);
 struct cmd *nulterminate(struct cmd *);
-
 struct cmd *parsecmd(char *s)
 {
     char *es;

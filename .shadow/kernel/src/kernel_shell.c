@@ -258,33 +258,22 @@ static void cmd_graphics(device_t *tty, char *args)
     tty_t *current_tty = tty->ptr;
     tty_write_str(tty, "Creating beautiful gradient background...\n");
 
-    // Define beautiful gradient colors for background
-    uint32_t gradient_colors[] = {
-        0x1a1a2e, // Dark blue
-        0x16213e, // Navy blue
-        0x0f3460, // Deep blue
-        0x533483, // Purple
-        0x7209b7, // Magenta
-        0x2d1b69, // Dark purple
-        0x11998e, // Teal
-        0x38ada9, // Light teal
-    };
+    // Define a single beautiful background color
+    uint32_t background_color = 0x1a1a2e; // Dark blue - elegant and readable
 
-    // Create gradient background textures
-    for (int i = 0; i < 8; i++)
+    tty_write_str(tty, "Creating solid background texture...\n");
+
+    // Create a single background texture
+    for (int j = 0; j < TEXTURE_W * TEXTURE_H; j++)
     {
-        uint32_t color = gradient_colors[i];
-        for (int j = 0; j < TEXTURE_W * TEXTURE_H; j++)
-        {
-            fb->textures[600 + i].pixels[j] = color;
-        }
+        fb->textures[600].pixels[j] = background_color;
     }
 
-    // Write background textures to framebuffer
+    // Write background texture to framebuffer
     shell_state.fb_dev->ops->write(shell_state.fb_dev,
                                    600 * sizeof(struct texture),
                                    &fb->textures[600],
-                                   8 * sizeof(struct texture));
+                                   1 * sizeof(struct texture));
 
     // Create background sprites to cover the entire screen
     struct sprite background_sprites[1000]; // Much larger array for full coverage
@@ -303,11 +292,8 @@ static void cmd_graphics(device_t *tty, char *args)
     {
         for (int x = 0; x < screen_width && sprite_count < 1000; x += TEXTURE_W)
         {
-            // Use different colors based on position for gradient effect
-            int color_idx = ((x / TEXTURE_W) + (y / TEXTURE_H)) % 8;
-
             background_sprites[sprite_count] = (struct sprite){
-                .texture = 600 + color_idx,
+                .texture = 600, // Use single background texture
                 .x = x,
                 .y = y,
                 .display = current_display,

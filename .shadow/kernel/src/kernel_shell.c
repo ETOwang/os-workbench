@@ -484,12 +484,12 @@ void kernel_shell(void *arg)
         kmt->create(shell1_task, "tty1", shell_task, "tty1");
         shell_state.active_tasks++;
     }
-    // task_t *shell2_task = pmm->alloc(sizeof(task_t));
-    // if (shell2_task)
-    // {
-    //     kmt->create(shell2_task, "tty2", shell_task, "tty2");
-    //     shell_state.active_tasks++;
-    // }
+    task_t *shell2_task = pmm->alloc(sizeof(task_t));
+    if (shell2_task)
+    {
+        kmt->create(shell2_task, "tty2", shell_task, "tty2");
+        shell_state.active_tasks++;
+    }
     printf("Switch to TTY1 (Alt+1) or TTY2 (Alt+2) to use the shell.\n");
 
     while (1)

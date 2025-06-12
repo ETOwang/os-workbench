@@ -49,7 +49,6 @@ static void cmd_help(device_t *tty, char *args)
     tty_write_str(tty, "  disktest   - Test disk read/write\n");
     tty_write_str(tty, "  perftest   - Run performance benchmark\n");
     tty_write_str(tty, "  taskinfo   - Show task information\n");
-    tty_write_str(tty, "  graphics   - Test graphics display\n");
     tty_write_str(tty, "  uptime     - Show system uptime\n");
     tty_write_str(tty, "  clear      - Clear screen\n");
 }
@@ -238,106 +237,6 @@ static void cmd_taskinfo(device_t *tty, char *args)
     tty_write_str(tty, "Task States: READY, RUNNING, BLOCKED, DEAD\n");
 }
 
-static void cmd_graphics(device_t *tty, char *args)
-{
-    tty_write_str(tty, "=== Beautiful Background Mode ===\n");
-
-    if (!shell_state.fb_dev)
-    {
-        tty_write_str(tty, "No graphics device available.\n");
-        return;
-    }
-
-    fb_t *fb = shell_state.fb_dev->ptr;
-    if (!fb || !fb->textures)
-    {
-        tty_write_str(tty, "Graphics device not properly initialized.\n");
-        return;
-    }
-
-    tty_t *current_tty = tty->ptr;
-    tty_write_str(tty, "Creating beautiful gradient background...\n");
-
-    // Define a single beautiful background color - very subtle
-    uint32_t background_color = 0x1a1a1a; // Very dark gray - extremely subtle and readable
-
-    tty_write_str(tty, "Creating solid background texture...\n");
-
-    // Create a single background texture
-    for (int j = 0; j < TEXTURE_W * TEXTURE_H; j++)
-    {
-        fb->textures[600].pixels[j] = background_color;
-    }
-
-    // Write background texture to framebuffer
-    shell_state.fb_dev->ops->write(shell_state.fb_dev,
-                                   600 * sizeof(struct texture),
-                                   &fb->textures[600],
-                                   1 * sizeof(struct texture));
-
-    // Create background sprites to cover the entire screen for BOTH displays
-    struct sprite background_sprites[2000]; // Even larger array for both displays
-    int sprite_count = 0;
-
-    int screen_width = shell_state.display_info.width;
-    int screen_height = shell_state.display_info.height;
-
-    tty_printf(tty, "Screen size: %dx%d, Texture size: %dx%d\n",
-               screen_width, screen_height, TEXTURE_W, TEXTURE_H);
-
-    // Create background for BOTH display 0 (TTY1) and display 1 (TTY2)
-    for (int display = 0; display < 2; display++)
-    {
-        tty_printf(tty, "Creating background for display %d...\n", display);
-
-        for (int y = 0; y < screen_height && sprite_count < 2000; y += TEXTURE_H)
-        {
-            for (int x = 0; x < screen_width && sprite_count < 2000; x += TEXTURE_W)
-            {
-                background_sprites[sprite_count] = (struct sprite){
-                    .texture = 600, // Use single background texture
-                    .x = x,
-                    .y = y,
-                    .display = display, // Create for both displays
-                    .z = 100            // Far behind text (text is at z=0)
-                };
-                sprite_count++;
-            }
-        }
-    }
-
-    // Write background sprites to framebuffer
-    shell_state.fb_dev->ops->write(shell_state.fb_dev,
-                                   SPRITE_BRK,
-                                   background_sprites,
-                                   sprite_count * sizeof(struct sprite));
-
-    // Force display update for current display
-    device_t *fb_dev = shell_state.fb_dev;
-    if (fb_dev && fb->info)
-    {
-        int current_display = current_tty->display;
-        fb->info->current = current_display;
-        fb_dev->ops->write(fb_dev, 0, fb->info, sizeof(struct display_info));
-    }
-
-    int tiles_per_display = (screen_width / TEXTURE_W + 1) * (screen_height / TEXTURE_H + 1);
-    int total_tiles_needed = tiles_per_display * 2; // For both displays
-    tty_printf(tty, "Background tiles: %d created, %d needed for both displays\n", sprite_count, total_tiles_needed);
-
-    if (sprite_count >= total_tiles_needed * 0.8)
-    {
-        tty_write_str(tty, "✓ Beautiful background activated for BOTH TTY displays!\n");
-        tty_write_str(tty, "Your terminal now has a subtle light blue background!\n");
-        tty_write_str(tty, "Background persists when switching between TTY1 and TTY2.\n");
-        tty_write_str(tty, "Text remains clearly readable with the gentle background.\n");
-    }
-    else
-    {
-        tty_write_str(tty, "⚠ Partial background coverage - may need more sprites\n");
-        tty_printf(tty, "Consider increasing sprite array size beyond %d\n", 2000);
-    }
-}
 
 static void cmd_uptime(device_t *tty, char *args)
 {
@@ -379,7 +278,6 @@ static struct command commands[] = {
     {"disktest", cmd_disktest, "Test disk read/write"},
     {"perftest", cmd_perftest, "Run performance benchmark"},
     {"taskinfo", cmd_taskinfo, "Show task information"},
-    {"graphics", cmd_graphics, "Test graphics display"},
     {"uptime", cmd_uptime, "Show system uptime"},
     {"clear", cmd_clear, "Clear screen"},
     {NULL, NULL, NULL}};

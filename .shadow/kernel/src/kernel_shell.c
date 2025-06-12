@@ -299,14 +299,9 @@ static void cmd_graphics(device_t *tty, char *args)
 
 static void cmd_uptime(device_t *tty, char *args)
 {
-    uint64_t current_time = io_read(AM_TIMER_UPTIME).us;
-    uint64_t runtime = (current_time - shell_state.start_time) / 1000000;
-
-    uint64_t hours = runtime / 3600;
-    uint64_t minutes = (runtime % 3600) / 60;
-    uint64_t seconds = runtime % 60;
-
-    tty_printf(tty, "System uptime: %llu:%02llu:%02llu\n", hours, minutes, seconds);
+    struct timespec ts;
+    uproc->uptime(NULL, &ts);
+    tty_printf(tty, "System uptime: %ds%dns\n", ts.tv_sec, ts.tv_nsec);
 }
 
 static void cmd_clear(device_t *tty, char *args)

@@ -1,5 +1,48 @@
 #include <common.h>
 
+// Simple integer-based trigonometric functions for graphics
+// Using fixed-point arithmetic to avoid floating point operations
+#define TRIG_SCALE 1000
+
+// Precomputed sine table for angles 0-90 degrees (scaled by 1000)
+static int sine_table[91] = {
+    0, 17, 35, 52, 70, 87, 105, 122, 139, 156, 174, 191, 208, 225, 242, 259, 276, 292, 309, 326,
+    342, 358, 375, 391, 407, 423, 438, 454, 469, 485, 500, 515, 530, 545, 559, 574, 588, 602, 616, 629,
+    643, 656, 669, 682, 695, 707, 719, 731, 743, 755, 766, 777, 788, 799, 809, 819, 829, 839, 848, 857,
+    866, 875, 883, 891, 899, 906, 914, 921, 927, 934, 940, 946, 951, 956, 961, 966, 970, 974, 978, 982,
+    985, 988, 990, 993, 995, 996, 998, 999, 999, 1000, 1000};
+
+static int my_sin_int(int angle_deg)
+{
+    // Normalize angle to 0-359 range
+    angle_deg = angle_deg % 360;
+    if (angle_deg < 0)
+        angle_deg += 360;
+
+    if (angle_deg <= 90)
+    {
+        return sine_table[angle_deg];
+    }
+    else if (angle_deg <= 180)
+    {
+        return sine_table[180 - angle_deg];
+    }
+    else if (angle_deg <= 270)
+    {
+        return -sine_table[angle_deg - 180];
+    }
+    else
+    {
+        return -sine_table[360 - angle_deg];
+    }
+}
+
+static int my_cos_int(int angle_deg)
+{
+    // cos(x) = sin(x + 90)
+    return my_sin_int(angle_deg + 90);
+}
+
 static char *my_strchr(const char *s, int c)
 {
     while (*s != '\0')
@@ -20,8 +63,6 @@ static struct
     device_t *input_dev;
     device_t *disk_dev;
     struct display_info display_info;
-    int active_tasks;
-    int memory_usage;
 } shell_state;
 
 static void tty_write_str(device_t *tty, const char *str)
@@ -61,12 +102,9 @@ static void cmd_sysinfo(device_t *tty, char *args)
     tty_write_str(tty, "=== System Information ===\n");
     tty_printf(tty, "CPU Count: %d\n", cpu_count());
     tty_printf(tty, "Current CPU: %d\n", cpu_current());
-    tty_printf(tty, "Active Tasks: %d\n", shell_state.active_tasks);
-    tty_printf(tty, "Memory Usage: %d KB\n", shell_state.memory_usage);
-
-    uint64_t current_time = io_read(AM_TIMER_UPTIME).us;
-    uint64_t runtime = (current_time - shell_state.start_time) / 1000000;
-    tty_printf(tty, "System Runtime: %d seconds\n", runtime);
+    struct timespec ts;
+    uproc->uptime(NULL, &ts);
+    tty_printf(tty, "System Runtime: %d seconds\n", ts.tv_sec);
 }
 
 static void cmd_cpuinfo(device_t *tty, char *args)
@@ -74,14 +112,13 @@ static void cmd_cpuinfo(device_t *tty, char *args)
     tty_write_str(tty, "=== CPU Information ===\n");
     tty_printf(tty, "Total CPUs: %d\n", cpu_count());
     tty_printf(tty, "Current CPU ID: %d\n", cpu_current());
-    tty_write_str(tty, "Architecture: x86_64\n");
+    tty_write_str(tty, "Architecture: x86_64");
     tty_write_str(tty, "Features: Multi-core, Virtual Memory, Interrupts\n");
 }
 
 static void cmd_meminfo(device_t *tty, char *args)
 {
     tty_write_str(tty, "=== Memory Information ===\n");
-    tty_printf(tty, "Current Usage: %d KB\n", shell_state.memory_usage);
     tty_write_str(tty, "Memory Manager: Buddy Allocator\n");
     tty_write_str(tty, "Page Size: 4KB\n");
     tty_write_str(tty, "Virtual Memory: Enabled\n");
@@ -239,15 +276,14 @@ static void cmd_perftest(device_t *tty, char *args)
 static void cmd_taskinfo(device_t *tty, char *args)
 {
     tty_write_str(tty, "=== Task Information ===\n");
-    tty_printf(tty, "Active Tasks: %d\n", shell_state.active_tasks);
-    tty_write_str(tty, "Current Task: demo-shell\n");
+    tty_write_str(tty, "Current Task: %s\n");
     tty_write_str(tty, "Scheduler: Round-robin with preemption\n");
     tty_write_str(tty, "Task States: READY, RUNNING, BLOCKED, DEAD\n");
 }
 
 static void cmd_graphics(device_t *tty, char *args)
 {
-    tty_write_str(tty, "=== Graphics Test ===\n");
+    tty_write_str(tty, "=== Graphics Demo ===\n");
 
     if (!shell_state.fb_dev)
     {
@@ -262,39 +298,132 @@ static void cmd_graphics(device_t *tty, char *args)
         return;
     }
 
-    tty_write_str(tty, "Creating test pattern...\n");
+    tty_write_str(tty, "Creating beautiful graphics demo...\n");
 
-    uint32_t colors[] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00};
-    for (int i = 0; i < 4 && i < fb->info->num_textures; i++)
+    // Create gradient textures with more sophisticated patterns
+    uint32_t base_colors[] = {
+        0xFF6B6B, // Coral red
+        0x4ECDC4, // Turquoise
+        0x45B7D1, // Sky blue
+        0x96CEB4, // Mint green
+        0xFECA57, // Golden yellow
+        0xFF9FF3, // Pink
+        0xA8E6CF, // Light green
+        0xFFD93D, // Bright yellow
+        0x6C5CE7, // Purple
+        0xFD79A8  // Rose
+    };
+
+    // Create textured patterns instead of solid colors
+    for (int tex = 0; tex < 10 && tex < fb->info->num_textures - 512; tex++)
     {
-        for (int j = 0; j < TEXTURE_W * TEXTURE_H; j++)
+        uint32_t base_color = base_colors[tex];
+        for (int y = 0; y < TEXTURE_H; y++)
         {
-            fb->textures[i].pixels[j] = colors[i];
+            for (int x = 0; x < TEXTURE_W; x++)
+            {
+                int idx = y * TEXTURE_W + x;
+
+                // Create different patterns for different textures
+                switch (tex % 4)
+                {
+                case 0: // Gradient pattern
+                {
+                    int intensity = (x + y) * 255 / (TEXTURE_W + TEXTURE_H - 2);
+                    uint32_t r = (((base_color >> 16) & 0xFF) * intensity) / 255;
+                    uint32_t g = (((base_color >> 8) & 0xFF) * intensity) / 255;
+                    uint32_t b = ((base_color & 0xFF) * intensity) / 255;
+                    fb->textures[512 + tex].pixels[idx] = (r << 16) | (g << 8) | b;
+                }
+                break;
+                case 1: // Checkerboard pattern
+                    if ((x + y) % 2 == 0)
+                        fb->textures[512 + tex].pixels[idx] = base_color;
+                    else
+                        fb->textures[512 + tex].pixels[idx] = base_color ^ 0x404040;
+                    break;
+                case 2: // Circular pattern
+                {
+                    int dx = x - TEXTURE_W / 2;
+                    int dy = y - TEXTURE_H / 2;
+                    int dist = dx * dx + dy * dy;
+                    if (dist < (TEXTURE_W / 2) * (TEXTURE_W / 2))
+                        fb->textures[512 + tex].pixels[idx] = base_color;
+                    else
+                        fb->textures[512 + tex].pixels[idx] = base_color >> 1;
+                }
+                break;
+                case 3: // Diagonal stripes
+                    if ((x + y) % 3 == 0)
+                        fb->textures[512 + tex].pixels[idx] = base_color;
+                    else
+                        fb->textures[512 + tex].pixels[idx] = base_color ^ 0x202020;
+                    break;
+                }
+            }
         }
     }
 
+    // Write textures to framebuffer
     shell_state.fb_dev->ops->write(shell_state.fb_dev,
-                                   sizeof(struct texture),
-                                   fb->textures,
-                                   sizeof(struct texture) * 4);
+                                   512 * sizeof(struct texture),
+                                   &fb->textures[512],
+                                   10 * sizeof(struct texture));
 
-    struct sprite sprites[4];
-    for (int i = 0; i < 4; i++)
+    // Create an attractive sprite arrangement
+    struct sprite sprites[50];
+    int sprite_count = 0;
+
+    // Create a spiral pattern
+    int angle_deg = 0;
+    int center_x = shell_state.display_info.width / 2;
+    int center_y = shell_state.display_info.height / 2;
+
+    for (int i = 0; i < 10 && sprite_count < 50; i++)
     {
-        sprites[i] = (struct sprite){
-            .texture = i + 1,
-            .x = i * 50,
-            .y = i * 50,
-            .display = 0,
-            .z = i};
+        int radius = 50 + i * 15;
+        // Use integer trigonometry with scaling
+        int x = center_x + (radius * my_cos_int(angle_deg)) / TRIG_SCALE;
+        int y = center_y + (radius * my_sin_int(angle_deg)) / TRIG_SCALE;
+
+        // Ensure sprites stay within screen bounds
+        if (x >= 0 && x < shell_state.display_info.width - TEXTURE_W &&
+            y >= 0 && y < shell_state.display_info.height - TEXTURE_H)
+        {
+            sprites[sprite_count] = (struct sprite){
+                .texture = 512 + (i % 10),
+                .x = x,
+                .y = y,
+                .display = 0,
+                .z = i};
+            sprite_count++;
+        }
+
+        angle_deg += 46; // Approximately golden angle (137.5°) for nice spiral
     }
 
+    // Add some corner decorations
+    int corner_positions[][2] = {{50, 50}, {shell_state.display_info.width - 100, 50}, {50, shell_state.display_info.height - 100}, {shell_state.display_info.width - 100, shell_state.display_info.height - 100}};
+
+    for (int i = 0; i < 4 && sprite_count < 50; i++)
+    {
+        sprites[sprite_count] = (struct sprite){
+            .texture = 512 + (i + 6) % 10,
+            .x = corner_positions[i][0],
+            .y = corner_positions[i][1],
+            .display = 0,
+            .z = 20 + i};
+        sprite_count++;
+    }
+
+    // Write sprites to framebuffer
     shell_state.fb_dev->ops->write(shell_state.fb_dev,
                                    SPRITE_BRK,
                                    sprites,
-                                   sizeof(sprites));
+                                   sprite_count * sizeof(struct sprite));
 
-    tty_write_str(tty, "Graphics test pattern displayed.\n");
+    tty_printf(tty, "Beautiful graphics demo displayed! (%d sprites)\n", sprite_count);
+    tty_write_str(tty, "Switch between TTY1/TTY2 to see the graphics on display.\n");
 }
 
 static void cmd_uptime(device_t *tty, char *args)
@@ -306,8 +435,35 @@ static void cmd_uptime(device_t *tty, char *args)
 
 static void cmd_clear(device_t *tty, char *args)
 {
+    // Clear the TTY buffer by filling with spaces and resetting cursor
+    tty_t *tty_ptr = tty->ptr;
 
-    tty_write_str(tty, "\033[2J\033[H");
+    // Create a buffer filled with spaces to clear the screen
+    int total_chars = tty_ptr->lines * tty_ptr->columns;
+    char *clear_buf = pmm->alloc(total_chars + 1);
+    if (clear_buf)
+    {
+        memset(clear_buf, ' ', total_chars);
+        clear_buf[total_chars] = '\0';
+
+        // Write spaces to fill the entire screen
+        tty->ops->write(tty, 0, clear_buf, total_chars);
+
+        // Send carriage returns and line feeds to position cursor at top
+        for (int i = 0; i < tty_ptr->lines; i++)
+        {
+            tty_write_str(tty, "\r\n");
+        }
+
+        // Move cursor to top-left
+        for (int i = 0; i < tty_ptr->lines; i++)
+        {
+            tty_write_str(tty, "\033[A"); // Move cursor up
+        }
+        tty_write_str(tty, "\r"); // Move to beginning of line
+
+        pmm->free(clear_buf);
+    }
 }
 
 struct command
@@ -398,8 +554,6 @@ static void init_shell_state()
     shell_state.fb_dev = dev->lookup("fb");
     shell_state.input_dev = dev->lookup("input");
     shell_state.disk_dev = dev->lookup("sda");
-    shell_state.active_tasks = 0;
-    shell_state.memory_usage = 512;
 
     if (shell_state.fb_dev)
     {
@@ -414,13 +568,11 @@ void kernel_shell(void *arg)
     if (shell1_task)
     {
         kmt->create(shell1_task, "tty1", shell_task, "tty1");
-        shell_state.active_tasks++;
     }
     task_t *shell2_task = pmm->alloc(sizeof(task_t));
     if (shell2_task)
     {
         kmt->create(shell2_task, "tty2", shell_task, "tty2");
-        shell_state.active_tasks++;
     }
     printf("Switch to TTY1 (Alt+1) or TTY2 (Alt+2) to use the shell.\n");
     while (1)

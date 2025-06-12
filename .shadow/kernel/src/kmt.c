@@ -278,6 +278,13 @@ static bool holding(spinlock_t *lk)
     TRACE_ENTRY;
     panic_on(!lk, "Spinlock is NULL");
     TRACE_EXIT;
+    if(!lk->locked){
+        panic("lk is unlocked");
+    }
+    if(lk->cpu!=cpu_current()){
+       printf("cpu:%d, lk->cpu:%d\n",cpu_current(),lk->cpu);
+       panic("cpu is not the same");
+    }
     return lk->locked && lk->cpu == cpu_current();
 }
 static void push_off()

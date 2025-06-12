@@ -125,10 +125,10 @@ static void tty_render(tty_t *tty)
     }
   }
   int nsp = sp - tty->sp_buf;
-  tty->fbdev->ops->write(tty->fbdev, SPRITE_BRK, tty->sp_buf, nsp * sizeof(*sp));
   // clear dirty marks
   memset(tty->dirty, 0, tty->size * sizeof(tty->dirty[0]));
   kmt->spin_unlock(&tty->lock);
+   tty->fbdev->ops->write(tty->fbdev, SPRITE_BRK, tty->sp_buf, nsp * sizeof(*sp));
 }
 
 static void tty_mark(tty_t *tty, struct character *ch)

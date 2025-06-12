@@ -128,7 +128,8 @@ static void tty_render(tty_t *tty)
   // clear dirty marks
   memset(tty->dirty, 0, tty->size * sizeof(tty->dirty[0]));
   kmt->spin_unlock(&tty->lock);
-   tty->fbdev->ops->write(tty->fbdev, SPRITE_BRK, tty->sp_buf, nsp * sizeof(*sp));
+  // TODO:solve the problem that occurs when calling sem_wait after acquiring the lock, but the issues still persist.
+  tty->fbdev->ops->write(tty->fbdev, SPRITE_BRK, tty->sp_buf, nsp * sizeof(*sp));
 }
 
 static void tty_mark(tty_t *tty, struct character *ch)
@@ -307,9 +308,7 @@ static int tty_write(device_t *dev, size_t offset, const void *buf, int count)
     tty_putc(tty, ((const char *)buf)[i]);
   }
   kmt->spin_unlock(&tty->lock);
-  printf("%s start render\n",dev->name);
   tty_render(tty);
-  printf("%s rendered\n",dev->name);
   return count;
 }
 

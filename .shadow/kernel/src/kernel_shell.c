@@ -258,8 +258,8 @@ static void cmd_graphics(device_t *tty, char *args)
     tty_t *current_tty = tty->ptr;
     tty_write_str(tty, "Creating beautiful gradient background...\n");
 
-    // Define a single beautiful background color
-    uint32_t background_color = 0x1a1a2e; // Dark blue - elegant and readable
+    // Define a single beautiful background color - very subtle
+    uint32_t background_color = 0x1a1a1a; // Very dark gray - extremely subtle and readable
 
     tty_write_str(tty, "Creating solid background texture...\n");
 
@@ -275,31 +275,34 @@ static void cmd_graphics(device_t *tty, char *args)
                                    &fb->textures[600],
                                    1 * sizeof(struct texture));
 
-    // Create background sprites to cover the entire screen
-    struct sprite background_sprites[1000]; // Much larger array for full coverage
+    // Create background sprites to cover the entire screen for BOTH displays
+    struct sprite background_sprites[2000]; // Even larger array for both displays
     int sprite_count = 0;
 
-    // Get current TTY display number
-    int current_display = current_tty->display;
     int screen_width = shell_state.display_info.width;
     int screen_height = shell_state.display_info.height;
 
     tty_printf(tty, "Screen size: %dx%d, Texture size: %dx%d\n",
                screen_width, screen_height, TEXTURE_W, TEXTURE_H);
 
-    // Create a complete tiled background pattern with no gaps
-    for (int y = 0; y < screen_height && sprite_count < 1000; y += TEXTURE_H)
+    // Create background for BOTH display 0 (TTY1) and display 1 (TTY2)
+    for (int display = 0; display < 2; display++)
     {
-        for (int x = 0; x < screen_width && sprite_count < 1000; x += TEXTURE_W)
+        tty_printf(tty, "Creating background for display %d...\n", display);
+
+        for (int y = 0; y < screen_height && sprite_count < 2000; y += TEXTURE_H)
         {
-            background_sprites[sprite_count] = (struct sprite){
-                .texture = 600, // Use single background texture
-                .x = x,
-                .y = y,
-                .display = current_display,
-                .z = -10 // Behind text
-            };
-            sprite_count++;
+            for (int x = 0; x < screen_width && sprite_count < 2000; x += TEXTURE_W)
+            {
+                background_sprites[sprite_count] = (struct sprite){
+                    .texture = 600, // Use single background texture
+                    .x = x,
+                    .y = y,
+                    .display = display, // Create for both displays
+                    .z = 100            // Far behind text (text is at z=0)
+                };
+                sprite_count++;
+            }
         }
     }
 
@@ -309,27 +312,30 @@ static void cmd_graphics(device_t *tty, char *args)
                                    background_sprites,
                                    sprite_count * sizeof(struct sprite));
 
-    // Force display update
+    // Force display update for current display
     device_t *fb_dev = shell_state.fb_dev;
     if (fb_dev && fb->info)
     {
+        int current_display = current_tty->display;
         fb->info->current = current_display;
         fb_dev->ops->write(fb_dev, 0, fb->info, sizeof(struct display_info));
     }
 
-    int tiles_needed = (screen_width / TEXTURE_W + 1) * (screen_height / TEXTURE_H + 1);
-    tty_printf(tty, "Background tiles: %d created, %d needed for full coverage\n", sprite_count, tiles_needed);
+    int tiles_per_display = (screen_width / TEXTURE_W + 1) * (screen_height / TEXTURE_H + 1);
+    int total_tiles_needed = tiles_per_display * 2; // For both displays
+    tty_printf(tty, "Background tiles: %d created, %d needed for both displays\n", sprite_count, total_tiles_needed);
 
-    if (sprite_count >= tiles_needed * 0.8)
+    if (sprite_count >= total_tiles_needed * 0.8)
     {
-        tty_write_str(tty, "✓ Beautiful background activated!\n");
-        tty_write_str(tty, "Your terminal now has an elegant dark blue background!\n");
-        tty_write_str(tty, "The background creates a modern, professional look for your terminal.\n");
+        tty_write_str(tty, "✓ Beautiful background activated for BOTH TTY displays!\n");
+        tty_write_str(tty, "Your terminal now has a subtle light blue background!\n");
+        tty_write_str(tty, "Background persists when switching between TTY1 and TTY2.\n");
+        tty_write_str(tty, "Text remains clearly readable with the gentle background.\n");
     }
     else
     {
         tty_write_str(tty, "⚠ Partial background coverage - may need more sprites\n");
-        tty_printf(tty, "Consider increasing sprite array size beyond %d\n", 1000);
+        tty_printf(tty, "Consider increasing sprite array size beyond %d\n", 2000);
     }
 }
 

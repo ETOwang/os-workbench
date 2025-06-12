@@ -374,6 +374,10 @@ static void cmd_graphics(device_t *tty, char *args)
     struct sprite sprites[50];
     int sprite_count = 0;
 
+    // Get current TTY display number
+    tty_t *current_tty = tty->ptr;
+    int current_display = current_tty->display;
+
     // Create a spiral pattern
     int angle_deg = 0;
     int center_x = shell_state.display_info.width / 2;
@@ -394,7 +398,7 @@ static void cmd_graphics(device_t *tty, char *args)
                 .texture = 512 + (i % 10),
                 .x = x,
                 .y = y,
-                .display = 0,
+                .display = current_display,
                 .z = i};
             sprite_count++;
         }
@@ -411,7 +415,7 @@ static void cmd_graphics(device_t *tty, char *args)
             .texture = 512 + (i + 6) % 10,
             .x = corner_positions[i][0],
             .y = corner_positions[i][1],
-            .display = 0,
+            .display = current_display,
             .z = 20 + i};
         sprite_count++;
     }
@@ -422,21 +426,23 @@ static void cmd_graphics(device_t *tty, char *args)
                                    sprites,
                                    sprite_count * sizeof(struct sprite));
 
-    tty_printf(tty, "Beautiful graphics demo displayed! (%d sprites)\n", sprite_count);
-    tty_write_str(tty, "Graphics are rendered to the framebuffer.\n");
-    tty_write_str(tty, "The graphics appear as background behind the text.\n");
-    tty_write_str(tty, "Try switching TTY (Alt+1/Alt+2) to see different views.\n");
+    tty_printf(tty, "Graphics demo created: %d sprites on display %d\n", sprite_count, current_display);
+    tty_write_str(tty, "Colorful spiral pattern with textured graphics!\n");
+    tty_write_str(tty, "Graphics appear as background behind this text.\n");
 
-    // Also update the current display to show the graphics immediately
+    // Force immediate display update
     device_t *fb_dev = shell_state.fb_dev;
     if (fb_dev)
     {
-        tty_t *current_tty = tty->ptr;
         fb_t *fb = fb_dev->ptr;
         if (fb && fb->info)
         {
-            fb->info->current = current_tty->display;
+            // Ensure current display is set correctly
+            fb->info->current = current_display;
             fb_dev->ops->write(fb_dev, 0, fb->info, sizeof(struct display_info));
+
+            // Also trigger a re-render by writing an empty sprite update
+            fb_dev->ops->write(fb_dev, SPRITE_BRK, sprites, 0);
         }
     }
 }
@@ -450,26 +456,17 @@ static void cmd_uptime(device_t *tty, char *args)
 
 static void cmd_clear(device_t *tty, char *args)
 {
-    // Clear the TTY buffer directly
     tty_t *tty_ptr = tty->ptr;
-
-    // Clear the character buffer
     for (int i = 0; i < tty_ptr->size; i++)
     {
         tty_ptr->buf[i].ch = ' ';
         tty_ptr->buf[i].metadata = 0;
     }
-
-    // Reset cursor to top-left
     tty_ptr->cursor = tty_ptr->buf;
-
-    // Mark all positions as dirty for re-rendering
     for (int i = 0; i < tty_ptr->size; i++)
     {
         tty_ptr->dirty[i] = 1;
     }
-
-    // Force a render to update the display
     tty->ops->write(tty, 0, "", 0);
 }
 

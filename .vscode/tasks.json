@@ -1,0 +1,27 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Simple Debug",
+            "type": "shell",
+            "command": "cd ${workspaceFolder}/kernel && gdb -x debug.py",
+            "isBackground": false,
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Kernel",
+            "type": "shell",
+            "command": "cd ${workspaceFolder}/kernel && make",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
+        }
+    ]
+}

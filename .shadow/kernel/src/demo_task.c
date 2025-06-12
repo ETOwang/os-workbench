@@ -483,9 +483,8 @@ static void init_shell_state()
 }
 
 // Main demo task - creates shell instances
-void kernel_demo_task(void *arg)
+void kernel_shell(void *arg)
 {
-    printf("Kernel Demo Shell System Starting...\n");
 
     // Initialize shell state
     init_shell_state();

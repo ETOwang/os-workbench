@@ -33,7 +33,7 @@ static device_t *dev_create(int size, const char *name, int id, devops_t *ops)
 
 void dev_input_task();
 void dev_tty_task();
-void kernel_demo_task(void *arg); // 声明演示任务
+void kernel_shell(void *arg); // 声明演示任务
 
 static void dev_init()
 {
@@ -45,7 +45,7 @@ static void dev_init()
 
   kmt->create(pmm->alloc(sizeof(task_t)), "input-task", dev_input_task, NULL);
   kmt->create(pmm->alloc(sizeof(task_t)), "tty-task", dev_tty_task, NULL);
-  kmt->create(pmm->alloc(sizeof(task_t)), "kernel-demo", kernel_demo_task, NULL);
+  kmt->create(pmm->alloc(sizeof(task_t)), "kernel-shell", kernel_shell, NULL);
 }
 
 MODULE_DEF(dev) = {

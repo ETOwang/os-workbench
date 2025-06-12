@@ -213,7 +213,7 @@ static inline void print_int(int num)
     }                             \
   } while (0)
 
-static char mem[4096], *freem = mem;
+static char mem[40], *freem = mem;
 
 static inline void *zalloc(size_t sz)
 {

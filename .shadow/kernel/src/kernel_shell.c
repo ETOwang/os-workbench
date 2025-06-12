@@ -199,7 +199,6 @@ static void cmd_perftest(device_t *tty, char *args)
 {
     tty_write_str(tty, "=== Performance Benchmark ===\n");
 
-
     tty_write_str(tty, "Running CPU benchmark...\n");
     uint64_t start_time = io_read(AM_TIMER_UPTIME).us;
 
@@ -214,7 +213,7 @@ static void cmd_perftest(device_t *tty, char *args)
     tty_printf(tty, "CPU computation time: %llu microseconds\n", cpu_time);
 
     tty_write_str(tty, "Running memory benchmark...\n");
-    size_t test_size = 64 * 1024; 
+    size_t test_size = 64 * 1024;
     char *src = pmm->alloc(test_size);
     char *dst = pmm->alloc(test_size);
 
@@ -237,7 +236,6 @@ static void cmd_perftest(device_t *tty, char *args)
 
     tty_write_str(tty, "Performance benchmark completed.\n");
 }
-
 
 static void cmd_taskinfo(device_t *tty, char *args)
 {
@@ -266,7 +264,6 @@ static void cmd_graphics(device_t *tty, char *args)
     }
 
     tty_write_str(tty, "Creating test pattern...\n");
-
 
     uint32_t colors[] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00};
     for (int i = 0; i < 4 && i < fb->info->num_textures; i++)
@@ -339,9 +336,7 @@ static struct command commands[] = {
     {"graphics", cmd_graphics, "Test graphics display"},
     {"uptime", cmd_uptime, "Show system uptime"},
     {"clear", cmd_clear, "Clear screen"},
-    {NULL, NULL, NULL}
-};
-
+    {NULL, NULL, NULL}};
 
 static void execute_command(device_t *tty, char *input)
 {
@@ -394,7 +389,6 @@ static void shell_task(void *arg)
     {
         tty_write_str(tty, prompt);
 
-    
         int nread = tty->ops->read(tty, 0, cmd, sizeof(cmd) - 1);
         if (nread > 0)
         {
@@ -411,7 +405,7 @@ static void init_shell_state()
     shell_state.input_dev = dev->lookup("input");
     shell_state.disk_dev = dev->lookup("sda");
     shell_state.active_tasks = 0;
-    shell_state.memory_usage = 512; 
+    shell_state.memory_usage = 512;
 
     if (shell_state.fb_dev)
     {

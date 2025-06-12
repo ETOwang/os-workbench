@@ -298,69 +298,30 @@ static void cmd_graphics(device_t *tty, char *args)
         return;
     }
 
-    tty_write_str(tty, "Creating beautiful graphics demo...\n");
+    tty_t *current_tty = tty->ptr;
+    tty_printf(tty, "Creating graphics demo on display %d...\n", current_tty->display);
 
-    // Create gradient textures with more sophisticated patterns
+    // Create simple solid color textures first (easier to debug)
     uint32_t base_colors[] = {
-        0xFF6B6B, // Coral red
-        0x4ECDC4, // Turquoise
-        0x45B7D1, // Sky blue
-        0x96CEB4, // Mint green
-        0xFECA57, // Golden yellow
-        0xFF9FF3, // Pink
-        0xA8E6CF, // Light green
-        0xFFD93D, // Bright yellow
-        0x6C5CE7, // Purple
-        0xFD79A8  // Rose
+        0xFF0000, // Red
+        0x00FF00, // Green
+        0x0000FF, // Blue
+        0xFFFF00, // Yellow
+        0xFF00FF, // Magenta
+        0x00FFFF, // Cyan
+        0xFFFFFF, // White
+        0xFF8000, // Orange
+        0x8000FF, // Purple
+        0x80FF00  // Lime
     };
 
-    // Create textured patterns instead of solid colors
+    // Create simple solid color textures for easier debugging
     for (int tex = 0; tex < 10 && tex < fb->info->num_textures - 512; tex++)
     {
-        uint32_t base_color = base_colors[tex];
-        for (int y = 0; y < TEXTURE_H; y++)
+        uint32_t color = base_colors[tex];
+        for (int i = 0; i < TEXTURE_W * TEXTURE_H; i++)
         {
-            for (int x = 0; x < TEXTURE_W; x++)
-            {
-                int idx = y * TEXTURE_W + x;
-
-                // Create different patterns for different textures
-                switch (tex % 4)
-                {
-                case 0: // Gradient pattern
-                {
-                    int intensity = (x + y) * 255 / (TEXTURE_W + TEXTURE_H - 2);
-                    uint32_t r = (((base_color >> 16) & 0xFF) * intensity) / 255;
-                    uint32_t g = (((base_color >> 8) & 0xFF) * intensity) / 255;
-                    uint32_t b = ((base_color & 0xFF) * intensity) / 255;
-                    fb->textures[512 + tex].pixels[idx] = (r << 16) | (g << 8) | b;
-                }
-                break;
-                case 1: // Checkerboard pattern
-                    if ((x + y) % 2 == 0)
-                        fb->textures[512 + tex].pixels[idx] = base_color;
-                    else
-                        fb->textures[512 + tex].pixels[idx] = base_color ^ 0x404040;
-                    break;
-                case 2: // Circular pattern
-                {
-                    int dx = x - TEXTURE_W / 2;
-                    int dy = y - TEXTURE_H / 2;
-                    int dist = dx * dx + dy * dy;
-                    if (dist < (TEXTURE_W / 2) * (TEXTURE_W / 2))
-                        fb->textures[512 + tex].pixels[idx] = base_color;
-                    else
-                        fb->textures[512 + tex].pixels[idx] = base_color >> 1;
-                }
-                break;
-                case 3: // Diagonal stripes
-                    if ((x + y) % 3 == 0)
-                        fb->textures[512 + tex].pixels[idx] = base_color;
-                    else
-                        fb->textures[512 + tex].pixels[idx] = base_color ^ 0x202020;
-                    break;
-                }
-            }
+            fb->textures[512 + tex].pixels[i] = color;
         }
     }
 
@@ -375,7 +336,6 @@ static void cmd_graphics(device_t *tty, char *args)
     int sprite_count = 0;
 
     // Get current TTY display number
-    tty_t *current_tty = tty->ptr;
     int current_display = current_tty->display;
 
     // Create a spiral pattern

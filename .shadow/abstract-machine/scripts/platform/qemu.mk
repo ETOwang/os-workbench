@@ -6,8 +6,7 @@ QEMU_FLAGS += -serial mon:stdio \
               -machine accel=tcg \
               -smp "cores=1,sockets=$(smp)" \
               -drive format=raw,file=$(IMAGE) \
-              -drive format=raw,file=/media/wcy/Data/os-workbench/sdcard-rv.img\
-			  -monitor stdio
+              -drive format=raw,file=/media/wcy/Data/os-workbench/sdcard-rv.img
 
 build-arg: image
 	@( echo -n $(mainargs); ) | dd if=/dev/stdin of=$(IMAGE) bs=512 count=2 seek=1 conv=notrunc status=none

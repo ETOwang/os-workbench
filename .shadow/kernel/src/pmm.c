@@ -1,7 +1,7 @@
 #include <common.h>
 #define MIN_BLOCK_SIZE 16 // 最小块大小
 #define MAX_ORDER 31      // 最大阶数
-#define THREAD_NUM 8        // 线程数
+#define THREAD_NUM 3        // 线程数
 uintptr_t pgsize;    
 struct block_t
 {

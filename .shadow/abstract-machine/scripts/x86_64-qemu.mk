@@ -13,8 +13,3 @@ AM_SRCS := x86/qemu/start64.S \
 run:build-arg
 	@qemu-system-x86_64 $(QEMU_FLAGS)
 
-debug:build-arg
-	@echo "Starting QEMU with GDB debugging enabled..."
-	@echo "Connect with: gdb -x debug.py"
-	@qemu-system-x86_64 $(QEMU_FLAGS) -s -S
-

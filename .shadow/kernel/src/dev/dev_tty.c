@@ -303,6 +303,7 @@ static int tty_write(device_t *dev, size_t offset, const void *buf, int count)
 {
   tty_t *tty = dev->ptr;
   kmt->spin_lock(&tty->lock);
+  printf("(tty) Writing %d bytes to %s.\n", count, dev->name);
   for (int i = 0; i < count; i++)
   {
     tty_putc(tty, ((const char *)buf)[i]);

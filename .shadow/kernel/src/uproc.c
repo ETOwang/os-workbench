@@ -44,6 +44,7 @@ static void user_init()
     task->next = NULL;
     kmt->spin_init(&task->lock, task->name);
     kmt_add_task(task);
+    printf("User init process created with PID %d\n", task->pi->pid);
     TRACE_EXIT;
 }
 static void uproc_init()

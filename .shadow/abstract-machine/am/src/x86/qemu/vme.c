@@ -136,6 +136,7 @@ bool vme_init(void *(*_pgalloc)(int size), void (*_pgfree)(void *))
 #define KERNEL_END 0x40000000
 void protect(AddrSpace *as)
 {
+
   uintptr_t *upt = pgallocz();
   as->pgsize = mmu.pgsize;
   as->area = uvm_area;

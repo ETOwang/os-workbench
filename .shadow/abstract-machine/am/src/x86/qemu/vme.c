@@ -143,8 +143,8 @@ void protect(AddrSpace *as)
   as->ptr = (void *)((uintptr_t)upt | PTE_P | PTE_U);
   for (uintptr_t vaddr = 0; vaddr < KERNEL_END; vaddr += mmu.pgsize)
   {
-    uintptr_t *pte = ptwalk(as, vaddr, PTE_W | PTE_P);
-    *pte = vaddr | PTE_P | PTE_W;
+    uintptr_t *pte = ptwalk(as, vaddr, PTE_W | PTE_P|PTE_U);
+    *pte = vaddr | PTE_P | PTE_W|PTE_U;
   }
 
   // for (int i = 0; i < LENGTH(vm_areas); i++)

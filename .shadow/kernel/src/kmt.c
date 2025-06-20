@@ -142,6 +142,7 @@ static Context *kmt_schedule(Event ev, Context *ctx)
         kmt->spin_unlock(&current->lock);
         kmt->spin_unlock(&task_lock);
         TRACE_EXIT;
+        printf("Switching from task %s to task %s\n", current->name, next->name);
         return next->context;
     }
     kmt->spin_unlock(&current->lock);

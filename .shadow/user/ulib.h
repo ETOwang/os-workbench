@@ -15,18 +15,16 @@ typedef int32_t int32;
 typedef int64_t int64;
 typedef uint32_t mode_t;
 
-static inline long syscall(int num, ...)
+static inline long syscall(int num, long arg1, long arg2, long arg3, long arg4)
 {
-  va_list ap;
-  va_start(ap, num);
   register long a0 asm("rax") = num;
-  register long a1 asm("rdi") = va_arg(ap, long);
-  register long a2 asm("rsi") = va_arg(ap, long);
-  register long a3 asm("rdx") = va_arg(ap, long);
-  register long a4 asm("r10") = va_arg(ap, long);
-  va_end(ap);
+  register long a1 asm("rdi") = arg1;
+  register long a2 asm("rsi") = arg2;
+  register long a3 asm("rdx") = arg3;
+  register long a4 asm("r10") = arg4;
   asm volatile("int $0x80"
-               : "+r"(a0) : "r"(a1), "r"(a2), "r"(a3), "r"(a4)
+               : "+r"(a0)
+               : "r"(a1), "r"(a2), "r"(a3), "r"(a4)
                : "memory", "rcx", "r8", "r9", "r11");
   return a0;
 }

@@ -603,7 +603,7 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
     // 验证虚拟地址范围是否在用户空间内
     if (vaddr_start < UVSTART || vaddr_start >= UVMEND || vaddr_end > UVMEND)
     {
-        printf("Invalid virtual address range: 0x%lx - 0x%lx (valid: 0x%lx - 0x%lx)\n",
+        printf("Invalid virtual address range: 0x%x - 0x%x (valid: 0x%x - 0x%x)\n",
                vaddr_start, vaddr_end, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }

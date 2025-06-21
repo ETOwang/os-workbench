@@ -80,6 +80,7 @@ void ls(char *path)
 int main(int argc, char *argv[])
 {
   int i;
+  printf("enter ls\n");
   if (argc < 2)
   {
     ls(".");

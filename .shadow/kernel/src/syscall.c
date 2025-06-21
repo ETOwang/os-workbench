@@ -106,6 +106,7 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
         return -1;
     }
     // TODO:use mode
+    printf("full path: %s, flags: %d\n", full_path, flags);
     int vfd = vfs->open(full_path, flags);
     if (vfd < 0)
     {
@@ -548,7 +549,6 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
         return -1;
     }
     *entry_point = (void *)entry_addr;
-    printf("ELF loaded successfully, entry point: 0x%lx\n", entry_addr);
     return 0;
 }
 

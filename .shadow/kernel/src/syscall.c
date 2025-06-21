@@ -230,7 +230,7 @@ static uint64_t syscall_fstat(task_t *task, int fd, struct kstat *statbuf)
 // 内存管理相关系统调用
 static uint64_t syscall_sbrk(task_t *task, intptr_t increment)
 {
-    panic_on(increment<0,"unimplemented sbrk with negative increment");
+    panic_on(increment < 0, "unimplemented sbrk with negative increment");
     panic_on(increment % task->pi->as.pgsize != 0, "Increment must be a multiple of page size");
     void *current_brk = task->pi->brk;
     panic_on((uintptr_t)current_brk % task->pi->as.pgsize != 0, "Current brk must be a multiple of page size");
@@ -477,7 +477,10 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     pmm->free(envp_ptrs);
     task->context->rsp = (uintptr_t)stack_ptr;
     extern char end[];
-    task->pi->brk = &end;
+    // 将 brk 向上对齐到 4096 字节边界
+    uintptr_t brk_addr = (uintptr_t)&end;
+    brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096
+    task->pi->brk = (void *)brk_addr;
     return 0;
 }
 

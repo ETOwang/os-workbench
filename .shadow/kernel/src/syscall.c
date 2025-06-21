@@ -387,19 +387,14 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
-    
-    printf("Loading ELF file: %s, size: %d bytes\n", pathname, file_size);
-    // 使用ELF加载器加载程序
+
     void *entry_point;
     if (load_elf(task, elf_data, file_size, &entry_point) < 0)
     {
         pmm->free(elf_data);
         return -1;
     }
-
-    // 释放ELF数据
     pmm->free(elf_data);
-
     // 计算参数和环境变量的数量和总大小
     int argc = 0;
     int envc = 0;
@@ -573,7 +568,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {
-        printf("Invalid entry point: 0x%lx (valid range: 0x%lx - 0x%lx)\n",
+        printf("Invalid entry point: 0x%x (valid range: 0x%x - 0x%x)\n",
                entry_addr, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }

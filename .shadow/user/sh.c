@@ -193,10 +193,10 @@ void panic(char *s)
 int fork1(void)
 {
   int pid;
-
   pid = fork();
   if (pid == -1)
     panic("fork");
+  printf("fork finished in sh\n");
   return pid;
 }
 

@@ -669,10 +669,10 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
 
         // 映射页面 - 根据段标志设置权限
         int map_prot = MMAP_READ;
-        if (phdr->p_flags & PF_W)
-        {
-            map_prot |= MMAP_WRITE;
-        }
+        // if (phdr->p_flags & PF_W)
+        //{
+        map_prot |= MMAP_WRITE;
+        //}
         map(&task->pi->as, (void *)page_vaddr, page, map_prot);
     }
 

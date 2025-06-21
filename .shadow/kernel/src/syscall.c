@@ -364,7 +364,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(fd);
         return -1;
     }
-    
+
     // 分配内存加载ELF文件
     size_t file_size = stat.st_size;
     if (file_size == 0 || file_size < sizeof(Elf64_Ehdr))
@@ -379,7 +379,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(fd);
         return -1;
     }
-    
+
     ssize_t bytes_read = vfs->read(fd, elf_data, file_size);
     vfs->close(fd);
     if (bytes_read != file_size)
@@ -568,7 +568,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {
-        printf("Invalid entry point: 0x%p (valid range: 0x%p - 0x%p)\n",
+        printf("Invalid entry point: 0x%x (valid range: 0x%x - 0x%x)\n",
                entry_addr, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }

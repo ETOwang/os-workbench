@@ -351,7 +351,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         return -1;
     }
-    printf("Executing %s\n", pathname);
     // 打开可执行文件
     int fd = vfs->open(pathname, 0);
     if (fd < 0)
@@ -365,7 +364,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(fd);
         return -1;
     }
-
+    
     // 分配内存加载ELF文件
     size_t file_size = stat.st_size;
     if (file_size == 0 || file_size < sizeof(Elf64_Ehdr))
@@ -380,7 +379,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(fd);
         return -1;
     }
-
+    
+    printf("Loading ELF file: %s, size: %d bytes\n", pathname, file_size);
     // 读取整个ELF文件
     ssize_t bytes_read = vfs->read(fd, elf_data, file_size);
     vfs->close(fd);

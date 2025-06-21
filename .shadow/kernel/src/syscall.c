@@ -575,7 +575,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
 
     // 设置程序入口点
     *entry_point = (void *)entry_addr;
-    printf("ELF loaded successfully, entry point: 0x%lx\n", entry_addr);
+    printf("ELF loaded successfully, entry point: 0x%x\n", entry_addr);
     return 0;
 }
 

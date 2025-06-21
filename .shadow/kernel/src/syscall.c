@@ -346,7 +346,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         return -1;
     }
-    int fd = vfs->open(pathname, 0);
+    int fd = vfs->open(pathname, 0);    
     if (fd < 0)
     {
         return -1;

@@ -78,7 +78,15 @@ void runcmd(struct cmd *cmd)
     ecmd = (struct execcmd *)cmd;
     if (ecmd->argv[0] == 0)
       exit(1);
-    printf("exec %s\n", ecmd->argv[0]);
+
+    // Try to execute with /bin prefix
+    char path[256];
+
+    strcpy(path, "/bin/");
+    strcat(path, ecmd->argv[0]);
+    execve(path, ecmd->argv, NULL);
+
+    // If that fails, try the original path
     execve(ecmd->argv[0], ecmd->argv, NULL);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;

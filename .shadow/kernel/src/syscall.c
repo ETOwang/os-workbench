@@ -568,7 +568,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {
-        printf("Invalid entry point: 0x%x (valid range: 0x%x - 0x%x)\n",
+        printf("Invalid entry point: 0x%p (valid range: 0x%p - 0x%p)\n",
                entry_addr, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }

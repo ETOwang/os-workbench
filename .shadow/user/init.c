@@ -149,7 +149,6 @@ int getcmd(char *buf, int nbuf)
         buf[i] = '\0';
     }
     int nread = syscall(SYS_read, 0, buf, nbuf);
-    print(buf, NULL);
     if (nread <= 0)
         return -1;
     return 0;

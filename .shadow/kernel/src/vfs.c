@@ -160,6 +160,7 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 		int val = 0;
 		//pay attention to the compiler optimization!!!
 		while (!atomic_xchg(&val, tty1->cooked.value));
+		printf("read in vfs\n");
 		return tty->ops->read(tty, 0, buf, count);
 	}
 	size_t bytes_read;

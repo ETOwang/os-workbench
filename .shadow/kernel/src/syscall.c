@@ -380,8 +380,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
     
-    printf("Loading ELF file: %s, size: %d bytes\n", pathname, file_size);
-    // 读取整个ELF文件
     ssize_t bytes_read = vfs->read(fd, elf_data, file_size);
     vfs->close(fd);
     if (bytes_read != file_size)
@@ -389,7 +387,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
-
+    
+    printf("Loading ELF file: %s, size: %d bytes\n", pathname, file_size);
     // 使用ELF加载器加载程序
     void *entry_point;
     if (load_elf(task, elf_data, file_size, &entry_point) < 0)

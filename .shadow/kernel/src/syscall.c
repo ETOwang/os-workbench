@@ -535,7 +535,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
             {
                 return -1;
             }
-            printf("p_vaddr:%p\n", (uintptr_t)phdr[i].p_vaddr);
+            printf("p_vaddr:0x%lx\n", (uintptr_t)phdr[i].p_vaddr);
             brk_addr=brk_addr<phdr[i].p_vaddr + phdr[i].p_memsz?phdr[i].p_vaddr + phdr[i].p_memsz:brk_addr;
         }
     }

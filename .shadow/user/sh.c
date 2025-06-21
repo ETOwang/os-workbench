@@ -66,7 +66,7 @@ void runcmd(struct cmd *cmd)
   struct listcmd *lcmd;
   struct pipecmd *pcmd;
   struct redircmd *rcmd;
-
+  printf("run cmd\n");
   if (cmd == 0)
     exit(1);
 

@@ -89,6 +89,21 @@ int vsprintf(char *out, const char *fmt, va_list ap)
       }
       break;
     case 'x':
+      cur = va_arg(ap, uint32_t);
+      p = buf + sizeof(buf) - 1;
+      *p = '\0';
+      do
+      {
+        int digit = cur % 16;
+        *--p = (digit < 10) ? '0' + digit : 'a' + (digit - 10);
+        cur /= 16;
+      } while (cur != 0);
+      while (*p)
+      {
+        *str++ = *p++;
+      }
+      break;
+    case 'l':
       cur = va_arg(ap, uintptr_t);
       p = buf + sizeof(buf) - 1;
       *p = '\0';

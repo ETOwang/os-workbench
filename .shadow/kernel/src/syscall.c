@@ -426,14 +426,29 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
                           args_size + envs_size +       // 字符串数据
                           16;                           // 对齐空间
 
-    if (stack_needed > STACK_SIZE / 2)
+    // 确保栈空间足够，至少分配2页
+    size_t pages_needed = 2;                         // 最少2页
+    size_t total_stack_needed = stack_needed + 4096; // 额外的栈空间
+    if (total_stack_needed > pages_needed * task->pi->as.pgsize)
     {
+        pages_needed = (total_stack_needed + task->pi->as.pgsize - 1) / task->pi->as.pgsize;
+    }
+    if (pages_needed > 16)
+    { // 限制最大16页
         return -1;
     }
 
-    // 分配栈空间
-    char *mem = pmm->alloc(task->pi->as.pgsize);
-    map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
+    // 分配多页栈空间
+    for (size_t i = 0; i < pages_needed; i++)
+    {
+        char *mem = pmm->alloc(task->pi->as.pgsize);
+        if (mem == NULL)
+        {
+            return -1;
+        }
+        uintptr_t stack_addr = UVMEND - (i + 1) * task->pi->as.pgsize;
+        map(&task->pi->as, (void *)stack_addr, (void *)mem, MMAP_READ | MMAP_WRITE);
+    }
 
     // 创建新的上下文，使用ELF入口点
     task->context = ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), entry_point);
@@ -539,8 +554,33 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
         return -1;
     }
 
-    // 验证程序头表偏移
+    // 检查字节序和版本
+    if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB || ehdr->e_ident[EI_VERSION] != EV_CURRENT)
+    {
+        return -1;
+    }
+
+    // 检查文件类型（应该是可执行文件或共享对象）
+    if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN)
+    {
+        return -1;
+    }
+
+    // 检查机器类型（x86-64）
+    if (ehdr->e_machine != EM_X86_64)
+    {
+        return -1;
+    }
+
+    // 验证程序头表偏移和大小
     if (ehdr->e_phoff >= file_size || ehdr->e_phnum == 0)
+    {
+        return -1;
+    }
+
+    // 验证程序头表不会超出文件边界
+    size_t phdr_table_size = ehdr->e_phnum * sizeof(Elf64_Phdr);
+    if (ehdr->e_phoff + phdr_table_size > file_size)
     {
         return -1;
     }
@@ -568,14 +608,12 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {
-        printf("Invalid entry point: 0x%x (valid range: 0x%x - 0x%x)\n",
+        printf("Invalid entry point: 0x%lx (valid range: 0x%lx - 0x%lx)\n",
                entry_addr, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }
-
-    // 设置程序入口点
     *entry_point = (void *)entry_addr;
-    printf("ELF loaded successfully, entry point: 0x%x\n", entry_addr);
+    printf("ELF loaded successfully, entry point: 0x%lx\n", entry_addr);
     return 0;
 }
 
@@ -603,7 +641,7 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
     // 验证虚拟地址范围是否在用户空间内
     if (vaddr_start < UVSTART || vaddr_start >= UVMEND || vaddr_end > UVMEND)
     {
-        printf("Invalid virtual address range: 0x%x - 0x%x (valid: 0x%x - 0x%x)\n",
+        printf("Invalid virtual address range: 0x%lx - 0x%lx (valid: 0x%lx - 0x%lx)\n",
                vaddr_start, vaddr_end, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }
@@ -653,15 +691,20 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
             }
         }
 
-        // 验证物理页面地址
-        if (page == NULL)
+        // 根据ELF段标志设置页面权限
+        int prot = MMAP_READ; // 默认可读
+        if (phdr->p_flags & PF_W)
         {
-            printf("Invalid physical page address\n");
-            return -1;
+            prot |= MMAP_WRITE; // 可写
+        }
+        if (phdr->p_flags & PF_X)
+        {
+            // 可执行权限（在某些架构上需要特殊处理）
+            // 这里假设可读即可执行，根据实际需要调整
         }
 
         // 映射页面
-        map(&task->pi->as, (void *)page_vaddr, page, MMAP_READ);
+        map(&task->pi->as, (void *)page_vaddr, page, prot);
     }
 
     return 0;
@@ -684,12 +727,24 @@ static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr 
         size_t page_offset = copy_start - page_vaddr;
         size_t copy_size = copy_end - copy_start;
 
-        // 确保不超出文件大小
-        if (file_offset + copy_size <= file_size)
+        // 验证文件偏移量
+        if (phdr->p_offset >= file_size)
+        {
+            return -1;
+        }
+
+        // 确保不超出文件大小，并且不超出段的文件大小
+        size_t max_copy_from_file = phdr->p_filesz - (copy_start - vaddr_start);
+        if (copy_size > max_copy_from_file)
+        {
+            copy_size = max_copy_from_file;
+        }
+
+        if (file_offset + copy_size <= file_size && copy_size > 0)
         {
             memcpy((char *)page + page_offset, elf_data + file_offset, copy_size);
         }
-        else
+        else if (copy_size > 0)
         {
             return -1;
         }

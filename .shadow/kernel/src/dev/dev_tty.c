@@ -127,9 +127,11 @@ static void tty_render(tty_t *tty)
   int nsp = sp - tty->sp_buf;
   // clear dirty marks
   memset(tty->dirty, 0, tty->size * sizeof(tty->dirty[0]));
-  kmt->spin_unlock(&tty->lock);
   // TODO:solve the problem that occurs when calling sem_wait after acquiring the lock, but the issues still persist.
+  // TODO:problem unsolved
   tty->fbdev->ops->write(tty->fbdev, SPRITE_BRK, tty->sp_buf, nsp * sizeof(*sp));
+  kmt->spin_unlock(&tty->lock);
+  
 }
 
 static void tty_mark(tty_t *tty, struct character *ch)

@@ -535,13 +535,11 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
             {
                 return -1;
             }
-            printf("p_vaddr:0x%lx\n", (uintptr_t)phdr[i].p_vaddr);
             brk_addr=brk_addr<phdr[i].p_vaddr + phdr[i].p_memsz?phdr[i].p_vaddr + phdr[i].p_memsz:brk_addr;
         }
     }
     brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096
     task->pi->brk = (void *)brk_addr;
-    printf("current brk 0x%lx\n", (uintptr_t)task->pi->brk);
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {

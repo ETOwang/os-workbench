@@ -221,6 +221,7 @@ static inline void *zalloc(size_t sz)
   assert(freem + sz < mem + sizeof(mem));
   void *ret = freem;
   freem += sz;
+  print("zalloc: allocated ", NULL);
   return ret;
 }
 

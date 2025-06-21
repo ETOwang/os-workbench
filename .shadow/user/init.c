@@ -156,7 +156,6 @@ int getcmd(char *buf, int nbuf)
 }
 void main()
 {
-    *((int*)0x40131c)=1;
     static char buf[100];
 
     // Read and run input commands.

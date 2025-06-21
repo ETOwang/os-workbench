@@ -541,7 +541,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
     }
     brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096
     task->pi->brk = (void *)brk_addr;
-    printf("current brk %p\n", (uintptr_t)task->pi->brk);
+    printf("current brk 0x%lx\n", (uintptr_t)task->pi->brk);
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {

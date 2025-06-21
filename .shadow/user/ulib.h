@@ -304,17 +304,12 @@ gets(char *buf, int max)
 {
   int i, cc;
   char c;
-
-  for (i = 0; i + 1 < max;)
+  int nread = read(STDIN_FILENO, buf, max);
+  if (nread > max)
   {
-    cc = read(0, &c, 1);
-    if (cc < 1)
-      break;
-    buf[i++] = c;
-    if (c == '\n' || c == '\r')
-      break;
+    return NULL;
   }
-  buf[i] = '\0';
+  buf[nread] = '\0';
   return buf;
 }
 

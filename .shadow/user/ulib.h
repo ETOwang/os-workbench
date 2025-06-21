@@ -17,6 +17,9 @@ typedef uint32_t mode_t;
 
 static inline long syscall(int num, long arg1, long arg2, long arg3, long arg4)
 {
+  /**
+   * problems when use variable arguments in inline assembly
+   */
   register long a0 asm("rax") = num;
   register long a1 asm("rdi") = arg1;
   register long a2 asm("rsi") = arg2;

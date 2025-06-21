@@ -45,7 +45,6 @@ static void dev_init()
 
   kmt->create(pmm->alloc(sizeof(task_t)), "input-task", dev_input_task, NULL);
   kmt->create(pmm->alloc(sizeof(task_t)), "tty-task", dev_tty_task, NULL);
-  //kmt->create(pmm->alloc(sizeof(task_t)), "kernel-shell", kernel_shell, NULL);
 }
 
 MODULE_DEF(dev) = {

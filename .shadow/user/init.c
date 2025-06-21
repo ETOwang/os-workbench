@@ -61,7 +61,6 @@ struct cmd *parsecmd(char *);
 // runcmd() never returns.
 void runcmd(struct cmd *cmd)
 {
-    print("runcmd 64\n", NULL);
     int p[2];
     struct backcmd *bcmd;
     struct execcmd *ecmd;

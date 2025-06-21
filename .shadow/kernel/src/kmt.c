@@ -81,6 +81,7 @@ static Context *kmt_syscall(Event ev, Context *ctx)
     }
     else
     {
+        printf("Unknown syscall number: %d\n", ctx->GPRx);
         panic("Unknown syscall number");
     }
     return NULL;

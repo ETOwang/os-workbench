@@ -116,6 +116,7 @@ static int uproc_fork(task_t *task)
     son->context->cr3 = son->pi->as.ptr;
     son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
     kmt_add_task(son);
+    printf("fork finished\n");
     return pid;
 }
 

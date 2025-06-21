@@ -232,7 +232,7 @@ static uint64_t syscall_brk(task_t *task, void *addr)
 {
     // 获取当前堆结束地址
     void *current_brk = task->pi->as.area.end;
-
+    printf("syscall_brk: current brk = %p, requested addr = %p\n", current_brk, addr);
     // 如果addr为NULL，返回当前brk值
     if (addr == NULL)
     {
@@ -412,13 +412,13 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         }
     }
 
-    size_t stack_needed = (argc + 1) * sizeof(char *) + 
-                          (envc + 1) * sizeof(char *) + 
-                          args_size + envs_size +       
-                          16;                         
+    size_t stack_needed = (argc + 1) * sizeof(char *) +
+                          (envc + 1) * sizeof(char *) +
+                          args_size + envs_size +
+                          16;
 
-    size_t pages_needed = 1;                        
-    size_t total_stack_needed = stack_needed + 4096; 
+    size_t pages_needed = 1;
+    size_t total_stack_needed = stack_needed + 4096;
     if (total_stack_needed > pages_needed * task->pi->as.pgsize)
     {
         pages_needed = (total_stack_needed + task->pi->as.pgsize - 1) / task->pi->as.pgsize;

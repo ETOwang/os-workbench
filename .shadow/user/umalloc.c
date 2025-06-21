@@ -67,7 +67,6 @@ malloc(uint nbytes)
 {
   Header *p, *prevp;
   uint nunits;
-  printf("try malloc\n");
   nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
   if ((prevp = freep) == 0)
   {

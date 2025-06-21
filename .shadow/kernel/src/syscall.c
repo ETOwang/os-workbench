@@ -106,11 +106,15 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
         return -1;
     }
     // TODO:use mode
-    printf("full path: %s, flags: %d\n", full_path, flags);
     int vfd = vfs->open(full_path, flags);
     if (vfd < 0)
     {
-        return -1;
+        vfd = vfs->opendir(full_path);
+        if (vfd < 0)
+        {
+            return -1; // 打开文件或目录失败
+        }
+        return vfd; // 返回目录文件描述符
     }
     return vfd;
 }
@@ -347,7 +351,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         return -1;
     }
-    int fd = vfs->open(pathname, 0);    
+    int fd = vfs->open(pathname, 0);
     if (fd < 0)
     {
         return -1;
@@ -536,7 +540,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
             {
                 return -1;
             }
-            brk_addr=brk_addr<phdr[i].p_vaddr + phdr[i].p_memsz?phdr[i].p_vaddr + phdr[i].p_memsz:brk_addr;
+            brk_addr = brk_addr < phdr[i].p_vaddr + phdr[i].p_memsz ? phdr[i].p_vaddr + phdr[i].p_memsz : brk_addr;
         }
     }
     brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096

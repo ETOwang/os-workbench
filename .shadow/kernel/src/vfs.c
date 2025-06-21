@@ -91,7 +91,7 @@ int vfs_open(const char *pathname, int flags)
 	int fd = -1;
 	for (int i = 0; i < MAX_OPEN_FILES; i++)
 	{
-		if (!open_files[i].in_use)
+		if (!open_files[i].in_use && !open_dirs[i].in_use)
 		{
 			fd = i;
 			break;
@@ -158,8 +158,9 @@ ssize_t vfs_read(int fd, void *buf, size_t count)
 		device_t *tty = dev->lookup("tty1");
 		tty_t *tty1 = tty->ptr;
 		int val = 0;
-		//pay attention to the compiler optimization!!!
-		while (!atomic_xchg(&val, tty1->cooked.value));
+		// pay attention to the compiler optimization!!!
+		while (!atomic_xchg(&val, tty1->cooked.value))
+			;
 		return tty->ops->read(tty, 0, buf, count);
 	}
 	size_t bytes_read;
@@ -270,7 +271,7 @@ int vfs_opendir(const char *pathname)
 	int dirfd = -1;
 	for (int i = 0; i < MAX_OPEN_DIRS; i++)
 	{
-		if (!open_dirs[i].in_use)
+		if (!open_dirs[i].in_use && !open_files[i].in_use)
 		{
 			dirfd = i;
 			break;
@@ -336,8 +337,20 @@ int vfs_stat(int fd, struct kstat *stat)
 	{
 		return VFS_ERROR;
 	}
-	ext4_file *file = open_files[fd].file;
-	stat->st_size = file->fsize;
+	if (open_files[fd].in_use)
+	{
+		ext4_file *file = open_files[fd].file;
+		stat->st_size = file->fsize;
+		stat->st_mode = S_IFBLK;
+		stat->st_ino = file->inode;
+	}
+	else
+	{
+		ext4_dir *dir = open_dirs[fd].dir;
+		stat->st_size = dir->f.fsize;
+		stat->st_mode = S_IFDIR;
+		stat->st_ino = dir->de.inode;
+	}
 	return VFS_SUCCESS;
 }
 

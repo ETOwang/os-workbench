@@ -481,7 +481,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     uintptr_t brk_addr = (uintptr_t)&end;
     brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096
     task->pi->brk = (void *)brk_addr;
-    printf("current brk %lx\n", (uintptr_t)task->pi->brk);
+    printf("current brk 0x%p\n", (uintptr_t)task->pi->brk);
     return 0;
 }
 

@@ -196,7 +196,6 @@ int fork1(void)
   pid = fork();
   if (pid == -1)
     panic("fork");
-  printf("fork finished in sh\n");
   return pid;
 }
 

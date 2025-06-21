@@ -132,7 +132,9 @@ runcmd(struct cmd *cmd)
 int
 getcmd(char *buf, int nbuf)
 {
-  write(2, "$ ", 2);
+  printf("shell:");
+  getcwd(buf, nbuf);
+  printf("%s$\n", buf);
   memset(buf, 0, nbuf);
   gets(buf, nbuf);
   if(buf[0] == 0) // EOF

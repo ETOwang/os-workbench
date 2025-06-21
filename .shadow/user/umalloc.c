@@ -45,7 +45,7 @@ morecore(uint nu)
 {
   char *p;
   Header *hp;
-
+  
   if(nu < 4096)
     nu = 4096;
   p = brk((void*)(nu * sizeof(Header)));
@@ -62,7 +62,7 @@ malloc(uint nbytes)
 {
   Header *p, *prevp;
   uint nunits;
-
+  printf("try malloc\n");
   nunits = (nbytes + sizeof(Header) - 1)/sizeof(Header) + 1;
   if((prevp = freep) == 0){
     base.s.ptr = freep = prevp = &base;

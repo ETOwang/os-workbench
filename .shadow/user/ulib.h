@@ -89,7 +89,7 @@ static inline int getppid()
 {
   return syscall(SYS_getppid, 0, 0, 0, 0);
 }
-static inline int sbrk(intptr_t increment)
+static inline void* sbrk(intptr_t increment)
 {
   return syscall(SYS_sbrk, increment, 0, 0, 0);
 }

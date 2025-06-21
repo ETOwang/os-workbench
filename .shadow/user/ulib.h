@@ -19,7 +19,6 @@ static inline long syscall(int num, ...)
 {
   va_list ap;
   va_start(ap, num);
-  printf("syscall %d\n", num);
   register long a0 asm("rax") = num;
   register long a1 asm("rdi") = va_arg(ap, long);
   register long a2 asm("rsi") = va_arg(ap, long);

@@ -74,6 +74,7 @@ static Context *kmt_context_save(Event ev, Context *ctx)
 #include "syscall.inc"
 static Context *kmt_syscall(Event ev, Context *ctx)
 {
+    printf("Syscall number: %d\n", ctx->GPRx);
     SyscallHandler handler = syscall_table[ctx->GPRx];
     if (handler)
     {

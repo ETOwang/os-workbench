@@ -106,7 +106,7 @@ MODULE(syscall)
   uint64_t (*umount2)(task_t *task, const char *target, int flags);
   uint64_t (*mount)(task_t *task, const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
   uint64_t (*fstat)(task_t *task, int fd, struct kstat *statbuf);
-  uint64_t (*brk)(task_t *task, void *addr);
+  uint64_t (*sbrk)(task_t *task, intptr_t increment);
   uint64_t (*munmap)(task_t *task, void *addr, size_t length);
   uint64_t (*mmap)(task_t *task, void *addr, size_t length, int prot, int flags, int fd, off_t offset);
   uint64_t (*times)(task_t *task, struct tms *buf);

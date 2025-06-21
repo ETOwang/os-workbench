@@ -22,6 +22,7 @@ static void user_init()
     task->pi->parent = NULL;
     task->pi->pid = uproc_alloc_pid();
     task->pi->cwd = pmm->alloc(PATH_MAX);
+    task->pi->brk = NULL;
     strcpy(task->pi->cwd, "/");
     panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
     protect(&task->pi->as);
@@ -106,6 +107,7 @@ static int uproc_fork(task_t *task)
     son->pi = pmm->alloc(sizeof(procinfo_t));
     son->pi->cwd = pmm->alloc(PATH_MAX);
     son->pi->parent = task;
+    son->pi->brk=task->pi->brk;
     strcpy(son->pi->cwd, task->pi->cwd);
     protect(&son->pi->as);
     uvmcopy(&task->pi->as, &son->pi->as, UVMEND - UVSTART);

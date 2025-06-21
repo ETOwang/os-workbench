@@ -42,6 +42,7 @@ struct procinfo
     task_t *parent;
     AddrSpace as;
     char *cwd;
+    void* brk;
 };
 struct handler_record
 {

@@ -23,7 +23,7 @@
 #define SYS_exit 93
 #define SYS_getppid 173
 #define SYS_getpid 172
-#define SYS_brk 214
+#define SYS_sbrk 214
 #define SYS_munmap 215
 #define SYS_mmap 222
 #define SYS_times 153

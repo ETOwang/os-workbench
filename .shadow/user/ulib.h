@@ -89,9 +89,9 @@ static inline int getppid()
 {
   return syscall(SYS_getppid, 0, 0, 0, 0);
 }
-static inline int brk(void *addr)
+static inline int sbrk(intptr_t increment)
 {
-  return syscall(SYS_brk, (uint64_t)addr, 0, 0, 0);
+  return syscall(SYS_sbrk, increment, 0, 0, 0);
 }
 static inline int munmap(void *addr, size_t length)
 {

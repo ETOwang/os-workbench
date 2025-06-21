@@ -228,28 +228,23 @@ static uint64_t syscall_fstat(task_t *task, int fd, struct kstat *statbuf)
 }
 
 // 内存管理相关系统调用
-static uint64_t syscall_brk(task_t *task, void *addr)
+static uint64_t syscall_sbrk(task_t *task, intptr_t increment)
 {
-    // 获取当前堆结束地址
-    void *current_brk = task->pi->as.area.end;
-    printf("syscall_brk: current brk = %p, requested addr = %p\n", current_brk, addr);
-    // 如果addr为NULL，返回当前brk值
-    if (addr == NULL)
+    panic_on(increment<0,"unimplemented sbrk with negative increment");
+    panic_on(increment % task->pi->as.pgsize != 0, "Increment must be a multiple of page size");
+    void *current_brk = task->pi->brk;
+    panic_on((uintptr_t)current_brk % task->pi->as.pgsize != 0, "Current brk must be a multiple of page size");
+    if (increment == 0)
     {
         return (uint64_t)current_brk;
     }
-
-    // 检查新地址是否合理
-    if (addr < task->pi->as.area.start || addr > (void *)UVMEND)
+    for (size_t i = 0; i < increment / task->pi->as.pgsize; i++)
     {
-        return (uint64_t)current_brk; // 失败时返回当前brk
+        void *mem = pmm->alloc(task->pi->as.pgsize);
+        map(&task->pi->as, current_brk + i * task->pi->as.pgsize, mem, MMAP_READ | MMAP_WRITE);
     }
-
-    // 简化实现：直接更新堆结束地址
-    // 实际实现应该分配/释放内存页
-    task->pi->as.area.end = addr;
-
-    return (uint64_t)addr;
+    task->pi->brk = (void *)((uintptr_t)current_brk + increment);
+    return (uint64_t)current_brk;
 }
 
 static uint64_t syscall_munmap(task_t *task, void *addr, size_t length)
@@ -481,6 +476,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
     task->context->rsp = (uintptr_t)stack_ptr;
+    extern char end[];
+    task->pi->brk = &end;
     return 0;
 }
 
@@ -665,7 +662,7 @@ MODULE_DEF(syscall) = {
     .umount2 = syscall_umount2,
     .mount = syscall_mount,
     .fstat = syscall_fstat,
-    .brk = syscall_brk,
+    .sbrk = syscall_sbrk,
     .munmap = syscall_munmap,
     .mmap = syscall_mmap,
     .times = syscall_times,

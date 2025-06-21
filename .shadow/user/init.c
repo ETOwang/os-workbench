@@ -302,11 +302,9 @@ struct cmd *parsecmd(char *s)
     struct cmd *cmd;
     es = s + strlen(s);
     cmd = parseline(&s, es);
-    print("parsecmd\n", NULL);
     peek(&s, es, "");
     assert(s == es);
     nulterminate(cmd);
-    print("parse cmd finish\n", NULL);
     return cmd;
 }
 

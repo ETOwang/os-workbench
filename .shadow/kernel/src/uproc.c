@@ -132,7 +132,6 @@ static int uproc_wait(task_t *task, int pid, int *status, int options)
     while (1)
     {
         task_t *son = kmt_get_son();
-        printf("son: %p\n", son);
         if (son != NULL)
         {
             kmt->spin_lock(&son->lock);

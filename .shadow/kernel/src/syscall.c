@@ -476,12 +476,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
     task->context->rsp = (uintptr_t)stack_ptr;
-    extern char end[];
-    // 将 brk 向上对齐到 4096 字节边界
-    uintptr_t brk_addr = (uintptr_t)&end;
-    brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096
-    task->pi->brk = (void *)brk_addr;
-    printf("current brk 0x%p\n", (uintptr_t)task->pi->brk);
     return 0;
 }
 
@@ -532,6 +526,7 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
     Elf64_Phdr *phdr = (Elf64_Phdr *)(elf_data + ehdr->e_phoff);
     unprotect(&task->pi->as);
     protect(&task->pi->as);
+    uintptr_t brk_addr = 0;
     for (int i = 0; i < ehdr->e_phnum; i++)
     {
         if (phdr[i].p_type == PT_LOAD)
@@ -540,8 +535,12 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
             {
                 return -1;
             }
+            brk_addr=brk_addr<phdr[i].p_vaddr + phdr[i].p_memsz?phdr[i].p_vaddr + phdr[i].p_memsz:brk_addr;
         }
     }
+    brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096
+    task->pi->brk = (void *)brk_addr;
+    printf("current brk 0x%p\n", (uintptr_t)task->pi->brk);
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {

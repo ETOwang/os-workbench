@@ -18,7 +18,6 @@
 #define TASK_ZOMBIE 5
 #define MAX_CPU 32
 #define MAX_TASK 128
-#define PATH_MAX 128
 #define UVMEND 0x108000000000
 #define UVSTART 0x100000000000
 #include <kernel.h>

@@ -65,7 +65,6 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     {
         return -1;
     }
-    printf("chdir: %s\n", full_path);
     int ret = vfs->opendir(full_path);
     if (ret < 0)
     {

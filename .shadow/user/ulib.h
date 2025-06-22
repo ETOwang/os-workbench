@@ -13,7 +13,7 @@ typedef uint64_t uint64;
 typedef int32_t int32;
 typedef int64_t int64;
 typedef uint32_t mode_t;
-
+#define DIRSIZ 32
 static inline long syscall(int num, long arg1, long arg2, long arg3, long arg4)
 {
   /**

@@ -1,4 +1,4 @@
-#include "../kernel/framework/syscall.h"
+#include "../kernel/include/syscall.h"
 
 .globl _start
 _start:

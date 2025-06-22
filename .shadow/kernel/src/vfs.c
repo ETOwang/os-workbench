@@ -88,6 +88,12 @@ int vfs_mount(const char *dev_name, const char *mount_point,
 
 int vfs_open(const char *pathname, int flags)
 {
+	// 如果是打开目录，使用专门的目录接口
+	if (flags & O_DIRECTORY)
+	{
+		return vfs->opendir(pathname);
+	}
+
 	int fd = -1;
 	for (int i = 0; i < MAX_OPEN_FILES; i++)
 	{
@@ -148,20 +154,9 @@ int vfs_close(int fd)
 
 ssize_t vfs_read(int fd, void *buf, size_t count)
 {
-
-	if (fd < 0 || fd >= MAX_OPEN_FILES || (!open_files[fd].in_use && !open_dirs[fd].in_use) || !buf)
+	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use || !buf)
 	{
 		return VFS_ERROR;
-	}
-	if (!open_files[fd].in_use)
-	{
-		size_t bytes_read;
-		int ret = ext4_fread(&open_dirs[fd].dir->f, buf, count, &bytes_read);
-		if (ret != EOK)
-		{
-			return VFS_ERROR;
-		}
-		return (ssize_t)bytes_read;
 	}
 	if (open_files[fd].file == NULL)
 	{
@@ -279,9 +274,10 @@ int vfs_rename(const char *oldpath, const char *newpath)
 int vfs_opendir(const char *pathname)
 {
 	int dirfd = -1;
-	for (int i = 0; i < MAX_OPEN_DIRS; i++)
+	// 为目录分配专门的文件描述符，从高位开始分配以避免与普通文件冲突
+	for (int i = MAX_OPEN_DIRS - 1; i >= 0; i--)
 	{
-		if (!open_dirs[i].in_use && !open_files[i].in_use)
+		if (!open_dirs[i].in_use)
 		{
 			dirfd = i;
 			break;
@@ -309,18 +305,32 @@ int vfs_readdir(int fd, struct dirent *entry)
 	{
 		return VFS_ERROR;
 	}
+
 	ext4_dir *dir = open_dirs[fd].dir;
-	if (dir->de.name_length > strlen(entry->d_name))
+
+	// 获取下一个目录项
+	const ext4_direntry *ext4_entry = ext4_dir_entry_next(dir);
+	if (!ext4_entry)
 	{
-		return VFS_ERROR;
+		return 0; // 已到目录末尾
 	}
-	entry->d_ino = dir->de.inode;
+
+	// 转换为系统调用接口的dirent结构
+	entry->d_ino = ext4_entry->inode;
 	entry->d_off = dir->next_off;
-	entry->d_reclen = dir->de.entry_length;
-	entry->d_type = dir->de.inode_type;
-	strncpy(entry->d_name, (const char *)dir->de.name, dir->de.name_length);
-	entry->d_name[dir->de.name_length] = '\0';
-	return VFS_SUCCESS;
+	entry->d_reclen = sizeof(struct dirent);
+	entry->d_type = ext4_entry->inode_type;
+
+	// 复制文件名，确保不超过缓冲区大小
+	size_t name_len = ext4_entry->name_length;
+	if (name_len >= sizeof(entry->d_name))
+	{
+		name_len = sizeof(entry->d_name) - 1;
+	}
+	strncpy(entry->d_name, (const char *)ext4_entry->name, name_len);
+	entry->d_name[name_len] = '\0';
+
+	return 1; // 成功读取一个目录项
 }
 
 int vfs_closedir(int fd)

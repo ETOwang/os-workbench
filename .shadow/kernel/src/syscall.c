@@ -143,12 +143,25 @@ static uint64_t syscall_dup3(task_t *task, int oldfd, int newfd, int flags)
 
 static uint64_t syscall_getdents64(task_t *task, int fd, struct dirent *buf, size_t len)
 {
-    if (buf == NULL || len == 0)
+    if (buf == NULL || len < sizeof(struct dirent))
     {
         return -1;
     }
-    // TODO:check len
-    return vfs->readdir(fd, buf);
+
+    // 读取一个目录项
+    int result = vfs->readdir(fd, buf);
+    if (result < 0)
+    {
+        return -1; // 出错
+    }
+    else if (result == 0)
+    {
+        return 0; // 目录结束
+    }
+    else
+    {
+        return sizeof(struct dirent); // 成功读取，返回读取的字节数
+    }
 }
 
 static uint64_t syscall_linkat(task_t *task, int olddirfd, const char *oldpath,

@@ -85,14 +85,13 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
         return -1;
     }
     struct file *f = vfs->open(full_path, O_DIRECTORY);
-    printf("chdir:%s\n",full_path);
     if (f == NULL)
     {
-        printf("fail to chdir %s\n",full_path);
         return -1;
     }
     vfs->close(f);
     strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
+    printf("%s\n",task->pi->cwd);
     return 0;
 }
 

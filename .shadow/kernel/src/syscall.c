@@ -436,10 +436,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(f);
         return -1;
     }
-    printf("start\n");
     ssize_t bytes_read = vfs->read(f, elf_data, file_size);
     vfs->close(f);
-    printf("read %ld bytes\n", bytes_read);
     if (bytes_read != file_size)
     {
         pmm->free(elf_data);
@@ -453,6 +451,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     }
     pmm->free(elf_data);
 
+    printf("starting execve for %s\n", pathname);
     int orig_argc = 0;
     if (argv)
     {

@@ -73,7 +73,7 @@ static int filestat(struct file *f, struct stat *st)
 	{
 		ext4_dir *d = (ext4_dir *)f->ptr;
 		st->st_mode = S_IFDIR;
-		st->st_ino = d->de.inode;
+		st->st_ino = d->f.inode;
 		st->st_size = d->f.fsize;
 		st->st_nlink = 2; // Directories typically have a link count of at least 2 (., ..)
 		return 0;

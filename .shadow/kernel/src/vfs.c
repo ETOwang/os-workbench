@@ -351,6 +351,7 @@ int vfs_stat(int fd, struct kstat *stat)
 		stat->st_mode = S_IFDIR;
 		stat->st_ino = dir->de.inode;
 	}
+	printf("VFS: stat fd %d, size %ld, mode %o, ino %lu\n", fd, stat->st_size, stat->st_mode, stat->st_ino);
 	return VFS_SUCCESS;
 }
 

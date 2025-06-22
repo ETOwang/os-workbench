@@ -93,7 +93,6 @@ int vfs_open(const char *pathname, int flags)
 	{
 		return vfs->opendir(pathname);
 	}
-
 	int fd = -1;
 	for (int i = 0; i < MAX_OPEN_FILES; i++)
 	{

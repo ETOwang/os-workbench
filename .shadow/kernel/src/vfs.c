@@ -333,7 +333,10 @@ int vfs_closedir(int fd)
 int vfs_stat(int fd, struct kstat *stat)
 {
 
-	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use)
+	if (fd < 0 || fd >= MAX_OPEN_FILES || (!open_files[fd].in_use && !open_dirs[fd].in_use))
+	{
+		return VFS_ERROR;
+	}
 	{
 		return VFS_ERROR;
 	}

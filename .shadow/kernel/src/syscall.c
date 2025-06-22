@@ -91,6 +91,7 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     }
     vfs->close(f);
     strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
+    task->pi->cwd[strlen(full_path)]=0;
     printf("%s\n",task->pi->cwd);
     return 0;
 }

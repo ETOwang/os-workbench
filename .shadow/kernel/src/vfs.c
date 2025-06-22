@@ -337,9 +337,6 @@ int vfs_stat(int fd, struct kstat *stat)
 	{
 		return VFS_ERROR;
 	}
-	{
-		return VFS_ERROR;
-	}
 	if (open_files[fd].in_use)
 	{
 		ext4_file *file = open_files[fd].file;

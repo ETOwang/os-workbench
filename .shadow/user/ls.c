@@ -68,6 +68,7 @@ void ls(char *path)
         continue;
       }
       printf("%s %d %d %d\n", fmtname(buf), st.st_mode, st.st_ino, st.st_size);
+      close(tfd);
     }
     break;
   default:

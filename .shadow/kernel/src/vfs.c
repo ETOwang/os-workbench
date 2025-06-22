@@ -254,15 +254,12 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
-		printf("try to open %s\n",pathname);
 		if (ext4_dir_open(d, pathname) != EOK)
 		{
-			printf("fail to open %s\n",pathname);
 			pmm->free(d);
 			fileclose(f);
 			return NULL;
 		}
-		printf("successfully to open %s\n",pathname);
 		f->type = FD_DIR;
 		f->ptr = d;
 		f->readable = !(flags & O_WRONLY);

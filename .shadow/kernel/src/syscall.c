@@ -420,13 +420,13 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     struct stat stat;
     if (vfs->stat(f, &stat) < 0)
     {
-        printf("stat fail\n");
         vfs->close(f);
         return -1;
     }
     size_t file_size = stat.st_size;
     if (file_size == 0 || file_size < sizeof(Elf64_Ehdr))
     {
+        printf("check fail\n");
         vfs->close(f);
         return -1;
     }

@@ -444,6 +444,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
+    printf("end\n");
 
     void *entry_point;
     if (load_elf(task, elf_data, file_size, &entry_point) < 0)
@@ -451,7 +452,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
-    printf("end\n");
 
     pmm->free(elf_data);
     int argc = 0;

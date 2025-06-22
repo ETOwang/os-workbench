@@ -89,25 +89,25 @@ static void fileclose(struct file *f)
  */
 static int filestat(struct file *f, struct stat *st)
 {
-    // if (f->type == FD_FILE)
-    // {
+    if (f->type == FD_FILE)
+    {
 
-    //     ext4_file *ef = (ext4_file *)f->ptr;
-    //     st->st_mode = S_IFREG; // Regular file
-    //     st->st_ino = ef->inode_ref->index;
-    //     st->st_size = ef->fsize;
-    //     st->st_nlink = ef->inode_ref->inode.links_count;
-    //     return 0;
-    // }
-    // else if (f->type == FD_DIR)
-    // {
-    //     ext4_dir *d = (ext4_dir *)f->ptr;
-    //     st->st_mode = S_IFDIR;
-    //     st->st_ino = d->de.inode;
-    //     st->st_size = d->f.fsize;
-    //     st->st_nlink = 1; // Directories typically have a link count of at least 2 (., ..)
-    //     return 0;
-    // }
+        ext4_file *ef = (ext4_file *)f->ptr;
+        st->st_mode = S_IFREG;
+        st->st_ino = ef->inode;
+        st->st_size = ef->fsize;
+        st->st_nlink = ef->refctr;
+        return 0;
+    }
+    else if (f->type == FD_DIR)
+    {
+        ext4_dir *d = (ext4_dir *)f->ptr;
+        st->st_mode = S_IFDIR;
+        st->st_ino = d->de.inode;
+        st->st_size = d->f.fsize;
+        st->st_nlink = 2; // Directories typically have a link count of at least 2 (., ..)
+        return 0;
+    }
     return -1;
 }
 

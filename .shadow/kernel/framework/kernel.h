@@ -85,7 +85,7 @@ MODULE(vfs)
   int (*rename)(const char *oldpath, const char *newpath);
 
   // File operations
-  struct file *(*alloc)(void);
+  struct file* (*alloc)();
   struct file *(*dup)(struct file *);
   struct file *(*open)(const char *pathname, int flags);
   void (*close)(struct file *f);

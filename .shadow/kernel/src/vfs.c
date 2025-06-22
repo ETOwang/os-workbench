@@ -229,7 +229,6 @@ struct file *vfs_open(const char *pathname, int flags)
 	{
 		return NULL;
 	}
-
 	if (flags & O_DIRECTORY)
 	{
 		d = pmm->alloc(sizeof(ext4_dir));
@@ -280,7 +279,7 @@ struct file *vfs_open(const char *pathname, int flags)
 		fileclose(f);
 		return NULL;
 	}
-
+	f->ref = ef->refctr;
 	f->type = FD_FILE;
 	f->ptr = ef;
 	f->readable = !(flags & O_WRONLY);
@@ -349,27 +348,46 @@ int vfs_rmdir(const char *pathname)
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
-int vfs_unlink(const char *pathname)
+int vfs_unlink(const char *path)
 {
-	int ret = ext4_fremove(pathname);
+	for (size_t i = 0; i < NFILE; i++)
+	{
+		if (strcmp(ftable.file[i].path, path) == 0)
+		{
+			ftable.file[i].ref--;
+			break;
+		}
+	}
+	int ret = ext4_fremove(path);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
 int vfs_rename(const char *oldpath, const char *newpath)
 {
+	for (size_t i = 0; i < NFILE; i++)
+	{
+		if (strcmp(ftable.file[i].path, oldpath) == 0)
+		{
+			strcpy(ftable.file[i].path, newpath);
+			break;
+		}
+	}
 	int ret = ext4_frename(oldpath, newpath);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
 static int vfs_link(const char *oldpath, const char *newpath)
 {
+	for (size_t i = 0; i < NFILE; i++)
+	{
+		if (strcmp(ftable.file[i].path, oldpath) == 0)
+		{
+			ftable.file[i].ref++;
+			break;
+		}
+	}
 	int ret = ext4_flink(oldpath, newpath);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
-static struct file *vfs_alloc(void)
-{
-	return filealloc();
 }
 
 static struct file *vfs_dup(struct file *f)
@@ -379,7 +397,6 @@ static struct file *vfs_dup(struct file *f)
 
 MODULE_DEF(vfs) = {
 	.init = vfs_init,
-	.alloc = vfs_alloc,
 	.dup = vfs_dup,
 	.mount = vfs_mount,
 	.umount = vfs_umount,
@@ -394,4 +411,5 @@ MODULE_DEF(vfs) = {
 	.link = vfs_link,
 	.rename = vfs_rename,
 	.stat = vfs_stat,
+	.alloc=filealloc
 };

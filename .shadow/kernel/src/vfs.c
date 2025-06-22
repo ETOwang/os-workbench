@@ -111,7 +111,6 @@ static ssize_t fileread(struct file *f, void *buf, size_t n)
 		de->d_type = entry->inode_type;
 		strncpy(de->d_name, (const char *)entry->name, sizeof(de->d_name) - 1);
 		de->d_name[sizeof(de->d_name) - 1] = '\0';
-
 		r = sizeof(struct dirent);
 	}
 	else if (f->type == FD_DEVICE)
@@ -255,12 +254,15 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
+		printf("try to open %s\n",pathname);
 		if (ext4_dir_open(d, pathname) != EOK)
 		{
+			printf("fail to open %s\n",pathname);
 			pmm->free(d);
 			fileclose(f);
 			return NULL;
 		}
+		printf("successfully to open %s\n",pathname);
 		f->type = FD_DIR;
 		f->ptr = d;
 		f->readable = !(flags & O_WRONLY);

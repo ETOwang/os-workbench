@@ -413,10 +413,12 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
     struct file *f = vfs->open(pathname, 0);
+    printf("open 416\n");
     if (f == NULL)
     {
         return -1;
     }
+    printf("open finish\n");
     struct stat stat;
     if (vfs->stat(f, &stat) < 0)
     {
@@ -546,7 +548,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         if (task->open_files[i])
         {
-            printf("closing...\n");
             vfs->close(task->open_files[i]);
             task->open_files[i] = NULL;
         }

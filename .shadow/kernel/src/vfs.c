@@ -279,7 +279,7 @@ struct file *vfs_open(const char *pathname, int flags)
 		fileclose(f);
 		return NULL;
 	}
-	f->ref = ef->refctr;
+	f->ref = ef->refctr+1;
 	f->type = FD_FILE;
 	f->ptr = ef;
 	f->readable = !(flags & O_WRONLY);

@@ -414,7 +414,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
     struct file *f = vfs->open(pathname, 0);
-    printf("ref %d\n",f->ref);
     if (f == NULL)
     {
         return -1;
@@ -438,7 +437,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(f);
         return -1;
     }
-    printf("end440\n");
     ssize_t bytes_read = vfs->read(f, elf_data, file_size);
     vfs->close(f);
     if (bytes_read != file_size)
@@ -446,8 +444,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
-    printf("end\n");
-
     void *entry_point;
     if (load_elf(task, elf_data, file_size, &entry_point) < 0)
     {

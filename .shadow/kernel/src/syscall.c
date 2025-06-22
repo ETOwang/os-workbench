@@ -92,7 +92,6 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     vfs->close(f);
     strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
     task->pi->cwd[strlen(full_path)]=0;
-    printf("%s\n",task->pi->cwd);
     return 0;
 }
 
@@ -126,7 +125,7 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
     {
         return -1;
     }
-
+    printf("open at %s\n",full_path);
     struct file *f = vfs->open(full_path, flags);
     if (f == NULL)
     {

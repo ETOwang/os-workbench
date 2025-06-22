@@ -290,6 +290,7 @@ struct file *vfs_open(const char *pathname, int flags)
 
 void vfs_close(struct file *f)
 {
+	printf("vfs close\n");
 	fileclose(f);
 }
 

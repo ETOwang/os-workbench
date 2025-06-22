@@ -245,7 +245,6 @@ struct file *vfs_open(const char *pathname, int flags)
 		fileclose(f);
 		return NULL;
 	}
-	printf("try open %s\n",pathname);
 	if (ext4_fopen(ef, pathname, mode) != EOK)
 	{
 		pmm->free(ef);
@@ -261,6 +260,7 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
+		strcpy(f->path,pathname);
 		f->type = FD_DIR;
 		f->ptr = d;
 		f->readable = !(flags & O_WRONLY);
@@ -268,7 +268,7 @@ struct file *vfs_open(const char *pathname, int flags)
 		f->off = 0;
 		return f;
 	}
-	printf("successfully open %s\n",pathname);
+	strcpy(f->path,pathname);
 	f->ref = ef->refctr + 1;
 	f->type = FD_FILE;
 	f->ptr = ef;

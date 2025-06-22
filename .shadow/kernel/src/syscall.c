@@ -91,7 +91,7 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     }
     vfs->close(f);
     strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
-    task->pi->cwd[strlen(full_path)]=0;
+    task->pi->cwd[strlen(full_path)] = 0;
     return 0;
 }
 
@@ -449,60 +449,57 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
-
     pmm->free(elf_data);
-    int argc = 0;
-    int envc = 0;
-    size_t args_size = 0;
-    size_t envs_size = 0;
-    if (argv != NULL)
+
+    int orig_argc = 0;
+    if (argv)
     {
-        while (argv[argc] != NULL)
+        while (argv[orig_argc])
         {
-            args_size += strlen(argv[argc]) + 1;
-            argc++;
+            orig_argc++;
         }
     }
-    if (envp != NULL)
+    int argc = orig_argc + 1;
+
+    int envc = 0;
+    if (envp)
     {
-        while (envp[envc] != NULL)
+        while (envp[envc])
         {
-            envs_size += strlen(envp[envc]) + 1;
             envc++;
         }
     }
 
-    size_t stack_needed = (argc + 1) * sizeof(char *) +
-                          (envc + 1) * sizeof(char *) +
-                          args_size + envs_size +
-                          16;
-
-    size_t pages_needed = 1;
-    size_t total_stack_needed = stack_needed + 4096;
-    if (total_stack_needed > pages_needed * task->pi->as.pgsize)
+    const char *basename = pathname;
+    const char *p = pathname;
+    while (*p)
     {
-        pages_needed = (total_stack_needed + task->pi->as.pgsize - 1) / task->pi->as.pgsize;
+        if (*p == '/')
+        {
+            basename = p + 1;
+        }
+        p++;
     }
 
-    for (size_t i = 0; i < pages_needed; i++)
+    // Re-initialize the user stack
+    size_t stack_pages = 8; // 32KB stack
+    for (size_t i = 0; i < stack_pages; i++)
     {
-        char *mem = pmm->alloc(task->pi->as.pgsize);
-        if (mem == NULL)
+        void *page = pmm->alloc(task->pi->as.pgsize);
+        if (!page)
         {
             return -1;
         }
-        uintptr_t stack_addr = UVMEND - (i + 1) * task->pi->as.pgsize;
-        map(&task->pi->as, (void *)stack_addr, (void *)mem, MMAP_READ | MMAP_WRITE);
+        map(&task->pi->as, (void *)(UVMEND - (i + 1) * task->pi->as.pgsize), page, MMAP_READ | MMAP_WRITE);
     }
 
-    task->context = ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), entry_point);
-
-    char *stack_top = (char *)task->context->rsp;
+    char *stack_top = (char *)UVMEND;
     char *stack_ptr = stack_top;
 
     char **argv_ptrs = pmm->alloc((argc + 1) * sizeof(char *));
     char **envp_ptrs = pmm->alloc((envc + 1) * sizeof(char *));
 
+    // Push environment strings
     for (int i = envc - 1; i >= 0; i--)
     {
         size_t len = strlen(envp[i]) + 1;
@@ -511,35 +508,51 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         envp_ptrs[i] = stack_ptr;
     }
 
-    for (int i = argc - 1; i >= 0; i--)
+    // Push original argument strings
+    for (int i = orig_argc - 1; i >= 0; i--)
     {
         size_t len = strlen(argv[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, argv[i], len);
-        argv_ptrs[i] = stack_ptr;
+        argv_ptrs[i + 1] = stack_ptr;
     }
 
-    stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);
+    // Push basename as the new argv[0]
+    size_t basename_len = strlen(basename) + 1;
+    stack_ptr -= basename_len;
+    memcpy(stack_ptr, basename, basename_len);
+    argv_ptrs[0] = stack_ptr;
 
+    // Align stack pointer to 16-byte boundary
+    stack_ptr = (char *)(((uintptr_t)stack_ptr) & ~15);
+
+    // Push envp array (pointers to strings)
     stack_ptr -= (envc + 1) * sizeof(char *);
-    char **envp_array = (char **)stack_ptr;
+    char **user_envp = (char **)stack_ptr;
     for (int i = 0; i < envc; i++)
     {
-        envp_array[i] = envp_ptrs[i];
+        user_envp[i] = envp_ptrs[i];
     }
-    envp_array[envc] = NULL;
+    user_envp[envc] = NULL;
 
+    // Push argv array (pointers to strings)
     stack_ptr -= (argc + 1) * sizeof(char *);
-    char **argv_array = (char **)stack_ptr;
+    char **user_argv = (char **)stack_ptr;
     for (int i = 0; i < argc; i++)
     {
-        argv_array[i] = argv_ptrs[i];
+        user_argv[i] = argv_ptrs[i];
     }
-    argv_array[argc] = NULL;
-    stack_ptr -= sizeof(int);
-    *((int *)stack_ptr) = argc;
+    user_argv[argc] = NULL;
+
+    // Push argc
+    stack_ptr -= sizeof(uint64_t);
+    *(uint64_t *)stack_ptr = (uint64_t)argc;
+
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
+
+    // Create a new user context, jumping to the ELF entry point with the new stack
+    task->context = ucontext(&task->pi->as, (Area){.start = (void *)(UVMEND - stack_pages * task->pi->as.pgsize), .end = (void *)UVMEND}, entry_point);
     task->context->rsp = (uintptr_t)stack_ptr;
     for (size_t i = 0; i < NOFILE; i++)
     {
@@ -549,7 +562,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
             task->open_files[i] = NULL;
         }
     }
-    
+
     task->open_files[0] = vfs->alloc();
     task->open_files[0]->readable = true;
     task->open_files[0]->writable = false;

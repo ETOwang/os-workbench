@@ -50,7 +50,6 @@ void ls(char *path)
     strcpy(buf, path);
     p = buf + strlen(buf);
     *p++ = '/';
-    printf("%s:\n", fmtname(buf));
     while (read(fd, &de, sizeof(de)) == sizeof(de))
     {
       if (de.d_ino == 0)

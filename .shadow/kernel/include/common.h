@@ -20,9 +20,12 @@
 #define MAX_TASK 128
 #define UVMEND 0x108000000000
 #define UVSTART 0x100000000000
+#define NFILE 100
+#define NOFILE 16
 #include <kernel.h>
 #include <klib.h>
 #include <klib-macros.h>
 #include <os.h>
 #include <devices.h>
+#include <syscall.h>
 #endif

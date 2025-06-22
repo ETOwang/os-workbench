@@ -126,30 +126,6 @@ struct stat
     time_t st_ctime;
 };
 
-/* kstat结构体（内核使用） */
-struct kstat
-{
-    uint64_t st_dev;
-    uint64_t st_ino;
-    uint32_t st_mode;
-    uint32_t st_nlink;
-    uint32_t st_uid;
-    uint32_t st_gid;
-    uint64_t st_rdev;
-    uint64_t __pad;
-    int64_t st_size;
-    uint32_t st_blksize;
-    int __pad2;
-    uint64_t st_blocks;
-    long st_atime_sec;
-    long st_atime_nsec;
-    long st_mtime_sec;
-    long st_mtime_nsec;
-    long st_ctime_sec;
-    long st_ctime_nsec;
-    uint32_t __unused[2];
-};
-
 /* 进程时间信息结构体 */
 struct tms
 {

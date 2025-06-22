@@ -2,13 +2,32 @@
 #include <syscall.h>
 #include <vfs.h>
 #include <elf.h>
+#include <file.h> // For file structures
 
-// ELF加载器函数声明
+// ELF loader function declarations
 static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point);
 static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size, Elf64_Phdr *phdr);
 static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr *phdr,
                              void *page, uintptr_t page_vaddr, uintptr_t vaddr_start,
                              uintptr_t vaddr_end, size_t pgsize);
+
+// Allocate a file descriptor for the given file. Takes over file reference.
+static int fdalloc(task_t* task,struct file *f)
+{
+
+    if (!task || !task->pi)
+        return -1;
+
+    for (int fd = 0; fd < NOFILE; fd++)
+    {
+        if (task->open_files[fd] == NULL)
+        {
+            task->open_files[fd] = f;
+            return fd;
+        }
+    }
+    return -1;
+}
 
 static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
 {
@@ -35,16 +54,17 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
     }
     else
     {
-        const char *ph = vfs->getdirpath(dirfd);
-        if (!ph)
+        struct file *f = task->open_files[dirfd];
+        if (f == NULL || f->type != FD_DIR)
         {
             return -1;
         }
-        if (strlen(ph) + strlen(path) + 2 > PATH_MAX)
+        // Assuming f->path is stored and valid
+        if (strlen(f->path) + strlen(path) + 2 > PATH_MAX)
         {
             return -1;
         }
-        strcpy(buf, ph);
+        strcpy(buf, f->path);
         if (buf[strlen(buf) - 1] != '/')
         {
             strcat(buf, "/");
@@ -53,7 +73,8 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
     }
     return 0;
 }
-// 文件系统相关系统调用
+
+// Filesystem-related syscalls
 static uint64_t syscall_chdir(task_t *task, const char *path)
 {
     if (path == NULL || strlen(path) >= PATH_MAX)
@@ -65,12 +86,12 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     {
         return -1;
     }
-    int ret = vfs->opendir(full_path);
-    if (ret < 0)
+    struct file *f = vfs->open(full_path, O_DIRECTORY);
+    if (f == NULL)
     {
         return -1;
     }
-    vfs->closedir(ret);
+    vfs->close(f);
     strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
     return 0;
 }
@@ -105,63 +126,88 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
     {
         return -1;
     }
-    // TODO:use mode
-    int vfd = vfs->open(full_path, flags);
-    if (vfd < 0)
-    {
-        vfd = vfs->opendir(full_path);
-        if (vfd < 0)
-        {
-            return -1; // 打开文件或目录失败
-        }
-        return vfd; // 返回目录文件描述符
-    }
-    return vfd;
-}
 
-static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
-{
-    // 简化实现 - 创建两个文件描述符
-    if (pipefd == NULL)
+    struct file *f = vfs->open(full_path, flags);
+    if (f == NULL)
     {
         return -1;
     }
 
-    // 这里应该创建真正的管道，暂时返回错误
+    int new_fd = fdalloc(task,f);
+    if (new_fd < 0)
+    {
+        vfs->close(f);
+        return -1;
+    }
+    return new_fd;
+}
+
+static uint64_t syscall_close(task_t *task, int fd)
+{
+    if (fd < 0 || fd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+
+    task->open_files[fd] = NULL;
+    vfs->close(f);
+    return 0;
+}
+
+static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
+{
+    // Simplified implementation - should create real pipes
     return -1;
 }
 
 static uint64_t syscall_dup(task_t *task, int oldfd)
 {
-    return vfs->dup(oldfd);
+    if (oldfd < 0 || oldfd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[oldfd];
+    if (f == NULL)
+        return -1;
+
+    int newfd = fdalloc(task,file->dup(f));
+    if (newfd < 0)
+    {
+        // filedup already incremented the ref count, so we must close it
+        file->close(f);
+        return -1;
+    }
+    return newfd;
 }
 
 static uint64_t syscall_dup3(task_t *task, int oldfd, int newfd, int flags)
 {
-    return vfs->dup3(oldfd, newfd, flags);
+    if (oldfd < 0 || oldfd >= NOFILE || newfd < 0 || newfd >= NOFILE)
+        return -1;
+    if (oldfd == newfd)
+        return newfd;
+
+    struct file *f = task->open_files[oldfd];
+    if (f == NULL)
+        return -1;
+
+    if (task->open_files[newfd] != NULL)
+    {
+        syscall_close(task, newfd);
+    }
+
+    task->open_files[newfd] = file->dup(f);
+    return newfd;
 }
 
 static uint64_t syscall_getdents64(task_t *task, int fd, struct dirent *buf, size_t len)
 {
-    if (buf == NULL || len < sizeof(struct dirent))
-    {
+    if (fd < 0 || fd >= NOFILE)
         return -1;
-    }
+    struct file *f = task->open_files[fd];
+    if (f == NULL || f->type != FD_DIR)
+        return -1;
 
-    // 读取一个目录项
-    int result = vfs->readdir(fd, buf);
-    if (result < 0)
-    {
-        return -1; // 出错
-    }
-    else if (result == 0)
-    {
-        return 0; // 目录结束
-    }
-    else
-    {
-        return sizeof(struct dirent); // 成功读取，返回读取的字节数
-    }
+    return vfs->read(f, buf, len);
 }
 
 static uint64_t syscall_linkat(task_t *task, int olddirfd, const char *oldpath,
@@ -236,13 +282,17 @@ static uint64_t syscall_mount(task_t *task, const char *source, const char *targ
     return vfs->mount(source, target, filesystemtype, mountflags, (void *)data);
 }
 
-static uint64_t syscall_fstat(task_t *task, int fd, struct kstat *statbuf)
+static uint64_t syscall_fstat(task_t *task, int fd, struct stat *statbuf)
 {
-    if (statbuf == NULL)
+    if (fd < 0 || fd >= NOFILE || statbuf == NULL)
     {
         return -1;
     }
-    return vfs->stat(fd, statbuf);
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+
+    return vfs->stat(f, statbuf);
 }
 
 // 内存管理相关系统调用
@@ -364,33 +414,33 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         return -1;
     }
-    int fd = vfs->open(pathname, 0);
-    if (fd < 0)
+    struct file *f = vfs->open(pathname, 0);
+    if (f == NULL)
     {
         return -1;
     }
-    struct kstat stat;
-    if (syscall_fstat(task, fd, &stat) < 0)
+    struct stat stat;
+    if (vfs->stat(f, &stat) < 0)
     {
-        vfs->close(fd);
+        vfs->close(f);
         return -1;
     }
     size_t file_size = stat.st_size;
     if (file_size == 0 || file_size < sizeof(Elf64_Ehdr))
     {
-        vfs->close(fd);
+        vfs->close(f);
         return -1;
     }
 
     char *elf_data = pmm->alloc(file_size);
     if (elf_data == NULL)
     {
-        vfs->close(fd);
+        vfs->close(f);
         return -1;
     }
 
-    ssize_t bytes_read = vfs->read(fd, elf_data, file_size);
-    vfs->close(fd);
+    ssize_t bytes_read = vfs->read(f, elf_data, file_size);
+    vfs->close(f);
     if (bytes_read != file_size)
     {
         pmm->free(elf_data);
@@ -661,12 +711,26 @@ static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr 
 }
 static uint64_t syscall_read(task_t *task, int fd, char *buf, size_t count)
 {
-    return vfs->read(fd, buf, count);
+    if (fd < 0 || fd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+    return vfs->read(f, buf, count);
 }
 static uint64_t syscall_write(task_t *task, int fd, const char *buf, size_t count)
 {
-    return vfs->write(fd, buf, count);
+    if (fd < 0 || fd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+    return vfs->write(f, buf, count);
 }
+
+// Forward declaration for syscall_close
+static uint64_t syscall_close(task_t *task, int fd);
+
 MODULE_DEF(syscall) = {
     .chdir = syscall_chdir,
     .getcwd = syscall_getcwd,
@@ -692,4 +756,6 @@ MODULE_DEF(syscall) = {
     .clone = syscall_clone,
     .execve = syscall_execve,
     .read = syscall_read,
-    .write = syscall_write};
+    .write = syscall_write,
+    .close = syscall_close, // Add close to the syscall table
+};

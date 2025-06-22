@@ -1,38 +1,17 @@
 #include <common.h>
 #include <vfs.h>
 #include <ext4.h>
-#define STDIN_FILENO 0
-#define STDOUT_FILENO 1
-#define STDERR_FILENO 2
-// 简单的块设备接口实现 - 直接使用AM磁盘接口
+#include <file.h>
+
+// Simple block device interface implementation - uses AM disk interface directly
 static struct ext4_blockdev_iface bi;
 static struct ext4_blockdev bd;
 static uint8_t block_buffer[4096];
-#define MAX_OPEN_FILES 256
-static struct
-{
-	bool in_use;
-	ext4_file *file;
-} open_files[MAX_OPEN_FILES];
 
-#define MAX_OPEN_DIRS 64
-static struct
-{
-	bool in_use;
-	ext4_dir *dir;
-} open_dirs[MAX_OPEN_DIRS];
+static int blockdev_open(struct ext4_blockdev *bdev) { return EOK; }
+static int blockdev_close(struct ext4_blockdev *bdev) { return EOK; }
 
-static int blockdev_open(struct ext4_blockdev *bdev)
-{
-	return EOK;
-}
-
-static int blockdev_close(struct ext4_blockdev *bdev)
-{
-	return EOK;
-}
-static int blockdev_bread(struct ext4_blockdev *bdev, void *buf,
-						  uint64_t blk_id, uint32_t blk_cnt)
+static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id, uint32_t blk_cnt)
 {
 	panic_on(!buf, "no buf");
 	size_t offset = blk_id * bdev->bdif->ph_bsize;
@@ -41,8 +20,8 @@ static int blockdev_bread(struct ext4_blockdev *bdev, void *buf,
 	dev->ops->read(dev, offset, buf, count);
 	return EOK;
 }
-static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
-						   uint64_t blk_id, uint32_t blk_cnt)
+
+static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf, uint64_t blk_id, uint32_t blk_cnt)
 {
 	panic_on(!buf, "no buf");
 	size_t offset = blk_id * bdev->bdif->ph_bsize;
@@ -51,6 +30,7 @@ static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
 	dev->ops->write(dev, offset, buf, count);
 	return EOK;
 }
+
 static int blockdev_lock(struct ext4_blockdev *bdev) { return EOK; }
 static int blockdev_unlock(struct ext4_blockdev *bdev) { return EOK; }
 
@@ -71,13 +51,9 @@ void vfs_init(void)
 	bd.bdif = &bi;
 	bd.part_size = bd.bdif->ph_bcnt * (uint64_t)bd.bdif->ph_bsize;
 	vfs->mount("disk", "/", "ext4", 0, NULL);
-	open_files[STDIN_FILENO].in_use = true;
-	open_files[STDOUT_FILENO].in_use = true;
-	open_files[STDERR_FILENO].in_use = true;
 }
 
-int vfs_mount(const char *dev_name, const char *mount_point,
-			  const char *fs_type, int flags, void *data)
+int vfs_mount(const char *dev_name, const char *mount_point, const char *fs_type, int flags, void *data)
 {
 	int ret = ext4_device_register(&bd, dev_name);
 	panic_on(ret != EOK, "Failed to register ext4 device");
@@ -86,32 +62,43 @@ int vfs_mount(const char *dev_name, const char *mount_point,
 	return VFS_SUCCESS;
 }
 
-int vfs_open(const char *pathname, int flags)
+struct file *vfs_open(const char *pathname, int flags)
 {
-	// 如果是打开目录，使用专门的目录接口
+	struct file *f;
+	ext4_file *ef;
+	ext4_dir *d;
+
+	if ((f = file->alloc()) == NULL)
+	{
+		return NULL;
+	}
+
 	if (flags & O_DIRECTORY)
 	{
-		return vfs->opendir(pathname);
-	}
-	int fd = -1;
-	for (int i = 0; i < MAX_OPEN_FILES; i++)
-	{
-		if (!open_files[i].in_use && !open_dirs[i].in_use)
+		d = pmm->alloc(sizeof(ext4_dir));
+		if (!d)
 		{
-			fd = i;
-			break;
+			file->close(f);
+			return NULL;
 		}
+		if (ext4_dir_open(d, pathname) != EOK)
+		{
+			pmm->free(d);
+			file->close(f);
+			return NULL;
+		}
+		f->type = FD_DIR;
+		f->ptr = d;
+		f->readable = 1;
+		f->writable = 0;
+		f->off = 0;
+		return f;
 	}
-	panic_on(fd == -1, "No free file descriptor available");
+
 	const char *mode = "r";
-	if (flags & O_RDONLY)
-		mode = "r";
-	else if (flags & O_WRONLY)
+	if (flags & O_WRONLY)
 	{
-		if (flags & O_APPEND)
-			mode = "a";
-		else
-			mode = "w";
+		mode = (flags & O_APPEND) ? "a" : "w";
 	}
 	else if (flags & O_RDWR)
 	{
@@ -122,125 +109,72 @@ int vfs_open(const char *pathname, int flags)
 		else
 			mode = "r+";
 	}
-	open_files[fd].file = pmm->alloc(sizeof(ext4_file));
-	int ret = ext4_fopen(open_files[fd].file, pathname, mode);
-	if (ret != EOK)
+
+	ef = pmm->alloc(sizeof(ext4_file));
+	if (!ef)
 	{
-		pmm->free(open_files[fd].file);
-		return VFS_ERROR;
+		file->close(f);
+		return NULL;
 	}
-	open_files[fd].file->refctr = 1;
-	open_files[fd].in_use = true;
-	return fd;
+
+	if (ext4_fopen(ef, pathname, mode) != EOK)
+	{
+		pmm->free(ef);
+		file->close(f);
+		return NULL;
+	}
+
+	f->type = FD_FILE;
+	f->ptr = ef;
+	f->readable = !(flags & O_WRONLY);
+	f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
+	f->off = 0;
+	return f;
 }
 
-int vfs_close(int fd)
+void vfs_close(struct file *f)
 {
-	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use)
-	{
-		return VFS_ERROR;
-	}
-
-	int ret = ext4_fclose(open_files[fd].file);
-	open_files[fd].in_use = false;
-	open_files[fd].file->refctr--;
-	if (open_files[fd].file->refctr == 0)
-	{
-		pmm->free(open_files[fd].file);
-	}
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
+	file->close(f);
 }
 
-ssize_t vfs_read(int fd, void *buf, size_t count)
+ssize_t vfs_read(struct file *f, void *buf, size_t count)
 {
-	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use || !buf)
-	{
-		return VFS_ERROR;
-	}
-	if (open_files[fd].file == NULL)
-	{
-		device_t *tty = dev->lookup("tty1");
-		tty_t *tty1 = tty->ptr;
-		int val = 0;
-		// pay attention to the compiler optimization!!!
-		while (!atomic_xchg(&val, tty1->cooked.value))
-			;
-		return tty->ops->read(tty, 0, buf, count);
-	}
-	size_t bytes_read;
-	int ret = ext4_fread(open_files[fd].file, buf, count, &bytes_read);
-	if (ret != EOK)
-	{
-		return VFS_ERROR;
-	}
-	return (ssize_t)bytes_read;
+	return file->read(f, buf, count);
 }
 
-ssize_t vfs_write(int fd, const void *buf, size_t count)
+ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 {
-	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use || !buf)
-	{
-		return VFS_ERROR;
-	}
-	if (open_files[fd].file == NULL)
-	{
-		device_t *tty = dev->lookup("tty1");
-		return tty->ops->write(tty, 0, buf, count);
-	}
-	size_t bytes_written;
-	int ret = ext4_fwrite(open_files[fd].file, buf, count, &bytes_written);
-	if (ret != EOK)
-	{
-		printf("VFS: Write failed: %d\n", ret);
-		return VFS_ERROR;
-	}
-
-	return (ssize_t)bytes_written;
+	return file->write(f, buf, count);
 }
 
-off_t vfs_seek(int fd, off_t offset, int whence)
+off_t vfs_seek(struct file *f, off_t offset, int whence)
 {
-	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use)
+	if (f->type != FD_FILE)
 	{
 		return VFS_ERROR;
 	}
-
-	int ret = ext4_fseek(open_files[fd].file, offset, whence);
-	if (ret != EOK)
+	ext4_file *ef = (ext4_file *)f->ptr;
+	if (ext4_fseek(ef, offset, whence) != EOK)
 	{
 		return VFS_ERROR;
 	}
+	return ext4_ftell(ef);
+}
 
-	return ext4_ftell(open_files[fd].file);
+int vfs_stat(struct file *f, struct stat *stat)
+{
+	return file->stat(f, stat);
 }
 
 int vfs_umount(const char *mount_point)
 {
-	// 关闭所有打开的文件
-	for (int i = 0; i < MAX_OPEN_FILES; i++)
-	{
-		if (open_files[i].in_use)
-		{
-			vfs->close(i);
-		}
-	}
-
-	// 关闭所有打开的目录
-	for (int i = 0; i < MAX_OPEN_DIRS; i++)
-	{
-		if (open_dirs[i].in_use)
-		{
-			vfs->closedir(i);
-		}
-	}
-
+	// WARNING: This is not safe. It does not check for open files.
 	int ret = ext4_umount(mount_point);
 	if (ret != EOK)
 	{
 		printf("VFS: Failed to umount: %d\n", ret);
 		return VFS_ERROR;
 	}
-
 	ext4_device_unregister("disk");
 	printf("VFS: Successfully umounted filesystem\n");
 	return VFS_SUCCESS;
@@ -270,166 +204,12 @@ int vfs_rename(const char *oldpath, const char *newpath)
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
-int vfs_opendir(const char *pathname)
-{
-	int dirfd = -1;
-	// 为目录分配专门的文件描述符，从高位开始分配以避免与普通文件冲突
-	for (int i = MAX_OPEN_DIRS - 1; i >= 0; i--)
-	{
-		if (!open_dirs[i].in_use)
-		{
-			dirfd = i;
-			break;
-		}
-	}
-
-	if (dirfd == -1)
-		return VFS_ERROR;
-
-	open_dirs[dirfd].dir = pmm->alloc(sizeof(ext4_dir));
-	int ret = ext4_dir_open(open_dirs[dirfd].dir, pathname);
-	if (ret != EOK)
-	{
-		pmm->free(open_dirs[dirfd].dir);
-		return VFS_ERROR;
-	}
-	open_dirs[dirfd].dir->f.refctr = 1;
-	open_dirs[dirfd].in_use = true;
-	return dirfd;
-}
-
-int vfs_readdir(int fd, struct dirent *entry)
-{
-	if (fd < 0 || fd >= MAX_OPEN_DIRS || !open_dirs[fd].in_use || !entry)
-	{
-		return VFS_ERROR;
-	}
-
-	ext4_dir *dir = open_dirs[fd].dir;
-
-	// 获取下一个目录项
-	const ext4_direntry *ext4_entry = ext4_dir_entry_next(dir);
-	if (!ext4_entry)
-	{
-		return 0; // 已到目录末尾
-	}
-
-	// 转换为系统调用接口的dirent结构
-	entry->d_ino = ext4_entry->inode;
-	entry->d_off = dir->next_off;
-	entry->d_reclen = sizeof(struct dirent);
-	entry->d_type = ext4_entry->inode_type;
-
-	// 复制文件名，确保不超过缓冲区大小
-	size_t name_len = ext4_entry->name_length;
-	if (name_len >= sizeof(entry->d_name))
-	{
-		name_len = sizeof(entry->d_name) - 1;
-	}
-	strncpy(entry->d_name, (const char *)ext4_entry->name, name_len);
-	entry->d_name[name_len] = '\0';
-
-	return 1; // 成功读取一个目录项
-}
-
-int vfs_closedir(int fd)
-{
-	if (fd < 0 || fd >= MAX_OPEN_DIRS || !open_dirs[fd].in_use)
-	{
-		return VFS_ERROR;
-	}
-
-	int ret = ext4_dir_close(open_dirs[fd].dir);
-	open_dirs[fd].in_use = false;
-	open_dirs[fd].dir->f.refctr--;
-	if (open_dirs[fd].dir->f.refctr == 0)
-	{
-		pmm->free(open_dirs[fd].dir);
-	}
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
-int vfs_stat(int fd, struct kstat *stat)
-{
-
-	if (fd < 0 || fd >= MAX_OPEN_FILES || (!open_files[fd].in_use && !open_dirs[fd].in_use))
-	{
-		return VFS_ERROR;
-	}
-	if (open_files[fd].in_use)
-	{
-		ext4_file *file = open_files[fd].file;
-		stat->st_size = file->fsize;
-		stat->st_mode = S_IFBLK;
-		stat->st_ino = file->inode;
-	}
-	else
-	{
-		ext4_dir *dir = open_dirs[fd].dir;
-		stat->st_size = dir->f.fsize;
-		stat->st_mode = S_IFDIR;
-		stat->st_ino = dir->de.inode;
-	}
-	return VFS_SUCCESS;
-}
-
-static const char *vfs_getdirpath(int fd)
-{
-	if (fd < 0 || fd >= MAX_OPEN_DIRS || !open_dirs[fd].in_use)
-	{
-		return NULL;
-	}
-
-	return (const char *)open_dirs[fd].dir->de.name;
-}
 static int vfs_link(const char *oldpath, const char *newpath)
 {
 	int ret = ext4_flink(oldpath, newpath);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
-static int vfs_dup(int oldfd)
-{
-	if (oldfd < 0 || oldfd >= MAX_OPEN_FILES || !open_files[oldfd].in_use)
-	{
-		return VFS_ERROR;
-	}
-	int newfd = -1;
-	for (int i = 0; i < MAX_OPEN_FILES; i++)
-	{
-		if (!open_files[i].in_use)
-		{
-			newfd = i;
-			open_files[i].in_use = true;
-			open_files[i].file = open_files[oldfd].file;
-			open_files[i].file->refctr++;
-			return newfd;
-		}
-	}
-	return VFS_ERROR;
-}
-static int vfs_dup3(int oldfd, int newfd, int flags)
-{
-	if (oldfd < 0 || oldfd >= MAX_OPEN_FILES || oldfd == newfd)
-	{
-		return VFS_ERROR;
-	}
-	if (open_files[newfd].in_use)
-	{
-		// TODO:change to correct implement
-		if (flags & O_CLOEXEC)
-		{
-			return VFS_ERROR;
-		}
-		else
-		{
-			vfs_close(newfd);
-		}
-	}
-	open_files[newfd].in_use = true;
-	open_files[newfd].file = open_files[oldfd].file;
-	open_files[newfd].file->refctr++;
-	return newfd;
-}
+
 MODULE_DEF(vfs) = {
 	.init = vfs_init,
 	.mount = vfs_mount,
@@ -444,11 +224,5 @@ MODULE_DEF(vfs) = {
 	.unlink = vfs_unlink,
 	.link = vfs_link,
 	.rename = vfs_rename,
-	.opendir = vfs_opendir,
-	.readdir = vfs_readdir,
-	.closedir = vfs_closedir,
 	.stat = vfs_stat,
-	.getdirpath = vfs_getdirpath,
-	.dup = vfs_dup,
-	.dup3 = vfs_dup3,
 };

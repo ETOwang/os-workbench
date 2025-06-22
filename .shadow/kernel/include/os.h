@@ -27,6 +27,9 @@ struct task
     task_t *next;           // 下一个任务
     void *fence;            // 用于检测栈溢出的栅栏
     char stack[STACK_SIZE]; // 任务栈区域
+
+    // 新增的进程级文件描述符表
+    struct file *open_files[NOFILE];
 };
 struct semaphore
 {
@@ -42,7 +45,7 @@ struct procinfo
     task_t *parent;
     AddrSpace as;
     char *cwd;
-    void* brk;
+    void *brk;
 };
 struct handler_record
 {

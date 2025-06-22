@@ -3,8 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include "../kernel/framework/syscall.h"
-#define DIRSIZ 255
+#include "../kernel/include/syscall.h"
 // Basic type definitions
 typedef unsigned int uint;
 typedef unsigned short ushort;
@@ -35,6 +34,20 @@ static inline long syscall(int num, long arg1, long arg2, long arg3, long arg4)
 static inline int gettimeofday(struct timespec *ts)
 {
   return syscall(SYS_gettimeofday, (uint64_t)ts, 0, 0, 0);
+}
+static inline int openat(int dirfd, const char *pathname, int flags, mode_t mode)
+{
+  return syscall(SYS_openat, dirfd, (uint64_t)pathname, flags, mode);
+}
+
+static inline int open(const char *pathname, int flags, mode_t mode)
+{
+  return openat(AT_FDCWD, pathname, flags, mode);
+}
+
+static inline int chdir(const char *path)
+{
+  return syscall(SYS_chdir, (uint64_t)path, 0, 0, 0);
 }
 static inline int close(int fd)
 {
@@ -89,7 +102,7 @@ static inline int getppid()
 {
   return syscall(SYS_getppid, 0, 0, 0, 0);
 }
-static inline void* sbrk(intptr_t increment)
+static inline void *sbrk(intptr_t increment)
 {
   return syscall(SYS_sbrk, increment, 0, 0, 0);
 }
@@ -130,10 +143,6 @@ static inline int dup3(int oldfd, int newfd, int flags)
 {
   return syscall(SYS_dup3, oldfd, newfd, flags, 0);
 }
-static inline int chdir(const char *path)
-{
-  return syscall(SYS_chdir, (uint64_t)path, 0, 0, 0);
-}
 static inline int nanosleep(const struct timespec *req, struct timespec *rem)
 {
   return syscall(SYS_nanosleep, (uint64_t)req, (uint64_t)rem, 0, 0);
@@ -144,10 +153,6 @@ static inline int kputc(char ch)
   return syscall(SYS_kputc, ch, 0, 0, 0);
 }
 
-static inline int openat(int dirfd, const char *pathname, int flags, mode_t mode)
-{
-  return syscall(SYS_openat, dirfd, (uint64_t)pathname, flags, mode);
-}
 static inline int fork()
 {
   return syscall(SYS_fork, 0, 0, 0, 0);

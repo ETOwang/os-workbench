@@ -544,6 +544,28 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
     task->context->rsp = (uintptr_t)stack_ptr;
+    for (size_t i = 0; i < NOFILE; i++)
+    {
+        if(task->open_files[i]){
+          file->close(task->open_files[i]);
+          task->open_files[i]=NULL;
+        }
+    }
+    task->open_files[0]=file->alloc();
+    task->open_files[0]->readable=true;
+    task->open_files[0]->writable=false;
+    task->open_files[0]->ptr=dev->lookup("tty1");
+    task->open_files[0]->type=FD_DEVICE;
+    task->open_files[0]->ref=1;
+    for (size_t i = 1; i < 3; i++)
+    {
+        task->open_files[i]=file->alloc();
+        task->open_files[i]->writable=true;
+        task->open_files[i]->readable = false;
+        task->open_files[i]->ptr = dev->lookup("tty1");
+        task->open_files[i]->type = FD_DEVICE;
+        task->open_files[i]->ref=1;
+    }
     return 0;
 }
 

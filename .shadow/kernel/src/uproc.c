@@ -117,6 +117,14 @@ static int uproc_fork(task_t *task)
     son->context->GPRx = 0;
     son->context->cr3 = son->pi->as.ptr;
     son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
+    for (size_t i = 0; i < NOFILE; i++)
+    {
+        if(!task->open_files[i]){
+           continue;
+        }
+        file->dup(task->open_files[i]);
+        son->open_files[i] = task->open_files[i];
+    }
     kmt_add_task(son);
     return pid;
 }

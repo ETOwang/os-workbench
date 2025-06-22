@@ -121,10 +121,8 @@ static int filestat(struct file *f, struct stat *st)
 static ssize_t fileread(struct file *f, void *buf, size_t n)
 {
     ssize_t r = -1;
-
     if (!f->readable)
         return -1;
-
     if (f->type == FD_FILE)
     {
         size_t bytes_read;
@@ -155,6 +153,14 @@ static ssize_t fileread(struct file *f, void *buf, size_t n)
 
         r = sizeof(struct dirent);
     }
+    else if (f->type == FD_DEVICE)
+    {
+        device_t *device = (device_t *)f->ptr;
+        int value = 0;
+        while (atomic_xchg(&value, ((tty_t *)(device->ptr))->cooked.value) == 0)
+            ;
+        r = device->ops->read(device, 0, buf, n);
+    }
     else
     {
         panic("fileread");
@@ -184,6 +190,11 @@ static ssize_t filewrite(struct file *f, const void *buf, size_t n)
         {
             r = bytes_written;
         }
+    }
+    else if (f->type == FD_DEVICE)
+    {
+        device_t *device = f->ptr;
+        r = device->ops->write(device, 0, buf, n);
     }
     else
     {

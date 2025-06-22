@@ -4,7 +4,7 @@
  /media/wcy/Data/os-workbench/kernel/../abstract-machine/am/include/am.h \
  /media/wcy/Data/os-workbench/kernel/../abstract-machine/am/include/arch/x86_64-qemu.h \
  /media/wcy/Data/os-workbench/kernel/../abstract-machine/am/include/amdev.h \
- framework/syscall.h \
+ include/syscall.h \
  /media/wcy/Data/os-workbench/kernel/../abstract-machine/klib/include/klib.h \
  /media/wcy/Data/os-workbench/kernel/../abstract-machine/klib/include/klib-macros.h \
  include/os.h include/devices.h

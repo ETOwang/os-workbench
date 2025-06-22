@@ -49,11 +49,11 @@ static uint64_t handle_chdir(Context *ctx)
 }
 static uint64_t handle_close(Context *ctx)
 {
-    return vfs->close(ctx->GPR1);
+    return syscall->close(get_current_task(), ctx->GPR1);
 }
 static uint64_t handle_read(Context *ctx)
 {
-    return syscall->read(get_current_task(),ctx->GPR1, (void *)ctx->GPR2, ctx->GPR3);
+    return syscall->read(get_current_task(), ctx->GPR1, (void *)ctx->GPR2, ctx->GPR3);
 }
 static uint64_t handle_write(Context *ctx)
 {
@@ -112,12 +112,12 @@ static uint64_t handle_mount(Context *ctx)
 
 static uint64_t handle_fstat(Context *ctx)
 {
-    return syscall->fstat(get_current_task(), ctx->GPR1, (struct kstat *)ctx->GPR2);
+    return syscall->fstat(get_current_task(), ctx->GPR1, (struct stat *)ctx->GPR2);
 }
 
-static uint64_t handle_brk(Context *ctx)
+static uint64_t handle_sbrk(Context *ctx)
 {
-    return syscall->brk(get_current_task(), (void *)ctx->GPR1);
+    return syscall->sbrk(get_current_task(), (intptr_t)ctx->GPR1);
 }
 
 static uint64_t handle_munmap(Context *ctx)
@@ -185,7 +185,7 @@ static SyscallHandler syscall_table[] = {
     [SYS_umount2] = handle_umount2,
     [SYS_mount] = handle_mount,
     [SYS_fstat] = handle_fstat,
-    [SYS_brk] = handle_brk,
+    [SYS_sbrk] = handle_sbrk,
     [SYS_munmap] = handle_munmap,
     [SYS_mmap] = handle_mmap,
     [SYS_times] = handle_times,

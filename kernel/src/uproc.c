@@ -22,19 +22,16 @@ static void user_init()
     task->pi->parent = NULL;
     task->pi->pid = uproc_alloc_pid();
     task->pi->cwd = pmm->alloc(PATH_MAX);
+    task->pi->brk = NULL;
     strcpy(task->pi->cwd, "/");
     panic_on(task->pi == NULL, "Failed to allocate procinfo for init process");
     protect(&task->pi->as);
     char *mem = pmm->alloc(task->pi->as.pgsize);
     map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
-    panic_on(_init_len > 3 * task->pi->as.pgsize, "init code too large");
-    char *entry = pmm->alloc(3 * task->pi->as.pgsize);
+    panic_on(_init_len > task->pi->as.pgsize, "init code too large");
+    char *entry = pmm->alloc(task->pi->as.pgsize);
     memcpy(entry, _init, _init_len);
-    // TODO:better function
-    for (size_t i = 0; i < 3; i++)
-    {
-        map(&task->pi->as, (void *)(UVSTART + i * task->pi->as.pgsize), (void *)(entry + i * task->pi->as.pgsize), MMAP_READ | MMAP_WRITE);
-    }
+    map(&task->pi->as, (void *)UVSTART, (void *)entry, MMAP_READ | MMAP_WRITE);
     task->fence = (void *)FENCE_PATTERN;
     Area stack_area = RANGE(task->stack, task->stack + STACK_SIZE);
     task->context = ucontext(&task->pi->as, stack_area, (void *)UVSTART);
@@ -110,6 +107,7 @@ static int uproc_fork(task_t *task)
     son->pi = pmm->alloc(sizeof(procinfo_t));
     son->pi->cwd = pmm->alloc(PATH_MAX);
     son->pi->parent = task;
+    son->pi->brk = task->pi->brk;
     strcpy(son->pi->cwd, task->pi->cwd);
     protect(&son->pi->as);
     uvmcopy(&task->pi->as, &son->pi->as, UVMEND - UVSTART);
@@ -119,8 +117,16 @@ static int uproc_fork(task_t *task)
     son->context->GPRx = 0;
     son->context->cr3 = son->pi->as.ptr;
     son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
+    for (size_t i = 0; i < NOFILE; i++)
+    {
+        if (!task->open_files[i])
+        {
+            continue;
+        }
+        vfs->dup(task->open_files[i]);
+        son->open_files[i] = task->open_files[i];
+    }
     kmt_add_task(son);
-    printf("fork finished\n");
     return pid;
 }
 
@@ -132,7 +138,6 @@ static int uproc_wait(task_t *task, int pid, int *status, int options)
     while (1)
     {
         task_t *son = kmt_get_son();
-        printf("son: %p\n", son);
         if (son != NULL)
         {
             kmt->spin_lock(&son->lock);

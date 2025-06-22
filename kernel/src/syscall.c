@@ -3,12 +3,29 @@
 #include <vfs.h>
 #include <elf.h>
 
-// ELF加载器函数声明
 static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point);
 static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size, Elf64_Phdr *phdr);
 static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr *phdr,
                              void *page, uintptr_t page_vaddr, uintptr_t vaddr_start,
                              uintptr_t vaddr_end, size_t pgsize);
+
+// Allocate a file descriptor for the given file. Takes over file reference.
+static int fdalloc(task_t *task, struct file *f)
+{
+
+    if (!task || !task->pi)
+        return -1;
+
+    for (int fd = 0; fd < NOFILE; fd++)
+    {
+        if (task->open_files[fd] == NULL)
+        {
+            task->open_files[fd] = f;
+            return fd;
+        }
+    }
+    return -1;
+}
 
 static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
 {
@@ -35,16 +52,17 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
     }
     else
     {
-        const char *ph = vfs->getdirpath(dirfd);
-        if (!ph)
+        struct file *f = task->open_files[dirfd];
+        if (f == NULL || f->type != FD_DIR)
         {
             return -1;
         }
-        if (strlen(ph) + strlen(path) + 2 > PATH_MAX)
+        // Assuming f->path is stored and valid
+        if (strlen(f->path) + strlen(path) + 2 > PATH_MAX)
         {
             return -1;
         }
-        strcpy(buf, ph);
+        strcpy(buf, f->path);
         if (buf[strlen(buf) - 1] != '/')
         {
             strcat(buf, "/");
@@ -53,7 +71,8 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
     }
     return 0;
 }
-// 文件系统相关系统调用
+
+// Filesystem-related syscalls
 static uint64_t syscall_chdir(task_t *task, const char *path)
 {
     if (path == NULL || strlen(path) >= PATH_MAX)
@@ -65,14 +84,14 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     {
         return -1;
     }
-    printf("chdir: %s\n", full_path);
-    int ret = vfs->opendir(full_path);
-    if (ret < 0)
+    struct file *f = vfs->open(full_path, O_DIRECTORY);
+    if (f == NULL)
     {
         return -1;
     }
-    vfs->closedir(ret);
+    vfs->close(f);
     strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
+    task->pi->cwd[strlen(full_path)] = 0;
     return 0;
 }
 
@@ -82,7 +101,6 @@ static uint64_t syscall_getcwd(task_t *task, char *buf, size_t size)
     {
         return (uint64_t)NULL;
     }
-    printf("buf:%p\n", buf);
     if (!buf)
     {
         buf = (char *)pmm->alloc(PATH_MAX);
@@ -107,45 +125,87 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
     {
         return -1;
     }
-    // TODO:use mode
-    int vfd = vfs->open(full_path, flags);
-    if (vfd < 0)
+    struct file *f = vfs->open(full_path, flags);
+    if (f == NULL)
     {
         return -1;
     }
-    return vfd;
+
+    int new_fd = fdalloc(task, f);
+    if (new_fd < 0)
+    {
+        vfs->close(f);
+        return -1;
+    }
+    return new_fd;
+}
+
+static uint64_t syscall_close(task_t *task, int fd)
+{
+    if (fd < 0 || fd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+
+    task->open_files[fd] = NULL;
+    vfs->close(f);
+    return 0;
 }
 
 static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
 {
-    // 简化实现 - 创建两个文件描述符
-    if (pipefd == NULL)
-    {
-        return -1;
-    }
-
-    // 这里应该创建真正的管道，暂时返回错误
+    // Simplified implementation - should create real pipes
     return -1;
 }
 
 static uint64_t syscall_dup(task_t *task, int oldfd)
 {
-    return vfs->dup(oldfd);
+    if (oldfd < 0 || oldfd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[oldfd];
+    if (f == NULL)
+        return -1;
+
+    int newfd = fdalloc(task, vfs->dup(f));
+    if (newfd < 0)
+    {
+        // vfs->dup already incremented the ref count, so we must close it
+        vfs->close(f);
+        return -1;
+    }
+    return newfd;
 }
 
 static uint64_t syscall_dup3(task_t *task, int oldfd, int newfd, int flags)
 {
-    return vfs->dup3(oldfd, newfd, flags);
+    if (oldfd < 0 || oldfd >= NOFILE || newfd < 0 || newfd >= NOFILE)
+        return -1;
+    if (oldfd == newfd)
+        return newfd;
+
+    struct file *f = task->open_files[oldfd];
+    if (f == NULL)
+        return -1;
+
+    if (task->open_files[newfd] != NULL)
+    {
+        syscall_close(task, newfd);
+    }
+
+    task->open_files[newfd] = vfs->dup(f);
+    return newfd;
 }
 
 static uint64_t syscall_getdents64(task_t *task, int fd, struct dirent *buf, size_t len)
 {
-    if (buf == NULL || len == 0)
-    {
+    if (fd < 0 || fd >= NOFILE)
         return -1;
-    }
-    // TODO:check len
-    return vfs->readdir(fd, buf);
+    struct file *f = task->open_files[fd];
+    if (f == NULL || f->type != FD_DIR)
+        return -1;
+
+    return vfs->read(f, buf, len);
 }
 
 static uint64_t syscall_linkat(task_t *task, int olddirfd, const char *oldpath,
@@ -220,38 +280,37 @@ static uint64_t syscall_mount(task_t *task, const char *source, const char *targ
     return vfs->mount(source, target, filesystemtype, mountflags, (void *)data);
 }
 
-static uint64_t syscall_fstat(task_t *task, int fd, struct kstat *statbuf)
+static uint64_t syscall_fstat(task_t *task, int fd, struct stat *statbuf)
 {
-    if (statbuf == NULL)
+    if (fd < 0 || fd >= NOFILE || statbuf == NULL)
     {
         return -1;
     }
-    return vfs->stat(fd, statbuf);
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+
+    return vfs->stat(f, statbuf);
 }
 
 // 内存管理相关系统调用
-static uint64_t syscall_brk(task_t *task, void *addr)
+static uint64_t syscall_sbrk(task_t *task, intptr_t increment)
 {
-    // 获取当前堆结束地址
-    void *current_brk = task->pi->as.area.end;
-
-    // 如果addr为NULL，返回当前brk值
-    if (addr == NULL)
+    panic_on(increment < 0, "unimplemented sbrk with negative increment");
+    panic_on(increment % task->pi->as.pgsize != 0, "Increment must be a multiple of page size");
+    void *current_brk = task->pi->brk;
+    panic_on((uintptr_t)current_brk % task->pi->as.pgsize != 0, "Current brk must be a multiple of page size");
+    if (increment == 0)
     {
         return (uint64_t)current_brk;
     }
-
-    // 检查新地址是否合理
-    if (addr < task->pi->as.area.start || addr > (void *)UVMEND)
+    for (size_t i = 0; i < increment / task->pi->as.pgsize; i++)
     {
-        return (uint64_t)current_brk; // 失败时返回当前brk
+        void *mem = pmm->alloc(task->pi->as.pgsize);
+        map(&task->pi->as, current_brk + i * task->pi->as.pgsize, mem, MMAP_READ | MMAP_WRITE);
     }
-
-    // 简化实现：直接更新堆结束地址
-    // 实际实现应该分配/释放内存页
-    task->pi->as.area.end = addr;
-
-    return (uint64_t)addr;
+    task->pi->brk = (void *)((uintptr_t)current_brk + increment);
+    return (uint64_t)current_brk;
 }
 
 static uint64_t syscall_munmap(task_t *task, void *addr, size_t length)
@@ -353,46 +412,37 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         return -1;
     }
-
-    // 打开可执行文件
-    int fd = vfs->open(pathname, 0);
-    if (fd < 0)
+    struct file *f = vfs->open(pathname, 0);
+    if (f == NULL)
     {
         return -1;
     }
-    // 获取文件大小
-    struct kstat stat;
-    if (syscall_fstat(task, fd, &stat) < 0)
+    struct stat stat;
+    if (vfs->stat(f, &stat) < 0)
     {
-        vfs->close(fd);
+        vfs->close(f);
         return -1;
     }
-
-    // 分配内存加载ELF文件
     size_t file_size = stat.st_size;
     if (file_size == 0 || file_size < sizeof(Elf64_Ehdr))
     {
-        vfs->close(fd);
+        vfs->close(f);
         return -1;
     }
 
     char *elf_data = pmm->alloc(file_size);
     if (elf_data == NULL)
     {
-        vfs->close(fd);
+        vfs->close(f);
         return -1;
     }
-
-    // 读取整个ELF文件
-    ssize_t bytes_read = vfs->read(fd, elf_data, file_size);
-    vfs->close(fd);
+    ssize_t bytes_read = vfs->read(f, elf_data, file_size);
+    vfs->close(f);
     if (bytes_read != file_size)
     {
         pmm->free(elf_data);
         return -1;
     }
-
-    // 使用ELF加载器加载程序
     void *entry_point;
     if (load_elf(task, elf_data, file_size, &entry_point) < 0)
     {
@@ -400,15 +450,11 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
 
-    // 释放ELF数据
     pmm->free(elf_data);
-
-    // 计算参数和环境变量的数量和总大小
     int argc = 0;
     int envc = 0;
     size_t args_size = 0;
     size_t envs_size = 0;
-
     if (argv != NULL)
     {
         while (argv[argc] != NULL)
@@ -417,7 +463,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
             argc++;
         }
     }
-
     if (envp != NULL)
     {
         while (envp[envc] != NULL)
@@ -427,33 +472,36 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         }
     }
 
-    // 计算栈上需要的总空间
-    // argv指针数组 + envp指针数组 + 字符串数据 + 对齐
-    size_t stack_needed = (argc + 1) * sizeof(char *) + // argv数组
-                          (envc + 1) * sizeof(char *) + // envp数组
-                          args_size + envs_size +       // 字符串数据
-                          16;                           // 对齐空间
+    size_t stack_needed = (argc + 1) * sizeof(char *) +
+                          (envc + 1) * sizeof(char *) +
+                          args_size + envs_size +
+                          16;
 
-    if (stack_needed > STACK_SIZE / 2)
+    size_t pages_needed = 1;
+    size_t total_stack_needed = stack_needed + 4096;
+    if (total_stack_needed > pages_needed * task->pi->as.pgsize)
     {
-        return -1;
+        pages_needed = (total_stack_needed + task->pi->as.pgsize - 1) / task->pi->as.pgsize;
     }
 
-    // 分配栈空间
-    char *mem = pmm->alloc(task->pi->as.pgsize);
-    map(&task->pi->as, (void *)(long)UVMEND - task->pi->as.pgsize, (void *)mem, MMAP_READ | MMAP_WRITE);
+    for (size_t i = 0; i < pages_needed; i++)
+    {
+        char *mem = pmm->alloc(task->pi->as.pgsize);
+        if (mem == NULL)
+        {            return -1;
+        }
+        uintptr_t stack_addr = UVMEND - (i + 1) * task->pi->as.pgsize;
+        map(&task->pi->as, (void *)stack_addr, (void *)mem, MMAP_READ | MMAP_WRITE);
+    }
 
-    // 创建新的上下文，使用ELF入口点
     task->context = ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), entry_point);
-    // 设置新的栈，从栈顶开始向下构建参数
+
     char *stack_top = (char *)task->context->rsp;
     char *stack_ptr = stack_top;
 
-    // 首先复制字符串数据（从栈顶向下）
     char **argv_ptrs = pmm->alloc((argc + 1) * sizeof(char *));
     char **envp_ptrs = pmm->alloc((envc + 1) * sizeof(char *));
 
-    // 复制环境变量字符串
     for (int i = envc - 1; i >= 0; i--)
     {
         size_t len = strlen(envp[i]) + 1;
@@ -462,7 +510,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         envp_ptrs[i] = stack_ptr;
     }
 
-    // 复制参数字符串
     for (int i = argc - 1; i >= 0; i--)
     {
         size_t len = strlen(argv[i]) + 1;
@@ -471,10 +518,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         argv_ptrs[i] = stack_ptr;
     }
 
-    // 对齐到8字节边界
     stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);
 
-    // 复制envp指针数组
     stack_ptr -= (envc + 1) * sizeof(char *);
     char **envp_array = (char **)stack_ptr;
     for (int i = 0; i < envc; i++)
@@ -483,7 +528,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     }
     envp_array[envc] = NULL;
 
-    // 复制argv指针数组
     stack_ptr -= (argc + 1) * sizeof(char *);
     char **argv_array = (char **)stack_ptr;
     for (int i = 0; i < argc; i++)
@@ -491,48 +535,49 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         argv_array[i] = argv_ptrs[i];
     }
     argv_array[argc] = NULL;
-
-    // 压入argc
     stack_ptr -= sizeof(int);
     *((int *)stack_ptr) = argc;
-
-    // 清理临时分配的内存
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
-    // 设置栈指针到我们构建的参数位置
-    // 注意：这里需要根据具体的架构调整寄存器设置
-    // 对于x86_64，栈指针在RSP中
     task->context->rsp = (uintptr_t)stack_ptr;
-    // execve成功时不返回到原程序
+    for (size_t i = 0; i < NOFILE; i++)
+    {
+        if (task->open_files[i])
+        {
+            vfs->close(task->open_files[i]);
+            task->open_files[i] = NULL;
+        }
+    }
+    
+    task->open_files[0] = vfs->alloc();
+    task->open_files[0]->readable = true;
+    task->open_files[0]->writable = false;
+    task->open_files[0]->ptr = dev->lookup("tty1");
+    task->open_files[0]->type = FD_DEVICE;
+    task->open_files[0]->ref = 1;
+    for (size_t i = 1; i < 3; i++)
+    {
+        task->open_files[i] = vfs->alloc();
+        task->open_files[i]->writable = true;
+        task->open_files[i]->readable = false;
+        task->open_files[i]->ptr = dev->lookup("tty1");
+        task->open_files[i]->type = FD_DEVICE;
+        task->open_files[i]->ref = 1;
+    }
+
     return 0;
 }
-
-/**
- * ELF加载器 - 解析并加载ELF文件到进程地址空间
- * @param task 目标任务
- * @param elf_data ELF文件数据
- * @param file_size 文件大小
- * @param entry_point 输出参数，返回程序入口点
- * @return 0成功，-1失败
- */
 static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point)
 {
-    // 验证参数
     if (task == NULL || elf_data == NULL || entry_point == NULL)
     {
         return -1;
     }
-
-    // 验证文件大小
     if (file_size < sizeof(Elf64_Ehdr))
     {
         return -1;
     }
-
-    // 解析ELF头
     Elf64_Ehdr *ehdr = (Elf64_Ehdr *)elf_data;
-
-    // 验证ELF魔数
     if (ehdr->e_ident[EI_MAG0] != ELFMAG0 ||
         ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
         ehdr->e_ident[EI_MAG2] != ELFMAG2 ||
@@ -540,27 +585,36 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
     {
         return -1;
     }
-
-    // 检查是否为64位ELF
     if (ehdr->e_ident[EI_CLASS] != ELFCLASS64)
     {
         return -1;
     }
-
-    // 验证程序头表偏移
-    if (ehdr->e_phoff >= file_size || ehdr->e_phnum == 0)
+    if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB || ehdr->e_ident[EI_VERSION] != EV_CURRENT)
+    {
+        return -1;
+    }
+    if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN)
     {
         return -1;
     }
 
-    // 获取程序头表
+    if (ehdr->e_machine != EM_X86_64)
+    {
+        return -1;
+    }
+    if (ehdr->e_phoff >= file_size || ehdr->e_phnum == 0)
+    {
+        return -1;
+    }
+    size_t phdr_table_size = ehdr->e_phnum * sizeof(Elf64_Phdr);
+    if (ehdr->e_phoff + phdr_table_size > file_size)
+    {
+        return -1;
+    }
     Elf64_Phdr *phdr = (Elf64_Phdr *)(elf_data + ehdr->e_phoff);
-
-    // 清理当前地址空间
     unprotect(&task->pi->as);
     protect(&task->pi->as);
-
-    // 加载所有LOAD段
+    uintptr_t brk_addr = 0;
     for (int i = 0; i < ehdr->e_phnum; i++)
     {
         if (phdr[i].p_type == PT_LOAD)
@@ -569,10 +623,11 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
             {
                 return -1;
             }
+            brk_addr = brk_addr < phdr[i].p_vaddr + phdr[i].p_memsz ? phdr[i].p_vaddr + phdr[i].p_memsz : brk_addr;
         }
     }
-
-    // 验证程序入口点
+    brk_addr = (brk_addr + 4095) & ~4095; // 向上对齐到 4096
+    task->pi->brk = (void *)brk_addr;
     uintptr_t entry_addr = ehdr->e_entry;
     if (entry_addr < UVSTART || entry_addr >= UVMEND)
     {
@@ -580,55 +635,33 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
                entry_addr, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }
-
-    // 设置程序入口点
     *entry_point = (void *)entry_addr;
-    printf("ELF loaded successfully, entry point: 0x%lx\n", entry_addr);
     return 0;
 }
 
-/**
- * 加载单个ELF段
- * @param task 目标任务
- * @param elf_data ELF文件数据
- * @param file_size 文件大小
- * @param phdr 程序头
- * @return 0成功，-1失败
- */
 static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size, Elf64_Phdr *phdr)
 {
-    // 验证段的基本信息
     if (phdr->p_memsz == 0)
     {
         return 0; // 空段，跳过
     }
-
-    // 计算需要的页面数量
     size_t pgsize = task->pi->as.pgsize;
     uintptr_t vaddr_start = phdr->p_vaddr;
     uintptr_t vaddr_end = vaddr_start + phdr->p_memsz;
-
-    // 验证虚拟地址范围是否在用户空间内
     if (vaddr_start < UVSTART || vaddr_start >= UVMEND || vaddr_end > UVMEND)
     {
         printf("Invalid virtual address range: 0x%lx - 0x%lx (valid: 0x%lx - 0x%lx)\n",
                vaddr_start, vaddr_end, (uintptr_t)UVSTART, (uintptr_t)UVMEND);
         return -1;
     }
-
-    // 页面对齐
     uintptr_t page_start = vaddr_start & ~(pgsize - 1);
     uintptr_t page_end = (vaddr_end + pgsize - 1) & ~(pgsize - 1);
     size_t pages_needed = (page_end - page_start) / pgsize;
-
-    // 验证页面数量是否合理
     if (pages_needed == 0 || pages_needed > 1024) // 限制最大1024页
     {
         printf("Invalid page count: %zu\n", pages_needed);
         return -1;
     }
-
-    // 为每个页面分配物理内存并映射
     for (size_t j = 0; j < pages_needed; j++)
     {
         void *page = pmm->alloc(pgsize);
@@ -636,22 +669,14 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
         {
             return -1;
         }
-
-        // 清零页面
         memset(page, 0, pgsize);
-
-        // 计算当前页面的虚拟地址
         uintptr_t page_vaddr = page_start + j * pgsize;
-
-        // 验证页面虚拟地址是否有效（应该已经通过前面的检查）
         if (page_vaddr >= UVMEND)
         {
             printf("Invalid page virtual address: 0x%lx\n", page_vaddr);
             pmm->free(page);
             return -1;
         }
-
-        // 如果这个页面包含段数据，复制数据
         if (page_vaddr < vaddr_end && (page_vaddr + pgsize) > vaddr_start)
         {
             if (copy_segment_data(elf_data, file_size, phdr, page, page_vaddr, vaddr_start, vaddr_end, pgsize) < 0)
@@ -660,65 +685,72 @@ static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size
                 return -1;
             }
         }
-
-        // 验证物理页面地址
-        if (page == NULL)
+        int prot = MMAP_READ;
+        if (phdr->p_flags & PF_W)
         {
-            printf("Invalid physical page address\n");
-            return -1;
+            prot |= MMAP_WRITE;
         }
 
-        // 映射页面
-        map(&task->pi->as, (void *)page_vaddr, page, MMAP_READ);
+        map(&task->pi->as, (void *)page_vaddr, page, prot);
     }
 
     return 0;
 }
 
-/**
- * 复制段数据到页面
- */
 static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr *phdr,
                              void *page, uintptr_t page_vaddr, uintptr_t vaddr_start,
                              uintptr_t vaddr_end, size_t pgsize)
 {
-    // 计算在页面内的偏移和大小
     uintptr_t copy_start = page_vaddr > vaddr_start ? page_vaddr : vaddr_start;
     uintptr_t copy_end = (page_vaddr + pgsize) < vaddr_end ? (page_vaddr + pgsize) : vaddr_end;
-
     if (copy_start < copy_end && phdr->p_filesz > 0)
     {
         size_t file_offset = phdr->p_offset + (copy_start - vaddr_start);
         size_t page_offset = copy_start - page_vaddr;
         size_t copy_size = copy_end - copy_start;
+        if (phdr->p_offset >= file_size)
+        {
+            return -1;
+        }
+        size_t max_copy_from_file = phdr->p_filesz - (copy_start - vaddr_start);
+        if (copy_size > max_copy_from_file)
+        {
+            copy_size = max_copy_from_file;
+        }
 
-        // 确保不超出文件大小
-        if (file_offset + copy_size <= file_size)
+        if (file_offset + copy_size <= file_size && copy_size > 0)
         {
             memcpy((char *)page + page_offset, elf_data + file_offset, copy_size);
         }
-        else
+        else if (copy_size > 0)
         {
             return -1;
         }
     }
-
     return 0;
 }
 static uint64_t syscall_read(task_t *task, int fd, char *buf, size_t count)
 {
-    // uintptr_t *ptep = ptewalk(&task->pi->as, (uintptr_t)buf);
-    // buf = (char *)(PTE_ADDR(*ptep) | ((uintptr_t)buf & 0xFFF));
-    // panic_on(buf == NULL, "Invalid buffer address");
-    return vfs->read(fd, buf, count);
+    if (fd < 0 || fd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+    return vfs->read(f, buf, count);
 }
 static uint64_t syscall_write(task_t *task, int fd, const char *buf, size_t count)
 {
-    // uintptr_t *ptep = ptewalk(&task->pi->as, (uintptr_t)buf);
-    // buf = (const char *)(PTE_ADDR(*ptep) | ((uintptr_t)buf & 0xFFF));
-    // panic_on(buf == NULL, "Invalid buffer address");
-    return vfs->write(fd, buf, count);
+    if (fd < 0 || fd >= NOFILE)
+        return -1;
+    struct file *f = task->open_files[fd];
+    if (f == NULL)
+        return -1;
+    return vfs->write(f, buf, count);
 }
+
+// Forward declaration for syscall_close
+static uint64_t syscall_close(task_t *task, int fd);
+
 MODULE_DEF(syscall) = {
     .chdir = syscall_chdir,
     .getcwd = syscall_getcwd,
@@ -733,7 +765,7 @@ MODULE_DEF(syscall) = {
     .umount2 = syscall_umount2,
     .mount = syscall_mount,
     .fstat = syscall_fstat,
-    .brk = syscall_brk,
+    .sbrk = syscall_sbrk,
     .munmap = syscall_munmap,
     .mmap = syscall_mmap,
     .times = syscall_times,
@@ -744,4 +776,6 @@ MODULE_DEF(syscall) = {
     .clone = syscall_clone,
     .execve = syscall_execve,
     .read = syscall_read,
-    .write = syscall_write};
+    .write = syscall_write,
+    .close = syscall_close, // Add close to the syscall table
+};

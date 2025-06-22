@@ -48,6 +48,11 @@ MODULE(dev)
   void (*init)();
   device_t *(*lookup)(const char *name);
 };
+
+// Forward declarations for file operations
+struct file;
+struct kstat;
+
 typedef struct procinfo procinfo_t;
 MODULE(uproc)
 {
@@ -65,30 +70,29 @@ MODULE(uproc)
 
 typedef long off_t;
 typedef long ssize_t;
+
 MODULE(vfs)
 {
-
+  // Filesystem operations
   void (*init)(void);
   int (*mount)(const char *dev_name, const char *mount_point,
                const char *fs_type, int flags, void *data);
   int (*umount)(const char *mount_point);
-  int (*open)(const char *pathname, int flags);
-  int (*close)(int fd);
-  ssize_t (*read)(int fd, void *buf, size_t count);
-  ssize_t (*write)(int fd, const void *buf, size_t count);
-  off_t (*seek)(int fd, off_t offset, int whence);
   int (*mkdir)(const char *pathname);
   int (*rmdir)(const char *pathname);
   int (*link)(const char *oldpath, const char *newpath);
   int (*unlink)(const char *pathname);
   int (*rename)(const char *oldpath, const char *newpath);
-  int (*opendir)(const char *pathname);
-  int (*readdir)(int fd, struct dirent *entry);
-  int (*closedir)(int fd);
-  int (*stat)(int fd,  struct kstat *stat);
-  int (*dup)(int oldfd);
-  int (*dup3)(int oldfd, int newfd, int flags);
-  const char* (*getdirpath)(int fd);
+
+  // File operations
+  struct file* (*alloc)();
+  struct file *(*dup)(struct file *);
+  struct file *(*open)(const char *pathname, int flags);
+  void (*close)(struct file *f);
+  ssize_t (*read)(struct file *f, void *buf, size_t count);
+  ssize_t (*write)(struct file *f, const void *buf, size_t count);
+  off_t (*seek)(struct file *f, off_t offset, int whence);
+  int (*stat)(struct file *f, struct stat *stat);
 };
 
 MODULE(syscall)
@@ -105,8 +109,8 @@ MODULE(syscall)
   uint64_t (*mkdirat)(task_t *task, int dirfd, const char *path, mode_t mode);
   uint64_t (*umount2)(task_t *task, const char *target, int flags);
   uint64_t (*mount)(task_t *task, const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
-  uint64_t (*fstat)(task_t *task, int fd, struct kstat *statbuf);
-  uint64_t (*brk)(task_t *task, void *addr);
+  uint64_t (*fstat)(task_t *task, int fd, struct stat *statbuf);
+  uint64_t (*sbrk)(task_t *task, intptr_t increment);
   uint64_t (*munmap)(task_t *task, void *addr, size_t length);
   uint64_t (*mmap)(task_t *task, void *addr, size_t length, int prot, int flags, int fd, off_t offset);
   uint64_t (*times)(task_t *task, struct tms *buf);
@@ -116,6 +120,7 @@ MODULE(syscall)
   uint64_t (*gettimeofday)(task_t *task, struct timespec *ts, void *tz);
   uint64_t (*clone)(task_t *task, int flags, void *stack, int *ptid, int *ctid, unsigned long newtls);
   uint64_t (*execve)(task_t *task, const char *pathname, char *const argv[], char *const envp[]);
-   uint64_t (*read)(task_t *task, int fd, char *buf, size_t count);
+  uint64_t (*read)(task_t *task, int fd, char *buf, size_t count);
   uint64_t (*write)(task_t *task, int fd, const char *buf, size_t count);
+  uint64_t (*close)(task_t *task, int fd);
 };

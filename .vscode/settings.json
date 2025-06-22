@@ -39,6 +39,13 @@
         "mman.h": "c",
         "utsname.h": "c",
         "myulib.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "toys.h": "c",
+        "newtoys.h": "c",
+        "stdarg.h": "c",
+        "cstdio": "c",
+        "atomic": "c",
+        "sstream": "c",
+        "file.h": "c"
     }
 }

@@ -408,6 +408,7 @@ static uint64_t syscall_clone(task_t *task, int flags, void *stack, int *ptid, i
 
 static uint64_t syscall_execve(task_t *task, const char *pathname, char *const argv[], char *const envp[])
 {
+    printf("start\n");
     if (pathname == NULL)
     {
         return -1;
@@ -565,6 +566,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         task->open_files[i]->type = FD_DEVICE;
         task->open_files[i]->ref = 1;
     }
+    printf("end\n");
     return 0;
 }
 

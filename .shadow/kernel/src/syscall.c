@@ -450,8 +450,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
     pmm->free(elf_data);
-
-    printf("starting execve for %s\n", pathname);
     int orig_argc = 0;
     if (argv)
     {
@@ -545,6 +543,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     }
     user_argv[argc] = NULL;
 
+    printf("start\n");
     // Push argc
     stack_ptr -= sizeof(uint64_t);
     *(uint64_t *)stack_ptr = (uint64_t)argc;
@@ -563,7 +562,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
             task->open_files[i] = NULL;
         }
     }
-
     task->open_files[0] = vfs->alloc();
     task->open_files[0]->readable = true;
     task->open_files[0]->writable = false;

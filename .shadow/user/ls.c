@@ -56,7 +56,7 @@ void ls(char *path)
         continue;
       memmove(p, de.d_name, DIRSIZ);
       p[DIRSIZ] = 0;
-      int tfd=openat(fd, buf, O_RDONLY, 0);
+      int tfd = openat(fd, buf, O_RDONLY, 0);
       if (tfd < 0)
       {
         printf("ls: cannot open %s\n", buf);

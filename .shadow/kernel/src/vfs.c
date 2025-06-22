@@ -102,6 +102,7 @@ static ssize_t fileread(struct file *f, void *buf, size_t n)
 			return -1; // Buffer too small
 
 		ext4_dir *dir = (ext4_dir *)f->ptr;
+		printf("dir info: next:%p dir:%p\n", dir->next_off, dir);
 		const ext4_direntry *entry = ext4_dir_entry_next(dir);
 
 		if (!entry)

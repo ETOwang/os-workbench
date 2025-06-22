@@ -546,6 +546,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         if (task->open_files[i])
         {
+            printf("closing...\n");
             vfs->close(task->open_files[i]);
             task->open_files[i] = NULL;
         }

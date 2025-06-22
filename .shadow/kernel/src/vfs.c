@@ -149,9 +149,19 @@ int vfs_close(int fd)
 ssize_t vfs_read(int fd, void *buf, size_t count)
 {
 
-	if (fd < 0 || fd >= MAX_OPEN_FILES || !open_files[fd].in_use || !buf)
+	if (fd < 0 || fd >= MAX_OPEN_FILES || (!open_files[fd].in_use && !open_dirs[fd].in_use) || !buf)
 	{
 		return VFS_ERROR;
+	}
+	if (!open_files[fd].in_use)
+	{
+		size_t bytes_read;
+		int ret = ext4_fread(&open_dirs[fd].dir->f, buf, count, &bytes_read);
+		if (ret != EOK)
+		{
+			return VFS_ERROR;
+		}
+		return (ssize_t)bytes_read;
 	}
 	if (open_files[fd].file == NULL)
 	{
@@ -351,7 +361,6 @@ int vfs_stat(int fd, struct kstat *stat)
 		stat->st_mode = S_IFDIR;
 		stat->st_ino = dir->de.inode;
 	}
-	printf("VFS: stat fd %d, size %ld, mode %o, ino %lu\n", fd, stat->st_size, stat->st_mode, stat->st_ino);
 	return VFS_SUCCESS;
 }
 

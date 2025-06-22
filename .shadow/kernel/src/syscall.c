@@ -2,9 +2,7 @@
 #include <syscall.h>
 #include <vfs.h>
 #include <elf.h>
-#include <file.h> // For file structures
 
-// ELF loader function declarations
 static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point);
 static int load_elf_segment(task_t *task, const char *elf_data, size_t file_size, Elf64_Phdr *phdr);
 static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr *phdr,

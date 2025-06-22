@@ -1,27 +1,11 @@
 #include <common.h>
 #include <vfs.h>
 #include <ext4.h>
-#include <file.h>
-
-// --- Start of code moved from file.c ---
 static struct file_table ftable;
 
-/**
- * @brief 初始化全局文件表
- */
-static void fileinit(void)
-{
-	kmt->spin_init(&ftable.lock, "ftable");
-}
-
-/**
- * @brief 从全局文件表中分配一个struct file
- * @return 成功则返回指向struct file的指针，否则返回NULL
- */
 static struct file *filealloc(void)
 {
 	struct file *f;
-
 	kmt->spin_lock(&ftable.lock);
 	for (f = ftable.file; f < ftable.file + NFILE; f++)
 	{
@@ -36,11 +20,6 @@ static struct file *filealloc(void)
 	return NULL;
 }
 
-/**
- * @brief 增加文件引用计数
- * @param f 要增加引用的文件
- * @return 返回传入的文件指针
- */
 static struct file *filedup(struct file *f)
 {
 	kmt->spin_lock(&ftable.lock);
@@ -51,14 +30,9 @@ static struct file *filedup(struct file *f)
 	return f;
 }
 
-/**
- * @brief 关闭文件，减少引用计数。如果引用计数为0，则真正关闭文件。
- * @param f 要关闭的文件
- */
 static void fileclose(struct file *f)
 {
 	struct file ff;
-
 	kmt->spin_lock(&ftable.lock);
 	if (f->ref < 1)
 		panic("fileclose");
@@ -71,7 +45,6 @@ static void fileclose(struct file *f)
 	f->ref = 0;
 	f->type = FD_NONE;
 	kmt->spin_unlock(&ftable.lock);
-
 	if (ff.type == FD_FILE)
 	{
 		ext4_fclose(ff.ptr);
@@ -84,12 +57,6 @@ static void fileclose(struct file *f)
 	}
 }
 
-/**
- * @brief 获取文件状态信息
- * @param f 文件
- * @param st 用于存储状态信息的kstat结构体指针
- * @return 成功返回0，失败返回-1
- */
 static int filestat(struct file *f, struct stat *st)
 {
 	if (f->type == FD_FILE)
@@ -114,13 +81,6 @@ static int filestat(struct file *f, struct stat *st)
 	return -1;
 }
 
-/**
- * @brief 从文件读取数据
- * @param f 文件
- * @param buf 缓冲区地址
- * @param n 要读取的字节数
- * @return 成功则返回读取的字节数，失败返回-1
- */
 static ssize_t fileread(struct file *f, void *buf, size_t n)
 {
 	ssize_t r = -1;
@@ -172,13 +132,6 @@ static ssize_t fileread(struct file *f, void *buf, size_t n)
 	return r;
 }
 
-/**
- * @brief 向文件写入数据
- * @param f 文件
- * @param buf 包含要写入数据的缓冲区地址
- * @param n 要写入的字节数
- * @return 成功则返回写入的字节数，失败返回-1
- */
 static ssize_t filewrite(struct file *f, const void *buf, size_t n)
 {
 	ssize_t r = -1;
@@ -206,9 +159,7 @@ static ssize_t filewrite(struct file *f, const void *buf, size_t n)
 
 	return r;
 }
-// --- End of code moved from file.c ---
 
-// Simple block device interface implementation - uses AM disk interface directly
 static struct ext4_blockdev_iface bi;
 static struct ext4_blockdev bd;
 static uint8_t block_buffer[4096];
@@ -241,7 +192,7 @@ static int blockdev_unlock(struct ext4_blockdev *bdev) { return EOK; }
 
 void vfs_init(void)
 {
-	fileinit();
+	kmt->spin_init(&ftable.lock, "ftable");
 	device_t *sda = dev->lookup("sda");
 	bi.open = blockdev_open;
 	bi.close = blockdev_close;

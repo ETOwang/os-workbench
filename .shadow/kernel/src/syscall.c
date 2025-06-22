@@ -558,6 +558,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         if (task->open_files[i])
         {
+            printf("Closing file descriptor %zu\n", i);
             vfs->close(task->open_files[i]);
             task->open_files[i] = NULL;
         }

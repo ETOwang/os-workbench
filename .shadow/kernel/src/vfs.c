@@ -136,7 +136,6 @@ static ssize_t filewrite(struct file *f, const void *buf, size_t n)
 	if (!f->writable)
 		return -1;
  
-	printf("enter write\n");
 	if (f->type == FD_FILE)
 	{
 		size_t bytes_written;

@@ -541,7 +541,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
     task->context->rsp = (uintptr_t)stack_ptr;
-    
     for (size_t i = 0; i < NOFILE; i++)
     {
         if (task->open_files[i])

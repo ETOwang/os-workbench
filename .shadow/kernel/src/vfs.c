@@ -285,7 +285,6 @@ int vfs_opendir(const char *pathname)
 	int ret = ext4_dir_open(open_dirs[dirfd].dir, pathname);
 	if (ret != EOK)
 	{
-		printf("VFS: Failed to open directory %s: %d\n", pathname, ret);
 		pmm->free(open_dirs[dirfd].dir);
 		return VFS_ERROR;
 	}

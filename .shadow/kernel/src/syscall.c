@@ -110,6 +110,7 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
     if (vfd < 0)
     {
         vfd = vfs->opendir(full_path);
+        printf("vfd: %d\n", vfd);
         if (vfd < 0)
         {
             return -1; // 打开文件或目录失败

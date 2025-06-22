@@ -535,12 +535,23 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         argv_array[i] = argv_ptrs[i];
     }
     argv_array[argc] = NULL;
-    stack_ptr -= sizeof(int);
-    *((int *)stack_ptr) = argc;
+
+    // Push argc as a 64-bit integer for alignment
+    stack_ptr -= sizeof(uint64_t);
+    *((uint64_t *)stack_ptr) = argc;
+
+    // Align the final stack pointer to a 16-byte boundary
+    uintptr_t final_rsp = (uintptr_t)stack_ptr & ~15;
+
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
-    task->context->rsp = (uintptr_t)stack_ptr;
-    task->context->GPRx = (uintptr_t)argv_array;
+
+    // Set registers and stack pointer for the new context
+    task->context->rsp = final_rsp;
+    task->context->rdi = argc;
+    task->context->rsi = (uintptr_t)argv_array;
+    task->context->rdx = (uintptr_t)envp_array;
+
     for (size_t i = 0; i < NOFILE; i++)
     {
         if (task->open_files[i])

@@ -282,6 +282,7 @@ int vfs_opendir(const char *pathname)
 		return VFS_ERROR;
 
 	open_dirs[dirfd].dir = pmm->alloc(sizeof(ext4_dir));
+	printf("pathname: %s, dirfd: %d\n", pathname, dirfd);
 	int ret = ext4_dir_open(open_dirs[dirfd].dir, pathname);
 	if (ret != EOK)
 	{

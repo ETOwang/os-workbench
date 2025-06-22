@@ -553,6 +553,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     // Create a new user context, jumping to the ELF entry point with the new stack
     task->context = ucontext(&task->pi->as, (Area){.start = (void *)(UVMEND - stack_pages * task->pi->as.pgsize), .end = (void *)UVMEND}, entry_point);
     task->context->rsp = (uintptr_t)stack_ptr;
+    printf("start\n");
     for (size_t i = 0; i < NOFILE; i++)
     {
         if (task->open_files[i])
@@ -576,7 +577,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         task->open_files[i]->type = FD_DEVICE;
         task->open_files[i]->ref = 1;
     }
-
+    printf("start\n");
     return 0;
 }
 

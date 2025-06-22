@@ -9,7 +9,6 @@ static void os_init()
     dev->init();
     uproc->init();
     vfs->init();
-    file->init();
 }
 static void os_run()
 {

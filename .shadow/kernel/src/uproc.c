@@ -107,7 +107,7 @@ static int uproc_fork(task_t *task)
     son->pi = pmm->alloc(sizeof(procinfo_t));
     son->pi->cwd = pmm->alloc(PATH_MAX);
     son->pi->parent = task;
-    son->pi->brk=task->pi->brk;
+    son->pi->brk = task->pi->brk;
     strcpy(son->pi->cwd, task->pi->cwd);
     protect(&son->pi->as);
     uvmcopy(&task->pi->as, &son->pi->as, UVMEND - UVSTART);
@@ -119,10 +119,11 @@ static int uproc_fork(task_t *task)
     son->context->rsp0 = (uint64_t)son->stack + STACK_SIZE;
     for (size_t i = 0; i < NOFILE; i++)
     {
-        if(!task->open_files[i]){
-           continue;
+        if (!task->open_files[i])
+        {
+            continue;
         }
-        file->dup(task->open_files[i]);
+        vfs->dup(task->open_files[i]);
         son->open_files[i] = task->open_files[i];
     }
     kmt_add_task(son);

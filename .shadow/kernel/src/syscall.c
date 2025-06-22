@@ -12,7 +12,7 @@ static int copy_segment_data(const char *elf_data, size_t file_size, Elf64_Phdr 
                              uintptr_t vaddr_end, size_t pgsize);
 
 // Allocate a file descriptor for the given file. Takes over file reference.
-static int fdalloc(task_t* task,struct file *f)
+static int fdalloc(task_t *task, struct file *f)
 {
 
     if (!task || !task->pi)
@@ -133,7 +133,7 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
         return -1;
     }
 
-    int new_fd = fdalloc(task,f);
+    int new_fd = fdalloc(task, f);
     if (new_fd < 0)
     {
         vfs->close(f);
@@ -169,11 +169,11 @@ static uint64_t syscall_dup(task_t *task, int oldfd)
     if (f == NULL)
         return -1;
 
-    int newfd = fdalloc(task,file->dup(f));
+    int newfd = fdalloc(task, vfs->dup(f));
     if (newfd < 0)
     {
-        // filedup already incremented the ref count, so we must close it
-        file->close(f);
+        // vfs->dup already incremented the ref count, so we must close it
+        vfs->close(f);
         return -1;
     }
     return newfd;
@@ -195,7 +195,7 @@ static uint64_t syscall_dup3(task_t *task, int oldfd, int newfd, int flags)
         syscall_close(task, newfd);
     }
 
-    task->open_files[newfd] = file->dup(f);
+    task->open_files[newfd] = vfs->dup(f);
     return newfd;
 }
 
@@ -546,25 +546,26 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     task->context->rsp = (uintptr_t)stack_ptr;
     for (size_t i = 0; i < NOFILE; i++)
     {
-        if(task->open_files[i]){
-          file->close(task->open_files[i]);
-          task->open_files[i]=NULL;
+        if (task->open_files[i])
+        {
+            vfs->close(task->open_files[i]);
+            task->open_files[i] = NULL;
         }
     }
-    task->open_files[0]=file->alloc();
-    task->open_files[0]->readable=true;
-    task->open_files[0]->writable=false;
-    task->open_files[0]->ptr=dev->lookup("tty1");
-    task->open_files[0]->type=FD_DEVICE;
-    task->open_files[0]->ref=1;
+    task->open_files[0] = vfs->alloc();
+    task->open_files[0]->readable = true;
+    task->open_files[0]->writable = false;
+    task->open_files[0]->ptr = dev->lookup("tty1");
+    task->open_files[0]->type = FD_DEVICE;
+    task->open_files[0]->ref = 1;
     for (size_t i = 1; i < 3; i++)
     {
-        task->open_files[i]=file->alloc();
-        task->open_files[i]->writable=true;
+        task->open_files[i] = vfs->alloc();
+        task->open_files[i]->writable = true;
         task->open_files[i]->readable = false;
         task->open_files[i]->ptr = dev->lookup("tty1");
         task->open_files[i]->type = FD_DEVICE;
-        task->open_files[i]->ref=1;
+        task->open_files[i]->ref = 1;
     }
     return 0;
 }

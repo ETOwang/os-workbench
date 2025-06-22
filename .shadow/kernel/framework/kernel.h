@@ -71,20 +71,9 @@ MODULE(uproc)
 typedef long off_t;
 typedef long ssize_t;
 
-MODULE(file)
-{
-  void (*init)(void);
-  struct file *(*alloc)(void);
-  struct file *(*dup)(struct file *);
-  void (*close)(struct file *);
-  int (*stat)(struct file *f, struct stat *st);
-  ssize_t (*read)(struct file *f, void *buf, size_t n);
-  ssize_t (*write)(struct file *f, const void *buf, size_t n);
-};
-
 MODULE(vfs)
 {
-
+  // Filesystem operations
   void (*init)(void);
   int (*mount)(const char *dev_name, const char *mount_point,
                const char *fs_type, int flags, void *data);
@@ -95,7 +84,9 @@ MODULE(vfs)
   int (*unlink)(const char *pathname);
   int (*rename)(const char *oldpath, const char *newpath);
 
-  // File operations now use struct file*
+  // File operations
+  struct file *(*alloc)(void);
+  struct file *(*dup)(struct file *);
   struct file *(*open)(const char *pathname, int flags);
   void (*close)(struct file *f);
   ssize_t (*read)(struct file *f, void *buf, size_t count);

@@ -414,6 +414,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
     struct file *f = vfs->open(pathname, 0);
+    printf("ref %d\n",f->ref);
     if (f == NULL)
     {
         return -1;

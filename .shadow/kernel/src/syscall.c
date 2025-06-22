@@ -128,7 +128,6 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
     struct file *f = vfs->open(full_path, flags);
     if (f == NULL)
     {
-        printf("full path %s \n",full_path);
         return -1;
     }
 

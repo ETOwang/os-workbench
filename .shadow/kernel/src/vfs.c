@@ -224,33 +224,10 @@ struct file *vfs_open(const char *pathname, int flags)
 	struct file *f;
 	ext4_file *ef;
 	ext4_dir *d;
-
 	if ((f = filealloc()) == NULL)
 	{
 		return NULL;
 	}
-	if (flags & O_DIRECTORY)
-	{
-		d = pmm->alloc(sizeof(ext4_dir));
-		if (!d)
-		{
-			fileclose(f);
-			return NULL;
-		}
-		if (ext4_dir_open(d, pathname) != EOK)
-		{
-			pmm->free(d);
-			fileclose(f);
-			return NULL;
-		}
-		f->type = FD_DIR;
-		f->ptr = d;
-		f->readable = 1;
-		f->writable = 0;
-		f->off = 0;
-		return f;
-	}
-
 	const char *mode = "r";
 	if (flags & O_WRONLY)
 	{
@@ -265,21 +242,35 @@ struct file *vfs_open(const char *pathname, int flags)
 		else
 			mode = "r+";
 	}
-
 	ef = pmm->alloc(sizeof(ext4_file));
 	if (!ef)
 	{
 		fileclose(f);
 		return NULL;
 	}
-
 	if (ext4_fopen(ef, pathname, mode) != EOK)
 	{
 		pmm->free(ef);
-		fileclose(f);
-		return NULL;
+		d = pmm->alloc(sizeof(ext4_dir));
+		if (!d)
+		{
+			fileclose(f);
+			return NULL;
+		}
+		if (ext4_dir_open(d, pathname) != EOK)
+		{
+			pmm->free(d);
+			fileclose(f);
+			return NULL;
+		}
+		f->type = FD_DIR;
+		f->ptr = d;
+		f->readable = !(flags & O_WRONLY);
+		f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
+		f->off = 0;
+		return f;
 	}
-	f->ref = ef->refctr+1;
+	f->ref = ef->refctr + 1;
 	f->type = FD_FILE;
 	f->ptr = ef;
 	f->readable = !(flags & O_WRONLY);
@@ -411,5 +402,4 @@ MODULE_DEF(vfs) = {
 	.link = vfs_link,
 	.rename = vfs_rename,
 	.stat = vfs_stat,
-	.alloc=filealloc
-};
+	.alloc = filealloc};

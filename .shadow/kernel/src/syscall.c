@@ -514,10 +514,11 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     uintptr_t final_rsp = (uintptr_t)stack_ptr & ~15;
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
+    panic_on(argv_array<(char**)mem, "argv_array is NULL");
+    panic_on(envp_array<(char**)mem, "envp_array is NULL");
     task->context->rsp = final_rsp - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     task->context->GPR1 = argc;
     task->context->GPR2 = (uintptr_t)argv_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
-    printf("GPR2:%p", (void *)(uintptr_t)task->context->GPR2);
     task->context->GPR3 = (uintptr_t)envp_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     for (size_t i = 0; i < NOFILE; i++)
     {

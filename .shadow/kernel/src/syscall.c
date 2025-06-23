@@ -520,6 +520,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     task->context->GPR1 = argc;
     task->context->GPR2 = (uintptr_t)argv_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     task->context->GPR3 = (uintptr_t)envp_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+    printf("GPR3:%p\n", task->context->GPR3);
     for (size_t i = 0; i < NOFILE; i++)
     {
         if (task->open_files[i])

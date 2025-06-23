@@ -157,6 +157,34 @@ static ssize_t filewrite(struct file *f, const void *buf, size_t n)
 	return r;
 }
 
+int vfs_link(const char *oldpath, const char *newpath)
+{
+	for (size_t i = 0; i < NFILE; i++)
+	{
+		if (strcmp(ftable.file[i].path, oldpath) == 0)
+		{
+			ftable.file[i].ref++;
+			break;
+		}
+	}
+	int ret = ext4_flink(oldpath, newpath);
+	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
+}
+
+int vfs_unlink(const char *path)
+{
+	for (size_t i = 0; i < NFILE; i++)
+	{
+		if (strcmp(ftable.file[i].path, path) == 0)
+		{
+			ftable.file[i].ref--;
+			break;
+		}
+	}
+	int ret = ext4_fremove(path);
+	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
+}
+
 static struct ext4_blockdev_iface bi;
 static struct ext4_blockdev bd;
 static uint8_t block_buffer[4096];
@@ -205,6 +233,63 @@ void vfs_init(void)
 	bd.bdif = &bi;
 	bd.part_size = bd.bdif->ph_bcnt * (uint64_t)bd.bdif->ph_bsize;
 	vfs->mount("disk", "/", "ext4", 0, NULL);
+}
+
+int vfs_mkdir(const char *pathname)
+{
+	int ret = ext4_dir_mk(pathname);
+	if (ret != EOK)
+	{
+		return VFS_ERROR;
+	}
+
+	// Create "." entry
+	char dot_path[512];
+	sprintf(dot_path, "%s/.", pathname);
+	if (vfs_link(pathname, dot_path) != VFS_SUCCESS)
+	{
+		ext4_dir_rm(pathname); // cleanup directory
+		return VFS_ERROR;
+	}
+
+	// Create ".." entry
+	char parent_path[256];
+	const char *last_slash = NULL;
+	for (const char *p = pathname; *p; p++)
+	{
+		if (*p == '/')
+		{
+			last_slash = p;
+		}
+	}
+
+	if (last_slash == NULL)
+	{
+		strcpy(parent_path, ".");
+	}
+	else if (last_slash == pathname)
+	{
+		strcpy(parent_path, "/");
+	}
+	else
+	{
+		int len = last_slash - pathname;
+		strncpy(parent_path, pathname, len);
+		parent_path[len] = '\0';
+	}
+
+	char ddot_path[512];
+	sprintf(ddot_path, "%s/..", pathname);
+
+	if (vfs_link(parent_path, ddot_path) != VFS_SUCCESS)
+	{
+		// cleanup
+		vfs_unlink(dot_path);
+		ext4_dir_rm(pathname);
+		return VFS_ERROR;
+	}
+
+	return VFS_SUCCESS;
 }
 
 int vfs_mount(const char *dev_name, const char *mount_point, const char *fs_type, int flags, void *data)
@@ -256,12 +341,10 @@ struct file *vfs_open(const char *pathname, int flags)
 		}
 		if (ext4_dir_open(d, pathname) != EOK)
 		{
-			printf("VFS: Failed to open directory %s\n", pathname);
 			pmm->free(d);
 			fileclose(f);
 			return NULL;
 		}
-		printf("VFS: Opened directory %s\n", pathname);
 		strcpy(f->path, pathname);
 		f->type = FD_DIR;
 		f->ptr = d;
@@ -328,29 +411,10 @@ int vfs_umount(const char *mount_point)
 	return VFS_SUCCESS;
 }
 
-int vfs_mkdir(const char *pathname)
-{
-	int ret = ext4_dir_mk(pathname);
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
 int vfs_rmdir(const char *pathname)
 {
 	int ret = ext4_dir_rm(pathname);
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
-int vfs_unlink(const char *path)
-{
-	for (size_t i = 0; i < NFILE; i++)
-	{
-		if (strcmp(ftable.file[i].path, path) == 0)
-		{
-			ftable.file[i].ref--;
-			break;
-		}
-	}
-	int ret = ext4_fremove(path);
+	ext4_flink(pathname, pathname);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
@@ -365,20 +429,6 @@ int vfs_rename(const char *oldpath, const char *newpath)
 		}
 	}
 	int ret = ext4_frename(oldpath, newpath);
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
-static int vfs_link(const char *oldpath, const char *newpath)
-{
-	for (size_t i = 0; i < NFILE; i++)
-	{
-		if (strcmp(ftable.file[i].path, oldpath) == 0)
-		{
-			ftable.file[i].ref++;
-			break;
-		}
-	}
-	int ret = ext4_flink(oldpath, newpath);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 

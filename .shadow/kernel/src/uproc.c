@@ -67,6 +67,7 @@ static int uproc_kputc(task_t *task, char ch)
 
 int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
 {
+    //maybe wrong
     panic_on(old == NULL || new == NULL, "old or new AddrSpace is NULL");
     uintptr_t pg_sz = old->pgsize;
     for (uintptr_t offset = 0; offset < sz; offset += pg_sz)

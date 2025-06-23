@@ -135,7 +135,7 @@ static ssize_t filewrite(struct file *f, const void *buf, size_t n)
 
 	if (!f->writable)
 		return -1;
- 
+
 	if (f->type == FD_FILE)
 	{
 		size_t bytes_written;
@@ -260,7 +260,8 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
-		strcpy(f->path,pathname);
+		printf("open dir %s\n", pathname);
+		strcpy(f->path, pathname);
 		f->type = FD_DIR;
 		f->ptr = d;
 		f->readable = !(flags & O_WRONLY);
@@ -268,7 +269,7 @@ struct file *vfs_open(const char *pathname, int flags)
 		f->off = 0;
 		return f;
 	}
-	strcpy(f->path,pathname);
+	strcpy(f->path, pathname);
 	f->ref = ef->refctr + 1;
 	f->type = FD_FILE;
 	f->ptr = ef;

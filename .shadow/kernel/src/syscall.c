@@ -491,6 +491,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         size_t len = strlen(argv[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, argv[i], len);
+        printf("argv[%d]:%s\n",i,argv[i]);
         argv_ptrs[i] = stack_ptr;
     }
     stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);

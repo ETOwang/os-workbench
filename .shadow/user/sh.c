@@ -143,8 +143,6 @@ void runcmd(struct cmd *cmd)
 
     strcpy(path, "/bin/");
     strcat(path, ecmd->argv[0]);
-    printf("start\n");
-    printf("argv[0]:%s\n", ecmd->argv[0]);
     execve(path, ecmd->argv, NULL);
     // If that fails, try the original path
     execve(ecmd->argv[0], ecmd->argv, NULL);

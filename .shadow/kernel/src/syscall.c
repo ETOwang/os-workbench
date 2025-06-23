@@ -449,33 +449,17 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         return -1;
     }
     pmm->free(elf_data);
-    char *targv[MAX_ARG];
-    targv[0] = (char *)pathname;
-    for (size_t i = 0; i < MAX_ARG; i++)
-    {
-        if (!argv)
-        {
-            targv[i + 1] = NULL;
-            break;
-        }
-        if (argv[i] != NULL)
-        {
-            targv[i + 1] = argv[i];
-        }
-        else
-        {
-            targv[i + 1] = NULL;
-            break;
-        }
-    }
     int argc = 0;
     int envc = 0;
     size_t args_size = 0;
     size_t envs_size = 0;
-    while (targv[argc] != NULL)
+    if (argv != NULL)
     {
-        args_size += strlen(targv[argc]) + 1;
-        argc++;
+        while (argv[argc] != NULL)
+        {
+            args_size += strlen(argv[argc]) + 1;
+            argc++;
+        }
     }
     if (envp != NULL)
     {
@@ -504,9 +488,9 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
 
     for (int i = argc - 1; i >= 0; i--)
     {
-        size_t len = strlen(targv[i]) + 1;
+        size_t len = strlen(argv[i]) + 1;
         stack_ptr -= len;
-        memcpy(stack_ptr, targv[i], len);
+        memcpy(stack_ptr, argv[i], len);
         argv_ptrs[i] = stack_ptr;
     }
     stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);

@@ -87,10 +87,8 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     struct file *f = vfs->open(full_path, O_DIRECTORY);
     if (f == NULL)
     {
-        printf("VFS: Failed to open directory %s\n", full_path);
         return -1;
     }
-    printf("VFS: Changing directory to %s\n", full_path);
     vfs->close(f);
     strncpy(task->pi->cwd, full_path, strlen(full_path) + 1);
     task->pi->cwd[strlen(full_path)] = 0;

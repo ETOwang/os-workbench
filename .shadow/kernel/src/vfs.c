@@ -261,6 +261,7 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
+		printf("VFS: Opened directory %s\n", pathname);
 		strcpy(f->path, pathname);
 		f->type = FD_DIR;
 		f->ptr = d;

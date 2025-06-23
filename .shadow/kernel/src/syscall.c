@@ -449,7 +449,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
-
     pmm->free(elf_data);
     int argc = 0;
     int envc = 0;
@@ -471,12 +470,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
             envc++;
         }
     }
-
-    size_t stack_needed = (argc + 1) * sizeof(char *) +
-                          (envc + 1) * sizeof(char *) +
-                          args_size + envs_size +
-                          16;
-
+    size_t stack_needed = (argc + 1) * sizeof(char *) +(envc + 1) * sizeof(char *) +args_size + envs_size +16;
     panic_on(stack_needed > task->pi->as.pgsize, "Stack size exceeds limit");
     void *mem = pmm->alloc(task->pi->as.pgsize);
     panic_on(!mem, "Failed to allocate memory for stack");
@@ -511,7 +505,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         envp_array[i] = envp_ptrs[i];
     }
     envp_array[envc] = NULL;
-
     stack_ptr -= (argc + 1) * sizeof(char *);
     char **argv_array = (char **)stack_ptr;
     for (int i = 0; i < argc; i++)
@@ -519,23 +512,15 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         argv_array[i] = argv_ptrs[i];
     }
     argv_array[argc] = NULL;
-
-    // Push argc as a 64-bit integer for alignment
     stack_ptr -= sizeof(uint64_t);
     *((uint64_t *)stack_ptr) = argc;
-
-    // Align the final stack pointer to a 16-byte boundary
     uintptr_t final_rsp = (uintptr_t)stack_ptr & ~15;
-
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
-
-    // Set registers and stack pointer for the new context
-    task->context->rsp = final_rsp;
+    task->context->rsp = final_rsp - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     task->context->GPR1 = argc;
-    task->context->GPR2 = (uintptr_t)argv_array;
-    task->context->GPR3 = (uintptr_t)envp_array;
-
+    task->context->GPR2 = (uintptr_t)argv_array- (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+    task->context->GPR3 = (uintptr_t)envp_array- (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     for (size_t i = 0; i < NOFILE; i++)
     {
         if (task->open_files[i])
@@ -544,7 +529,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
             task->open_files[i] = NULL;
         }
     }
-
     task->open_files[0] = vfs->alloc();
     task->open_files[0]->readable = true;
     task->open_files[0]->writable = false;

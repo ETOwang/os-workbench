@@ -256,12 +256,11 @@ struct file *vfs_open(const char *pathname, int flags)
 		}
 		if (ext4_dir_open(d, pathname) != EOK)
 		{
-			printf("Failed to open directory %s\n", pathname);
+			printf("VFS: Failed to open directory %s\n", pathname);
 			pmm->free(d);
 			fileclose(f);
 			return NULL;
 		}
-		printf("open dir %s\n", pathname);
 		strcpy(f->path, pathname);
 		f->type = FD_DIR;
 		f->ptr = d;

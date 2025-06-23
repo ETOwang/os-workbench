@@ -495,9 +495,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         memcpy(stack_ptr, argv[i], len);
         argv_ptrs[i] = stack_ptr;
     }
-
     stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);
-
     stack_ptr -= (envc + 1) * sizeof(char *);
     char **envp_array = (char **)stack_ptr;
     for (int i = 0; i < envc; i++)

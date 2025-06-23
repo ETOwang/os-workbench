@@ -477,31 +477,15 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
                           args_size + envs_size +
                           16;
 
-    size_t pages_needed = 1;
-    size_t total_stack_needed = stack_needed + 4096;
-    if (total_stack_needed > pages_needed * task->pi->as.pgsize)
-    {
-        pages_needed = (total_stack_needed + task->pi->as.pgsize - 1) / task->pi->as.pgsize;
-    }
-
-    for (size_t i = 0; i < pages_needed; i++)
-    {
-        char *mem = pmm->alloc(task->pi->as.pgsize);
-        if (mem == NULL)
-        {            return -1;
-        }
-        uintptr_t stack_addr = UVMEND - (i + 1) * task->pi->as.pgsize;
-        map(&task->pi->as, (void *)stack_addr, (void *)mem, MMAP_READ | MMAP_WRITE);
-    }
-
+    panic_on(stack_needed > task->pi->as.pgsize, "Stack size exceeds limit");
+    void *mem = pmm->alloc(task->pi->as.pgsize);
+    panic_on(!mem, "Failed to allocate memory for stack");
+    map(&task->pi->as, (void *)UVMEND - task->pi->as.pgsize, mem, MMAP_READ | MMAP_WRITE);
     task->context = ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), entry_point);
-
-    char *stack_top = (char *)task->context->rsp;
+    char *stack_top = (char *)(mem + task->pi->as.pgsize);
     char *stack_ptr = stack_top;
-
     char **argv_ptrs = pmm->alloc((argc + 1) * sizeof(char *));
     char **envp_ptrs = pmm->alloc((envc + 1) * sizeof(char *));
-
     for (int i = envc - 1; i >= 0; i--)
     {
         size_t len = strlen(envp[i]) + 1;
@@ -548,9 +532,9 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
 
     // Set registers and stack pointer for the new context
     task->context->rsp = final_rsp;
-    task->context->rdi = argc;
-    task->context->rsi = (uintptr_t)argv_array;
-    task->context->rdx = (uintptr_t)envp_array;
+    task->context->GPR1 = argc;
+    task->context->GPR2 = (uintptr_t)argv_array;
+    task->context->GPR3 = (uintptr_t)envp_array;
 
     for (size_t i = 0; i < NOFILE; i++)
     {
@@ -560,7 +544,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
             task->open_files[i] = NULL;
         }
     }
-    
+
     task->open_files[0] = vfs->alloc();
     task->open_files[0]->readable = true;
     task->open_files[0]->writable = false;

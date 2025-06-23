@@ -288,6 +288,7 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
+		printf("VFS: Opening directory %s\n", pathname);
 		if (ext4_dir_open(d, pathname) != EOK)
 		{
 			pmm->free(d);

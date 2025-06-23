@@ -483,7 +483,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         size_t len = strlen(envp[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, envp[i], len);
-        envp_ptrs[i] = stack_ptr;
+        envp_ptrs[i] = stack_ptr- (uintptr_t)mem + UVMEND - task->pi->as.pgsize;;
     }
 
     for (int i = argc - 1; i >= 0; i--)
@@ -491,8 +491,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         size_t len = strlen(argv[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, argv[i], len);
-        printf("argv[%d]:%p\n", i, stack_ptr);
-        argv_ptrs[i] = stack_ptr;
+        argv_ptrs[i] = stack_ptr- (uintptr_t)mem + UVMEND - task->pi->as.pgsize;;
     }
     stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);
     stack_ptr -= (envc + 1) * sizeof(char *);
@@ -520,10 +519,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     task->context->GPR1 = argc;
     task->context->GPR2 = (uintptr_t)argv_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     task->context->GPR3 = (uintptr_t)envp_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
-    printf("GPR2:%p,mem:%p\n", (char *)task->context->GPR2, mem);
-    printf("argv_ptr:%p\n", argv_array);
-    printf("ebvp_ptr:%p\n", envp_array);
-    printf("argc:%d\n", argc);
     for (size_t i = 0; i < NOFILE; i++)
     {
         if (task->open_files[i])

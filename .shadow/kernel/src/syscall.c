@@ -450,7 +450,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     }
     pmm->free(elf_data);
     char *targv[MAX_ARG];
-    targv[0] = (char*)pathname;
+    targv[0] = (char *)pathname;
     for (size_t i = 0; i < MAX_ARG; i++)
     {
         if (!argv)
@@ -494,8 +494,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     panic_on(!mem, "Failed to allocate memory for stack");
     map(&task->pi->as, (void *)UVMEND - task->pi->as.pgsize, mem, MMAP_READ | MMAP_WRITE);
     task->context = ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), entry_point);
-    char *stack_top = (char *)(mem + task->pi->as.pgsize);
-    char *stack_ptr = stack_top;
+    char *stack_ptr = (char *)(mem + task->pi->as.pgsize);
     char **argv_ptrs = pmm->alloc((argc + 1) * sizeof(char *));
     char **envp_ptrs = pmm->alloc((envc + 1) * sizeof(char *));
     for (int i = envc - 1; i >= 0; i--)

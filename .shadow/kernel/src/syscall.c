@@ -477,7 +477,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         args_size += strlen(targv[argc]) + 1;
         argc++;
     }
-
     if (envp != NULL)
     {
         while (envp[envc] != NULL)

@@ -168,7 +168,6 @@ int vfs_link(const char *oldpath, const char *newpath)
 		}
 	}
 	int ret = ext4_flink(oldpath, newpath);
-	printf("vfs_link: oldpath=%s, newpath=%s, ret=%d\n", oldpath, newpath, ret);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
@@ -239,59 +238,7 @@ void vfs_init(void)
 int vfs_mkdir(const char *pathname)
 {
 	int ret = ext4_dir_mk(pathname);
-	if (ret != EOK)
-	{
-		return VFS_ERROR;
-	}
-
-	// Create "." entry
-	char dot_path[512];
-	sprintf(dot_path, "%s/.", pathname);
-	if (vfs_link(pathname, dot_path) != VFS_SUCCESS)
-	{
-
-		ext4_dir_rm(pathname); 
-		return VFS_ERROR;
-	}
-
-	// Create ".." entry
-	char parent_path[256];
-	const char *last_slash = NULL;
-	for (const char *p = pathname; *p; p++)
-	{
-		if (*p == '/')
-		{
-			last_slash = p;
-		}
-	}
-
-	if (last_slash == NULL)
-	{
-		strcpy(parent_path, ".");
-	}
-	else if (last_slash == pathname)
-	{
-		strcpy(parent_path, "/");
-	}
-	else
-	{
-		int len = last_slash - pathname;
-		strncpy(parent_path, pathname, len);
-		parent_path[len] = '\0';
-	}
-
-	char ddot_path[512];
-	sprintf(ddot_path, "%s/..", pathname);
-
-	if (vfs_link(parent_path, ddot_path) != VFS_SUCCESS)
-	{
-		// cleanup
-		vfs_unlink(dot_path);
-		ext4_dir_rm(pathname);
-		return VFS_ERROR;
-	}
-
-	return VFS_SUCCESS;
+	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
 int vfs_mount(const char *dev_name, const char *mount_point, const char *fs_type, int flags, void *data)

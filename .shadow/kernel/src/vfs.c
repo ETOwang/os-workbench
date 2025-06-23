@@ -168,6 +168,7 @@ int vfs_link(const char *oldpath, const char *newpath)
 		}
 	}
 	int ret = ext4_flink(oldpath, newpath);
+	printf("vfs_link: oldpath=%s, newpath=%s, ret=%d\n", oldpath, newpath, ret);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
@@ -248,7 +249,8 @@ int vfs_mkdir(const char *pathname)
 	sprintf(dot_path, "%s/.", pathname);
 	if (vfs_link(pathname, dot_path) != VFS_SUCCESS)
 	{
-		ext4_dir_rm(pathname); // cleanup directory
+
+		ext4_dir_rm(pathname); 
 		return VFS_ERROR;
 	}
 

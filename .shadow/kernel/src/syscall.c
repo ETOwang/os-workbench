@@ -517,6 +517,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     task->context->rsp = final_rsp - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     task->context->GPR1 = argc;
     task->context->GPR2 = (uintptr_t)argv_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+    printf("GPR2:%p", (void *)(uintptr_t)task->context->GPR2);
     task->context->GPR3 = (uintptr_t)envp_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     for (size_t i = 0; i < NOFILE; i++)
     {

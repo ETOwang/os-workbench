@@ -89,6 +89,32 @@ int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
             panic_on(new_pa == NULL, "Failed to allocate new physical page");
             memcpy(new_pa, old_pa, pg_sz);
             map(new, (void *)current_va, new_pa, map_prot);
+        }else{
+            break;
+        }
+    }
+    for (uintptr_t offset = sz-pg_sz; offset >0; offset -= pg_sz)
+    {
+        uintptr_t current_va = (uintptr_t)UVSTART + offset;
+        if (current_va >= (uintptr_t)UVMEND)
+        {
+            break;
+        }
+        uintptr_t *ptep = ptewalk(old, current_va);
+        if (ptep && (*ptep & PROT_READ))
+        {
+            int map_prot = MMAP_READ;
+            if (*ptep & PROT_WRITE)
+            {
+                map_prot |= MMAP_WRITE;
+            }
+            void *old_pa = (void *)PTE_ADDR(*ptep);
+            void *new_pa = pmm->alloc(pg_sz);
+            panic_on(new_pa == NULL, "Failed to allocate new physical page");
+            memcpy(new_pa, old_pa, pg_sz);
+            map(new, (void *)current_va, new_pa, map_prot);
+        }else{
+            break;
         }
     }
     return 0;

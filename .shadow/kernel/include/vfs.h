@@ -28,4 +28,13 @@ struct file_table
     struct file file[NFILE];
 };
 
+struct pipe {
+  struct spinlock lock;
+  char data[PIPESIZE];
+  uint32_t nread;     // number of bytes read
+  uint32_t nwrite;    // number of bytes written
+  int readopen;   // read fd is still open
+  int writeopen;  // write fd is still open
+};
+
 #endif // VFS_H

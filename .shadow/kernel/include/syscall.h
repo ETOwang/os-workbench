@@ -100,7 +100,7 @@ typedef int64_t clock_t;
 /* 路径长度限制 */
 #define PATH_MAX 4096
 #define NAME_MAX 255
-
+#define PIPESIZE 4096
 /* 时间结构体 */
 struct timespec
 {

@@ -155,8 +155,19 @@ static uint64_t syscall_close(task_t *task, int fd)
 
 static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
 {
-    // Simplified implementation - should create real pipes
-    return -1;
+    int fd0, fd1;
+    struct file *fdarray[2];
+    if (vfs->pipe(fdarray) < 0)
+        return -1;
+    if ((fd0 = fdalloc(task, fdarray[0])) < 0 || (fd1 = fdalloc(task, fdarray[1])) < 0)
+    {
+        if (fd0 >= 0)
+            task->open_files[fd0] = 0;
+        vfs->close(fdarray[0]);
+        vfs->close(fdarray[1]);
+        return -1;
+    }
+    return 0;
 }
 
 static uint64_t syscall_dup(task_t *task, int oldfd)
@@ -488,7 +499,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         size_t len = strlen(envp[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, envp[i], len);
-        envp_ptrs[i] = stack_ptr- (uintptr_t)mem + UVMEND - task->pi->as.pgsize;;
+        envp_ptrs[i] = stack_ptr - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+        ;
     }
 
     for (int i = argc - 1; i >= 0; i--)
@@ -496,7 +508,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         size_t len = strlen(argv[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, argv[i], len);
-        argv_ptrs[i] = stack_ptr- (uintptr_t)mem + UVMEND - task->pi->as.pgsize;;
+        argv_ptrs[i] = stack_ptr - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+        ;
     }
     stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);
     stack_ptr -= (envc + 1) * sizeof(char *);

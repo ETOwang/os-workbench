@@ -95,6 +95,7 @@ MODULE(vfs)
   ssize_t (*write)(struct file *f, const void *buf, size_t count);
   off_t (*seek)(struct file *f, off_t offset, int whence);
   int (*stat)(struct file *f, struct stat *stat);
+  int (*pipe)(struct file* pipefd[2]);
 };
 
 MODULE(syscall)

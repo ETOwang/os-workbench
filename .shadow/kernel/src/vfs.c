@@ -491,6 +491,17 @@ static struct file *vfs_dup(struct file *f)
 	return filedup(f);
 }
 
+static int vfs_pipe(struct file* fd[2])
+{
+	struct file *f0, *f1;
+	if (pipealloc(&f0, &f1) < 0)
+	{
+		return -1;
+	}
+	fd[0] = f0;
+	fd[1] = f1;
+	return 0;
+}
 MODULE_DEF(vfs) = {
 	.init = vfs_init,
 	.dup = vfs_dup,
@@ -507,4 +518,6 @@ MODULE_DEF(vfs) = {
 	.link = vfs_link,
 	.rename = vfs_rename,
 	.stat = vfs_stat,
-	.alloc = filealloc};
+	.alloc = filealloc,
+	.pipe = vfs_pipe
+};

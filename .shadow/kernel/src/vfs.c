@@ -425,7 +425,7 @@ void vfs_close(struct file *f)
 ssize_t vfs_read(struct file *f, void *buf, size_t count)
 {
 	int nread;
-	if (f->type == FD_FILE||f->type==FD_DIR)
+	if (f->type == FD_FILE || f->type == FD_DIR || f->type == FD_DEVICE)
 	{
 		nread = fileread(f, buf, count);
 	}
@@ -443,7 +443,7 @@ ssize_t vfs_read(struct file *f, void *buf, size_t count)
 ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 {
 	int nwrite;
-	if (f->type == FD_FILE || f->type == FD_DIR)
+	if (f->type == FD_FILE || f->type == FD_DIR || f->type == FD_DEVICE)
 	{
 		nwrite = filewrite(f, buf, count);
 	}

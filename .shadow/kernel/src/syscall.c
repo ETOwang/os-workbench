@@ -412,10 +412,14 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         return -1;
     }
-    struct file *f = vfs->open(pathname, 0);
+    char full_path[PATH_MAX];
+    if (parse_path(full_path, task, AT_FDCWD, pathname) < 0)
+    {
+        return -1;
+    }
+    struct file *f = vfs->open(full_path, 0);
     if (f == NULL)
     {
-        printf("Failed to open file %s\n", pathname);
         return -1;
     }
     struct stat stat;

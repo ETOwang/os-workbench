@@ -415,6 +415,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     struct file *f = vfs->open(pathname, 0);
     if (f == NULL)
     {
+        printf("Failed to open file %s\n", pathname);
         return -1;
     }
     struct stat stat;

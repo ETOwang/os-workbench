@@ -137,7 +137,6 @@ static uint64_t syscall_openat(task_t *task, int fd, const char *filename, int f
         vfs->close(f);
         return -1;
     }
-    printf("Open file %s with fd %d\n", full_path, new_fd);
     return new_fd;
 }
 

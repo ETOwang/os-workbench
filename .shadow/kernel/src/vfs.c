@@ -425,13 +425,13 @@ void vfs_close(struct file *f)
 ssize_t vfs_read(struct file *f, void *buf, size_t count)
 {
 	int nread;
-	if (f->type == FD_FILE)
+	if (f->type == FD_FILE||f->type==FD_DIR)
 	{
 		nread = fileread(f, buf, count);
 	}
 	else if (f->type == FD_PIPE)
 	{
-		nread = piperead((struct pipe*)f->ptr, buf, count);
+		nread = piperead((struct pipe *)f->ptr, buf, count);
 	}
 	else
 	{
@@ -443,13 +443,13 @@ ssize_t vfs_read(struct file *f, void *buf, size_t count)
 ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 {
 	int nwrite;
-	if (f->type == FD_FILE)
+	if (f->type == FD_FILE || f->type == FD_DIR)
 	{
 		nwrite = filewrite(f, buf, count);
 	}
 	else if (f->type == FD_PIPE)
 	{
-		nwrite = pipewrite((struct pipe*)f->ptr, buf, count);
+		nwrite = pipewrite((struct pipe *)f->ptr, buf, count);
 	}
 	else
 	{

@@ -419,7 +419,20 @@ struct file *vfs_open(const char *pathname, int flags)
 
 void vfs_close(struct file *f)
 {
-	fileclose(f);
+	switch (f->type)
+	{
+	case FD_DEVICE:
+	case FD_DIR:
+	case FD_FILE:
+		fileclose(f);
+		break;
+	case FD_PIPE:
+		pipeclose((struct pipe *)f->ptr, f->writable);
+		break;
+	default:
+	    panic("vfs close unknown type");
+		break;
+	}
 }
 
 ssize_t vfs_read(struct file *f, void *buf, size_t count)
@@ -477,6 +490,7 @@ int vfs_stat(struct file *f, struct stat *stat)
 {
 	return filestat(f, stat);
 }
+
 
 int vfs_umount(const char *mount_point)
 {

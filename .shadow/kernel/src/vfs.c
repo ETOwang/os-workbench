@@ -279,7 +279,6 @@ struct file *vfs_open(const char *pathname, int flags)
 		fileclose(f);
 		return NULL;
 	}
-	printf("VFS: Opening file %s with mode %s\n", pathname, mode);
 	if (ext4_fopen(ef, pathname, mode) != EOK)
 	{
 		pmm->free(ef);

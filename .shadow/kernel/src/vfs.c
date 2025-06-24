@@ -453,6 +453,7 @@ ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 	}
 	else
 	{
+		printf("vfs type %d\n",f->type);
 		panic("vfs write unknown type");
 	}
 	return nwrite;

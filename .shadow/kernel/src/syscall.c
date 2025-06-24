@@ -520,30 +520,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     task->context->GPR1 = argc;
     task->context->GPR2 = (uintptr_t)argv_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     task->context->GPR3 = (uintptr_t)envp_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
-    for (size_t i = 0; i < NOFILE; i++)
-    {
-        if (task->open_files[i])
-        {
-            vfs->close(task->open_files[i]);
-            task->open_files[i] = NULL;
-        }
-    }
-    task->open_files[0] = vfs->alloc();
-    task->open_files[0]->readable = true;
-    task->open_files[0]->writable = false;
-    task->open_files[0]->ptr = dev->lookup("tty1");
-    task->open_files[0]->type = FD_DEVICE;
-    task->open_files[0]->ref = 1;
-    for (size_t i = 1; i < 3; i++)
-    {
-        task->open_files[i] = vfs->alloc();
-        task->open_files[i]->writable = true;
-        task->open_files[i]->readable = false;
-        task->open_files[i]->ptr = dev->lookup("tty1");
-        task->open_files[i]->type = FD_DEVICE;
-        task->open_files[i]->ref = 1;
-    }
-
     return 0;
 }
 static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point)

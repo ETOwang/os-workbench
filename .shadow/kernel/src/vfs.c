@@ -453,7 +453,7 @@ ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 	}
 	else
 	{
-		panic("vfs read unknown type");
+		panic("vfs write unknown type");
 	}
 	return nwrite;
 }

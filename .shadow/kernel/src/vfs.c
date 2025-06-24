@@ -424,12 +424,38 @@ void vfs_close(struct file *f)
 
 ssize_t vfs_read(struct file *f, void *buf, size_t count)
 {
-	return fileread(f, buf, count);
+	int nread;
+	if (f->type == FD_FILE)
+	{
+		nread = fileread(f, buf, count);
+	}
+	else if (f->type == FD_PIPE)
+	{
+		nread = piperead((struct pipe*)f->ptr, buf, count);
+	}
+	else
+	{
+		panic("vfs read unknown type");
+	}
+	return nread;
 }
 
 ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 {
-	return filewrite(f, buf, count);
+	int nwrite;
+	if (f->type == FD_FILE)
+	{
+		nwrite = filewrite(f, buf, count);
+	}
+	else if (f->type == FD_PIPE)
+	{
+		nwrite = pipewrite((struct pipe*)f->ptr, buf, count);
+	}
+	else
+	{
+		panic("vfs read unknown type");
+	}
+	return nwrite;
 }
 
 off_t vfs_seek(struct file *f, off_t offset, int whence)
@@ -491,7 +517,7 @@ static struct file *vfs_dup(struct file *f)
 	return filedup(f);
 }
 
-static int vfs_pipe(struct file* fd[2])
+static int vfs_pipe(struct file *fd[2])
 {
 	struct file *f0, *f1;
 	if (pipealloc(&f0, &f1) < 0)
@@ -519,5 +545,4 @@ MODULE_DEF(vfs) = {
 	.rename = vfs_rename,
 	.stat = vfs_stat,
 	.alloc = filealloc,
-	.pipe = vfs_pipe
-};
+	.pipe = vfs_pipe};

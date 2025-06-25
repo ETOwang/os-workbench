@@ -169,6 +169,7 @@ static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
     }
     pipefd[0] = fd0;
     pipefd[1] = fd1;
+    printf("pipe created: fd0=%d, fd1=%d\n", fd0, fd1);
     return 0;
 }
 

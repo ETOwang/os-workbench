@@ -167,7 +167,8 @@ static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
         vfs->close(fdarray[1]);
         return -1;
     }
-    printf("pipe created: %p, %p\n", fdarray[0], fdarray[1]);
+    pipefd[0] = fd0;
+    pipefd[1] = fd1;
     return 0;
 }
 

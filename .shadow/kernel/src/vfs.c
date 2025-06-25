@@ -367,8 +367,6 @@ struct file *vfs_open(const char *pathname, int flags)
 	{
 		return NULL;
 	}
-
-	// First, try to open as a directory.
 	d = pmm->alloc(sizeof(ext4_dir));
 	if (!d)
 	{
@@ -377,7 +375,6 @@ struct file *vfs_open(const char *pathname, int flags)
 	}
 	if (ext4_dir_open(d, pathname) == EOK)
 	{
-		// It's a directory.
 		strcpy(f->path, pathname);
 		f->type = FD_DIR;
 		f->ptr = d;
@@ -386,9 +383,7 @@ struct file *vfs_open(const char *pathname, int flags)
 		f->off = 0;
 		return f;
 	}
-	pmm->free(d); // Not a directory or couldn't be opened.
-
-	// If it's not a directory, try to open it as a file.
+	pmm->free(d); 
 	const char *mode = "r";
 	if (flags & O_WRONLY)
 	{
@@ -421,8 +416,6 @@ struct file *vfs_open(const char *pathname, int flags)
 		f->off = 0;
 		return f;
 	}
-
-	// Both failed.
 	pmm->free(ef);
 	fileclose(f);
 	return NULL;

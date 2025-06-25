@@ -110,19 +110,30 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         components[n++] = start;
     }
 
-    if (n > 0)
+    // Normalize path by processing . and ..
+    char *new_components[64];
+    int new_n = 0;
+    for (int i = 0; i < n; i++)
     {
-        if (strcmp(components[n - 1], ".") == 0)
+        if (strcmp(components[i], ".") == 0)
         {
-            n--;
+            continue; // Ignore .
         }
-        else if (strcmp(components[n - 1], "..") == 0)
+        if (strcmp(components[i], "..") == 0)
         {
-            n--;
-            if (n > 0)
+            if (new_n > 0 && strcmp(new_components[new_n - 1], "..") != 0)
             {
-                n--;
+                new_n--;
             }
+            else if (!is_abs)
+            {
+                new_components[new_n++] = components[i];
+            }
+            // For absolute paths, /.. is just /, so we do nothing and effectively go up.
+        }
+        else
+        {
+            new_components[new_n++] = components[i];
         }
     }
 
@@ -132,22 +143,22 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         *p++ = '/';
     }
 
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < new_n; i++)
     {
-        strcpy(p, components[i]);
-        p += strlen(components[i]);
-        if (i < n - 1)
+        strcpy(p, new_components[i]);
+        p += strlen(new_components[i]);
+        if (i < new_n - 1)
         {
             *p++ = '/';
         }
     }
     *p = '\0';
 
-    if (is_abs && n == 0)
+    if (is_abs && new_n == 0)
     {
         // Path is root, buf is already "/"
     }
-    else if (!is_abs && n == 0)
+    else if (!is_abs && new_n == 0)
     {
         strcpy(buf, ".");
     }

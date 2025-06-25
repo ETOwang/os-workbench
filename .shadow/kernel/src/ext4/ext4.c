@@ -981,6 +981,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 							  int ftype, uint32_t *parent_inode,
 							  uint32_t *name_off)
 {
+	printf("pathname:%s\n",path);
 	bool is_goal = false;
 	uint32_t imode = EXT4_INODE_MODE_DIRECTORY;
 	uint32_t next_inode;

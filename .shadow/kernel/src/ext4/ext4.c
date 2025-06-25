@@ -1013,7 +1013,6 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 
 	/*Load root*/
 	r = ext4_fs_get_inode_ref(fs, EXT4_INODE_ROOT_INDEX, &ref);
-	printf("return val:%d\n",r);
 	if (r != EOK)
 		return r;
 
@@ -1031,7 +1030,6 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 			if (ftype == EXT4_DE_DIR || ftype == EXT4_DE_UNKNOWN)
 				if (is_goal)
 					break;
-            printf("dir check fail\n");
 			r = ENOENT;
 			break;
 		}
@@ -1039,6 +1037,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 		r = ext4_dir_find_entry(&result, &ref, path, len);
 		if (r != EOK)
 		{
+			printf("fail in 1040\n");
 
 			/*Destroy last result*/
 			ext4_dir_destroy_result(&ref, &result);

@@ -1162,7 +1162,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 }
 
 /****************************************************************************/
-
+#include<stdio.h>
 static int ext4_generic_open(ext4_file *f, const char *path, const char *flags,
 							 bool file_expect, uint32_t *parent_inode,
 							 uint32_t *name_off)
@@ -1185,7 +1185,8 @@ static int ext4_generic_open(ext4_file *f, const char *path, const char *flags,
 
 	r = ext4_generic_open2(f, path, iflags, filetype, parent_inode,
 						   name_off);
-
+    
+	printf("ext4_generic_open: %s, flags: %x, r: %d\n", path, iflags, r);
 	if (iflags & O_CREAT)
 	{
 		if (r == EOK)
@@ -1632,7 +1633,7 @@ int ext4_fopen(ext4_file *file, const char *path, const char *flags)
 	if (!mp)
 		return ENOENT;
 
-	EXT4_MP_LOCK(mp);
+	EXT4_MP_LOCK(mp);	
 
 	ext4_block_cache_write_back(mp->fs.bdev, 1);
 	r = ext4_generic_open(file, path, flags, true, 0, 0);

@@ -427,10 +427,14 @@ void vfs_close(struct file *f)
 		fileclose(f);
 		break;
 	case FD_PIPE:
-		pipeclose((struct pipe *)f->ptr, f->writable);
+		f->ref--;
+		if (f->ref == 0)
+		{
+			pipeclose((struct pipe *)f->ptr, f->writable);
+		}
 		break;
 	default:
-	    panic("vfs close unknown type");
+		panic("vfs close unknown type");
 		break;
 	}
 }
@@ -466,7 +470,7 @@ ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 	}
 	else
 	{
-		printf("vfs type %d\n",f->type);
+		printf("vfs type %d\n", f->type);
 		panic("vfs write unknown type");
 	}
 	return nwrite;
@@ -490,7 +494,6 @@ int vfs_stat(struct file *f, struct stat *stat)
 {
 	return filestat(f, stat);
 }
-
 
 int vfs_umount(const char *mount_point)
 {

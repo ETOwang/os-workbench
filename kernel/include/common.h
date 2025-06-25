@@ -18,6 +18,7 @@
 #define TASK_ZOMBIE 5
 #define MAX_CPU 32
 #define MAX_TASK 128
+#define MAX_ARG 32
 #define UVMEND 0x108000000000
 #define UVSTART 0x100000000000
 #define NFILE 100

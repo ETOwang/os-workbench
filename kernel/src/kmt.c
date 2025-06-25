@@ -415,6 +415,57 @@ static void kmt_sem_signal(sem_t *sem)
     TRACE_EXIT;
 }
 
+static void kmt_wakeup(void *chan)
+{
+    kmt->spin_lock(&task_lock);
+    task_t *task = get_current_task();
+    for (size_t i = 0; i < MAX_TASK; i++)
+    {
+        if (tasks[i] == NULL)
+        {
+            continue;
+        }
+        kmt->spin_lock(&tasks[i]->lock);
+        if (tasks[i] != task && tasks[i]->chan == chan && tasks[i]->status == TASK_BLOCKED)
+        {
+            tasks[i]->status = TASK_RUNNING;
+        }
+        kmt->spin_unlock(&tasks[i]->lock);
+    }
+}
+static void kmt_sleep(void *chan, spinlock_t *lk)
+{
+    // Atomically release lock and sleep on chan.
+    // Reacquires lock when awakened.
+
+    task_t *p = get_current_task();
+
+    // Must acquire p->lock in order to
+    // change p->state and then call sched.
+    // Once we hold p->lock, we can be
+    // guaranteed that we won't miss any wakeup
+    // (wakeup locks p->lock),
+    // so it's okay to release lk.
+
+    kmt->spin_unlock(lk);
+    // Go to sleep.
+    kmt->spin_lock(&p->lock);
+    p->chan = chan;
+    p->status = TASK_BLOCKED;
+    kmt->spin_unlock(&p->lock);
+    while (p->status == TASK_BLOCKED)
+    {
+        kmt->spin_lock(&p->lock);
+        kmt->spin_unlock(&p->lock);
+    }
+
+    // Tidy up.
+    p->chan = 0;
+
+    // Reacquire original lock.
+
+    kmt->spin_lock(lk);
+}
 MODULE_DEF(kmt) = {
     .init = kmt_init,
     .create = kmt_create,
@@ -425,4 +476,6 @@ MODULE_DEF(kmt) = {
     .sem_init = kmt_sem_init,
     .sem_wait = kmt_sem_wait,
     .sem_signal = kmt_sem_signal,
+    .wakeup = kmt_wakeup,
+    .sleep = kmt_sleep,
 };

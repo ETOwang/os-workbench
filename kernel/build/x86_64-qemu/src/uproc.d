@@ -7,5 +7,5 @@
  include/syscall.h \
  /media/wcy/Data/os-workbench/kernel/../abstract-machine/klib/include/klib.h \
  /media/wcy/Data/os-workbench/kernel/../abstract-machine/klib/include/klib-macros.h \
- include/os.h include/devices.h \
+ include/os.h include/devices.h include/vfs.h \
  /media/wcy/Data/os-workbench/kernel/src/initcode.inc

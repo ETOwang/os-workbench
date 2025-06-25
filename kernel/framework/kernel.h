@@ -40,6 +40,8 @@ MODULE(kmt)
   void (*sem_init)(sem_t *sem, const char *name, int value);
   void (*sem_wait)(sem_t *sem);
   void (*sem_signal)(sem_t *sem);
+  void (*wakeup)(void *chan);
+  void (*sleep)(void *chan, spinlock_t *lk);
 };
 
 typedef struct device device_t;
@@ -93,6 +95,7 @@ MODULE(vfs)
   ssize_t (*write)(struct file *f, const void *buf, size_t count);
   off_t (*seek)(struct file *f, off_t offset, int whence);
   int (*stat)(struct file *f, struct stat *stat);
+  int (*pipe)(struct file* pipefd[2]);
 };
 
 MODULE(syscall)

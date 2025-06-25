@@ -30,6 +30,7 @@ struct task
 
     // 新增的进程级文件描述符表
     struct file *open_files[NOFILE];
+    void *chan; // 用于等待的信道
 };
 struct semaphore
 {

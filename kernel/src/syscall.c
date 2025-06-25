@@ -155,8 +155,19 @@ static uint64_t syscall_close(task_t *task, int fd)
 
 static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
 {
-    // Simplified implementation - should create real pipes
-    return -1;
+    int fd0, fd1;
+    struct file *fdarray[2];
+    if (vfs->pipe(fdarray) < 0)
+        return -1;
+    if ((fd0 = fdalloc(task, fdarray[0])) < 0 || (fd1 = fdalloc(task, fdarray[1])) < 0)
+    {
+        if (fd0 >= 0)
+            task->open_files[fd0] = 0;
+        vfs->close(fdarray[0]);
+        vfs->close(fdarray[1]);
+        return -1;
+    }
+    return 0;
 }
 
 static uint64_t syscall_dup(task_t *task, int oldfd)
@@ -412,7 +423,12 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     {
         return -1;
     }
-    struct file *f = vfs->open(pathname, 0);
+    char full_path[PATH_MAX];
+    if (parse_path(full_path, task, AT_FDCWD, pathname) < 0)
+    {
+        return -1;
+    }
+    struct file *f = vfs->open(full_path, 0);
     if (f == NULL)
     {
         return -1;
@@ -429,7 +445,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         vfs->close(f);
         return -1;
     }
-
     char *elf_data = pmm->alloc(file_size);
     if (elf_data == NULL)
     {
@@ -449,7 +464,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         pmm->free(elf_data);
         return -1;
     }
-
     pmm->free(elf_data);
     int argc = 0;
     int envc = 0;
@@ -471,43 +485,22 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
             envc++;
         }
     }
-
-    size_t stack_needed = (argc + 1) * sizeof(char *) +
-                          (envc + 1) * sizeof(char *) +
-                          args_size + envs_size +
-                          16;
-
-    size_t pages_needed = 1;
-    size_t total_stack_needed = stack_needed + 4096;
-    if (total_stack_needed > pages_needed * task->pi->as.pgsize)
-    {
-        pages_needed = (total_stack_needed + task->pi->as.pgsize - 1) / task->pi->as.pgsize;
-    }
-
-    for (size_t i = 0; i < pages_needed; i++)
-    {
-        char *mem = pmm->alloc(task->pi->as.pgsize);
-        if (mem == NULL)
-        {            return -1;
-        }
-        uintptr_t stack_addr = UVMEND - (i + 1) * task->pi->as.pgsize;
-        map(&task->pi->as, (void *)stack_addr, (void *)mem, MMAP_READ | MMAP_WRITE);
-    }
-
+    size_t stack_needed = (argc + 1) * sizeof(char *) + (envc + 1) * sizeof(char *) + args_size + envs_size + 16;
+    panic_on(stack_needed > task->pi->as.pgsize, "Stack size exceeds limit");
+    void *mem = pmm->alloc(task->pi->as.pgsize);
+    panic_on(!mem, "Failed to allocate memory for stack");
+    map(&task->pi->as, (void *)UVMEND - task->pi->as.pgsize, mem, MMAP_READ | MMAP_WRITE);
     task->context = ucontext(&task->pi->as, RANGE(task->stack, task->stack + STACK_SIZE), entry_point);
-
-    char *stack_top = (char *)task->context->rsp;
-    char *stack_ptr = stack_top;
-
+    char *stack_ptr = (char *)(mem + task->pi->as.pgsize);
     char **argv_ptrs = pmm->alloc((argc + 1) * sizeof(char *));
     char **envp_ptrs = pmm->alloc((envc + 1) * sizeof(char *));
-
     for (int i = envc - 1; i >= 0; i--)
     {
         size_t len = strlen(envp[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, envp[i], len);
-        envp_ptrs[i] = stack_ptr;
+        envp_ptrs[i] = stack_ptr - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+        ;
     }
 
     for (int i = argc - 1; i >= 0; i--)
@@ -515,11 +508,10 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         size_t len = strlen(argv[i]) + 1;
         stack_ptr -= len;
         memcpy(stack_ptr, argv[i], len);
-        argv_ptrs[i] = stack_ptr;
+        argv_ptrs[i] = stack_ptr - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+        ;
     }
-
     stack_ptr = (char *)((uintptr_t)stack_ptr & ~7);
-
     stack_ptr -= (envc + 1) * sizeof(char *);
     char **envp_array = (char **)stack_ptr;
     for (int i = 0; i < envc; i++)
@@ -527,7 +519,6 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         envp_array[i] = envp_ptrs[i];
     }
     envp_array[envc] = NULL;
-
     stack_ptr -= (argc + 1) * sizeof(char *);
     char **argv_array = (char **)stack_ptr;
     for (int i = 0; i < argc; i++)
@@ -535,36 +526,17 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
         argv_array[i] = argv_ptrs[i];
     }
     argv_array[argc] = NULL;
-    stack_ptr -= sizeof(int);
-    *((int *)stack_ptr) = argc;
+    stack_ptr -= sizeof(uint64_t);
+    *((uint64_t *)stack_ptr) = argc;
+    uintptr_t final_rsp = (uintptr_t)stack_ptr & ~15;
     pmm->free(argv_ptrs);
     pmm->free(envp_ptrs);
-    task->context->rsp = (uintptr_t)stack_ptr;
-    for (size_t i = 0; i < NOFILE; i++)
-    {
-        if (task->open_files[i])
-        {
-            vfs->close(task->open_files[i]);
-            task->open_files[i] = NULL;
-        }
-    }
-    
-    task->open_files[0] = vfs->alloc();
-    task->open_files[0]->readable = true;
-    task->open_files[0]->writable = false;
-    task->open_files[0]->ptr = dev->lookup("tty1");
-    task->open_files[0]->type = FD_DEVICE;
-    task->open_files[0]->ref = 1;
-    for (size_t i = 1; i < 3; i++)
-    {
-        task->open_files[i] = vfs->alloc();
-        task->open_files[i]->writable = true;
-        task->open_files[i]->readable = false;
-        task->open_files[i]->ptr = dev->lookup("tty1");
-        task->open_files[i]->type = FD_DEVICE;
-        task->open_files[i]->ref = 1;
-    }
-
+    panic_on(argv_array < (char **)mem, "argv_array is NULL");
+    panic_on(envp_array < (char **)mem, "envp_array is NULL");
+    task->context->rsp = final_rsp - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+    task->context->GPR1 = argc;
+    task->context->GPR2 = (uintptr_t)argv_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+    task->context->GPR3 = (uintptr_t)envp_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     return 0;
 }
 static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point)

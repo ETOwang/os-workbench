@@ -1,6 +1,7 @@
 #include <common.h>
 #include <string.h>
 #include <am.h>
+#include <vfs.h>
 #include "initcode.inc"
 #define MAX_PID 32767
 static spinlock_t uproc_lock;
@@ -40,6 +41,29 @@ static void user_init()
     task->cpu = -1;
     task->next = NULL;
     kmt->spin_init(&task->lock, task->name);
+    for (size_t i = 0; i < NOFILE; i++)
+    {
+        if (task->open_files[i])
+        {
+            vfs->close(task->open_files[i]);
+            task->open_files[i] = NULL;
+        }
+    }
+    task->open_files[0] = vfs->alloc();
+    task->open_files[0]->readable = true;
+    task->open_files[0]->writable = false;
+    task->open_files[0]->ptr = dev->lookup("tty1");
+    task->open_files[0]->type = FD_DEVICE;
+    task->open_files[0]->ref = 1;
+    for (size_t i = 1; i < 3; i++)
+    {
+        task->open_files[i] = vfs->alloc();
+        task->open_files[i]->writable = true;
+        task->open_files[i]->readable = false;
+        task->open_files[i]->ptr = dev->lookup("tty1");
+        task->open_files[i]->type = FD_DEVICE;
+        task->open_files[i]->ref = 1;
+    }
     kmt_add_task(task);
     TRACE_EXIT;
 }
@@ -67,6 +91,7 @@ static int uproc_kputc(task_t *task, char ch)
 
 int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
 {
+    //maybe wrong
     panic_on(old == NULL || new == NULL, "old or new AddrSpace is NULL");
     uintptr_t pg_sz = old->pgsize;
     for (uintptr_t offset = 0; offset < sz; offset += pg_sz)
@@ -89,6 +114,32 @@ int uvmcopy(AddrSpace *old, AddrSpace *new, uint64_t sz)
             panic_on(new_pa == NULL, "Failed to allocate new physical page");
             memcpy(new_pa, old_pa, pg_sz);
             map(new, (void *)current_va, new_pa, map_prot);
+        }else{
+            break;
+        }
+    }
+    for (uintptr_t offset = sz-pg_sz; offset >0; offset -= pg_sz)
+    {
+        uintptr_t current_va = (uintptr_t)UVSTART + offset;
+        if (current_va >= (uintptr_t)UVMEND)
+        {
+            break;
+        }
+        uintptr_t *ptep = ptewalk(old, current_va);
+        if (ptep && (*ptep & PROT_READ))
+        {
+            int map_prot = MMAP_READ;
+            if (*ptep & PROT_WRITE)
+            {
+                map_prot |= MMAP_WRITE;
+            }
+            void *old_pa = (void *)PTE_ADDR(*ptep);
+            void *new_pa = pmm->alloc(pg_sz);
+            panic_on(new_pa == NULL, "Failed to allocate new physical page");
+            memcpy(new_pa, old_pa, pg_sz);
+            map(new, (void *)current_va, new_pa, map_prot);
+        }else{
+            break;
         }
     }
     return 0;

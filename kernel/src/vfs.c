@@ -135,7 +135,7 @@ static ssize_t filewrite(struct file *f, const void *buf, size_t n)
 
 	if (!f->writable)
 		return -1;
- 
+
 	if (f->type == FD_FILE)
 	{
 		size_t bytes_written;
@@ -155,6 +155,139 @@ static ssize_t filewrite(struct file *f, const void *buf, size_t n)
 	}
 
 	return r;
+}
+
+int pipealloc(struct file **f0, struct file **f1)
+{
+	struct pipe *pi;
+
+	pi = 0;
+	*f0 = *f1 = 0;
+	if ((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
+		goto bad;
+	if ((pi = (struct pipe *)pmm->alloc(4096)) == 0)
+		goto bad;
+	pi->readopen = 1;
+	pi->writeopen = 1;
+	pi->nwrite = 0;
+	pi->nread = 0;
+	kmt->spin_init(&pi->lock, "pipe");
+	(*f0)->type = FD_PIPE;
+	(*f0)->readable = 1;
+	(*f0)->writable = 0;
+	(*f0)->ptr = pi;
+	(*f1)->type = FD_PIPE;
+	(*f1)->readable = 0;
+	(*f1)->writable = 1;
+	(*f1)->ptr = pi;
+	return 0;
+
+bad:
+	if (pi)
+		pmm->free((void *)pi);
+	if (*f0)
+		fileclose(*f0);
+	if (*f1)
+		fileclose(*f1);
+	return -1;
+}
+
+void pipeclose(struct pipe *pi, int writable)
+{
+	kmt->spin_lock(&pi->lock);
+	if (writable)
+	{
+		pi->writeopen = 0;
+		kmt->wakeup(&pi->nread);
+	}
+	else
+	{
+		pi->readopen = 0;
+		kmt->wakeup(&pi->nwrite);
+	}
+	if (pi->readopen == 0 && pi->writeopen == 0)
+	{
+		kmt->spin_unlock(&pi->lock);
+		pmm->free((void *)pi);
+	}
+	else
+		kmt->spin_unlock(&pi->lock);
+}
+
+int pipewrite(struct pipe *pi, const void *buf, int n)
+{
+	int i = 0;
+	kmt->spin_lock(&pi->lock);
+	while (i < n)
+	{
+		if (pi->readopen == 0)
+		{
+			kmt->spin_unlock(&pi->lock);
+			return -1;
+		}
+		if (pi->nwrite == pi->nread + PIPESIZE)
+		{ // DOC: pipewrite-full
+			kmt->wakeup(&pi->nread);
+			kmt->sleep(&pi->nwrite, &pi->lock);
+		}
+		else
+		{
+			pi->data[pi->nwrite++ % PIPESIZE] = ((char *)buf)[i];
+			i++;
+		}
+	}
+	kmt->wakeup(&pi->nread);
+	kmt->spin_unlock(&pi->lock);
+	return i;
+}
+
+int piperead(struct pipe *pi, const void *buf, int n)
+{
+	int i;
+	char ch;
+	kmt->spin_lock(&pi->lock);
+	while (pi->nread == pi->nwrite && pi->writeopen)
+	{									   // DOC: pipe-empty
+		kmt->sleep(&pi->nread, &pi->lock); // DOC: piperead-sleep
+	}
+	for (i = 0; i < n; i++)
+	{ // DOC: piperead-copy
+		if (pi->nread == pi->nwrite)
+			break;
+		ch = pi->data[pi->nread++ % PIPESIZE];
+		((char *)buf)[i] = ch;
+	}
+	kmt->wakeup(&pi->nwrite); // DOC: piperead-wakeup
+	kmt->spin_unlock(&pi->lock);
+	return i;
+}
+
+int vfs_link(const char *oldpath, const char *newpath)
+{
+	for (size_t i = 0; i < NFILE; i++)
+	{
+		if (strcmp(ftable.file[i].path, oldpath) == 0)
+		{
+			ftable.file[i].ref++;
+			break;
+		}
+	}
+	int ret = ext4_flink(oldpath, newpath);
+	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
+}
+
+int vfs_unlink(const char *path)
+{
+	for (size_t i = 0; i < NFILE; i++)
+	{
+		if (strcmp(ftable.file[i].path, path) == 0)
+		{
+			ftable.file[i].ref--;
+			break;
+		}
+	}
+	int ret = ext4_fremove(path);
+	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
 static struct ext4_blockdev_iface bi;
@@ -205,6 +338,12 @@ void vfs_init(void)
 	bd.bdif = &bi;
 	bd.part_size = bd.bdif->ph_bcnt * (uint64_t)bd.bdif->ph_bsize;
 	vfs->mount("disk", "/", "ext4", 0, NULL);
+}
+
+int vfs_mkdir(const char *pathname)
+{
+	int ret = ext4_dir_mk(pathname);
+	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
 int vfs_mount(const char *dev_name, const char *mount_point, const char *fs_type, int flags, void *data)
@@ -260,7 +399,7 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
-		strcpy(f->path,pathname);
+		strcpy(f->path, pathname);
 		f->type = FD_DIR;
 		f->ptr = d;
 		f->readable = !(flags & O_WRONLY);
@@ -268,7 +407,7 @@ struct file *vfs_open(const char *pathname, int flags)
 		f->off = 0;
 		return f;
 	}
-	strcpy(f->path,pathname);
+	strcpy(f->path, pathname);
 	f->ref = ef->refctr + 1;
 	f->type = FD_FILE;
 	f->ptr = ef;
@@ -280,17 +419,61 @@ struct file *vfs_open(const char *pathname, int flags)
 
 void vfs_close(struct file *f)
 {
-	fileclose(f);
+	switch (f->type)
+	{
+	case FD_DEVICE:
+	case FD_DIR:
+	case FD_FILE:
+		fileclose(f);
+		break;
+	case FD_PIPE:
+		f->ref--;
+		if (f->ref == 0)
+		{
+			pipeclose((struct pipe *)f->ptr, f->writable);
+		}
+		break;
+	default:
+		panic("vfs close unknown type");
+		break;
+	}
 }
 
 ssize_t vfs_read(struct file *f, void *buf, size_t count)
 {
-	return fileread(f, buf, count);
+	int nread;
+	if (f->type == FD_FILE || f->type == FD_DIR || f->type == FD_DEVICE)
+	{
+		nread = fileread(f, buf, count);
+	}
+	else if (f->type == FD_PIPE)
+	{
+		nread = piperead((struct pipe *)f->ptr, buf, count);
+	}
+	else
+	{
+		panic("vfs read unknown type");
+	}
+	return nread;
 }
 
 ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 {
-	return filewrite(f, buf, count);
+	int nwrite;
+	if (f->type == FD_FILE || f->type == FD_DIR || f->type == FD_DEVICE)
+	{
+		nwrite = filewrite(f, buf, count);
+	}
+	else if (f->type == FD_PIPE)
+	{
+		nwrite = pipewrite((struct pipe *)f->ptr, buf, count);
+	}
+	else
+	{
+		printf("vfs type %d\n", f->type);
+		panic("vfs write unknown type");
+	}
+	return nwrite;
 }
 
 off_t vfs_seek(struct file *f, off_t offset, int whence)
@@ -326,29 +509,10 @@ int vfs_umount(const char *mount_point)
 	return VFS_SUCCESS;
 }
 
-int vfs_mkdir(const char *pathname)
-{
-	int ret = ext4_dir_mk(pathname);
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
 int vfs_rmdir(const char *pathname)
 {
 	int ret = ext4_dir_rm(pathname);
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
-int vfs_unlink(const char *path)
-{
-	for (size_t i = 0; i < NFILE; i++)
-	{
-		if (strcmp(ftable.file[i].path, path) == 0)
-		{
-			ftable.file[i].ref--;
-			break;
-		}
-	}
-	int ret = ext4_fremove(path);
+	ext4_flink(pathname, pathname);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
@@ -366,25 +530,22 @@ int vfs_rename(const char *oldpath, const char *newpath)
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 
-static int vfs_link(const char *oldpath, const char *newpath)
-{
-	for (size_t i = 0; i < NFILE; i++)
-	{
-		if (strcmp(ftable.file[i].path, oldpath) == 0)
-		{
-			ftable.file[i].ref++;
-			break;
-		}
-	}
-	int ret = ext4_flink(oldpath, newpath);
-	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
-}
-
 static struct file *vfs_dup(struct file *f)
 {
 	return filedup(f);
 }
 
+static int vfs_pipe(struct file *fd[2])
+{
+	struct file *f0, *f1;
+	if (pipealloc(&f0, &f1) < 0)
+	{
+		return -1;
+	}
+	fd[0] = f0;
+	fd[1] = f1;
+	return 0;
+}
 MODULE_DEF(vfs) = {
 	.init = vfs_init,
 	.dup = vfs_dup,
@@ -401,4 +562,5 @@ MODULE_DEF(vfs) = {
 	.link = vfs_link,
 	.rename = vfs_rename,
 	.stat = vfs_stat,
-	.alloc = filealloc};
+	.alloc = filealloc,
+	.pipe = vfs_pipe};

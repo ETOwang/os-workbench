@@ -69,6 +69,89 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         }
         strcat(buf, path);
     }
+
+    // Normalize the path
+    char *components[64];
+    int n = 0;
+    char *p = buf;
+    char *start;
+    int is_abs = (buf[0] == '/');
+
+    start = p;
+    if (is_abs)
+    {
+        while (*p == '/')
+        {
+            p++;
+        }
+        start = p;
+    }
+
+    while (*p)
+    {
+        if (*p == '/')
+        {
+            *p = '\0';
+            if (*start != '\0')
+            {
+                if (strcmp(start, "..") == 0)
+                {
+                    if (n > 0)
+                        n--;
+                }
+                else if (strcmp(start, ".") != 0)
+                {
+                    components[n++] = start;
+                }
+            }
+            while (*(p + 1) == '/')
+            {
+                p++;
+            }
+            start = p + 1;
+        }
+        p++;
+    }
+
+    if (*start != '\0')
+    {
+        if (strcmp(start, "..") == 0)
+        {
+            if (n > 0)
+                n--;
+        }
+        else if (strcmp(start, ".") != 0)
+        {
+            components[n++] = start;
+        }
+    }
+
+    p = buf;
+    if (is_abs)
+    {
+        *p++ = '/';
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        strcpy(p, components[i]);
+        p += strlen(components[i]);
+        if (i < n - 1)
+        {
+            *p++ = '/';
+        }
+    }
+    *p = '\0';
+
+    if (is_abs && n == 0)
+    {
+        // Path is root, buf is already "/"
+    }
+    else if (!is_abs && n == 0)
+    {
+        strcpy(buf, ".");
+    }
+
     return 0;
 }
 

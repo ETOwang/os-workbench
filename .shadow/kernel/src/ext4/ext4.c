@@ -976,12 +976,11 @@ static int ext4_trunc_dir(struct ext4_mountpoint *mp,
  * NOTICE: if filetype is equal to EXT4_DIRENTRY_UNKNOWN,
  * any filetype of the target dir entry will be accepted.
  */
-#include<stdio.h>
+#include <stdio.h>
 static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 							  int ftype, uint32_t *parent_inode,
 							  uint32_t *name_off)
 {
-	printf("pathname:%s\n",path);
 	bool is_goal = false;
 	uint32_t imode = EXT4_INODE_MODE_DIRECTORY;
 	uint32_t next_inode;
@@ -1033,12 +1032,9 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 			r = ENOENT;
 			break;
 		}
-        printf("path:%s\n",path);
 		r = ext4_dir_find_entry(&result, &ref, path, len);
 		if (r != EOK)
 		{
-			printf("fail in 1040\n");
-
 			/*Destroy last result*/
 			ext4_dir_destroy_result(&ref, &result);
 			if (r != ENOENT)
@@ -1131,7 +1127,6 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 		if (name_off)
 			*name_off += len + 1;
 	}
-    printf("r val:%d\n",r);
 	if (r != EOK)
 	{
 		ext4_fs_put_inode_ref(&ref);
@@ -1164,7 +1159,6 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 }
 
 /****************************************************************************/
-#include<stdio.h>
 static int ext4_generic_open(ext4_file *f, const char *path, const char *flags,
 							 bool file_expect, uint32_t *parent_inode,
 							 uint32_t *name_off)
@@ -1184,10 +1178,10 @@ static int ext4_generic_open(ext4_file *f, const char *path, const char *flags,
 
 	if (iflags & O_CREAT)
 		ext4_trans_start(mp);
-    
+
 	r = ext4_generic_open2(f, path, iflags, filetype, parent_inode,
 						   name_off);
-    
+
 	if (iflags & O_CREAT)
 	{
 		if (r == EOK)
@@ -1634,7 +1628,7 @@ int ext4_fopen(ext4_file *file, const char *path, const char *flags)
 	if (!mp)
 		return ENOENT;
 
-	EXT4_MP_LOCK(mp);	
+	EXT4_MP_LOCK(mp);
 
 	ext4_block_cache_write_back(mp->fs.bdev, 1);
 	r = ext4_generic_open(file, path, flags, true, 0, 0);

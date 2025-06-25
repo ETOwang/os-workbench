@@ -976,6 +976,7 @@ static int ext4_trunc_dir(struct ext4_mountpoint *mp,
  * NOTICE: if filetype is equal to EXT4_DIRENTRY_UNKNOWN,
  * any filetype of the target dir entry will be accepted.
  */
+#include<stdio.h>
 static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 							  int ftype, uint32_t *parent_inode,
 							  uint32_t *name_off)
@@ -1028,7 +1029,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 			if (ftype == EXT4_DE_DIR || ftype == EXT4_DE_UNKNOWN)
 				if (is_goal)
 					break;
-
+            printf("dir check fail\n");
 			r = ENOENT;
 			break;
 		}
@@ -1182,11 +1183,10 @@ static int ext4_generic_open(ext4_file *f, const char *path, const char *flags,
 
 	if (iflags & O_CREAT)
 		ext4_trans_start(mp);
-
+    
 	r = ext4_generic_open2(f, path, iflags, filetype, parent_inode,
 						   name_off);
     
-	printf("ext4_generic_open: %s, flags: %x, r: %d\n", path, iflags, r);
 	if (iflags & O_CREAT)
 	{
 		if (r == EOK)

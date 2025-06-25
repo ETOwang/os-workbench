@@ -159,6 +159,7 @@ static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
     struct file *fdarray[2];
     if (vfs->pipe(fdarray) < 0)
         return -1;
+    printf("pipe created: %p, %p\n", fdarray[0], fdarray[1]);
     if ((fd0 = fdalloc(task, fdarray[0])) < 0 || (fd1 = fdalloc(task, fdarray[1])) < 0)
     {
         if (fd0 >= 0)

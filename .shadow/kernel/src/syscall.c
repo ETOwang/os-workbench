@@ -187,6 +187,7 @@ static uint64_t syscall_dup(task_t *task, int oldfd)
         vfs->close(f);
         return -1;
     }
+    printf("syscall_dup: oldfd=%d, newfd=%d\n", oldfd, newfd);
     return newfd;
 }
 

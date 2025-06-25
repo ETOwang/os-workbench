@@ -57,7 +57,6 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         {
             return -1;
         }
-        // Assuming f->path is stored and valid
         if (strlen(f->path) + strlen(path) + 2 > PATH_MAX)
         {
             return -1;
@@ -69,8 +68,8 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         }
         strcat(buf, path);
     }
-
-    // Normalize the path
+    
+    //solve the problem that can't open dir/.
     char *components[64];
     int n = 0;
     char *p = buf;
@@ -110,7 +109,6 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         components[n++] = start;
     }
 
-    // 规范化路径：只保留开头的 . 和 ..，其余都要处理
     char *new_components[64];
     int new_n = 0;
     int leading = 1;
@@ -122,20 +120,18 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         }
         else if (strcmp(components[i], ".") == 0)
         {
-            // 非开头的 . 忽略
             continue;
         }
         else if (strcmp(components[i], "..") == 0)
         {
             if (new_n > 0 && strcmp(new_components[new_n - 1], ".") != 0 && strcmp(new_components[new_n - 1], "..") != 0)
             {
-                new_n--; // 向上一级
+                new_n--;
             }
             else if (!is_abs)
             {
                 new_components[new_n++] = components[i];
             }
-            // 对于绝对路径，/.. 直接忽略
         }
         else
         {
@@ -164,16 +160,10 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         }
     }
     *p = '\0';
-
-    if (is_abs && new_n == 0)
-    {
-        // Path is root, buf is already "/"
-    }
-    else if (!is_abs && new_n == 0)
+    if (!is_abs && new_n == 0)
     {
         strcpy(buf, ".");
     }
-
     return 0;
 }
 

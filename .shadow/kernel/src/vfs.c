@@ -345,6 +345,7 @@ void vfs_init(void)
 
 int vfs_mkdir(const char *pathname)
 {
+	// in fact,its performance is not the same as the mkdir in linux
 	int ret = ext4_dir_mk(pathname);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
@@ -383,7 +384,7 @@ struct file *vfs_open(const char *pathname, int flags)
 		f->off = 0;
 		return f;
 	}
-	pmm->free(d); 
+	pmm->free(d);
 	const char *mode = "r";
 	if (flags & O_WRONLY)
 	{

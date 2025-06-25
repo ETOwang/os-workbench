@@ -1013,6 +1013,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 
 	/*Load root*/
 	r = ext4_fs_get_inode_ref(fs, EXT4_INODE_ROOT_INDEX, &ref);
+	printf("return val:%d\n",r);
 	if (r != EOK)
 		return r;
 

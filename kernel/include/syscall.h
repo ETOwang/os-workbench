@@ -64,6 +64,7 @@ typedef int64_t clock_t;
 
 /* 文件系统相关常量 */
 #define AT_FDCWD -100
+#define AT_REMOVEDIR -200
 #define O_RDONLY 0
 #define O_WRONLY 1
 #define O_RDWR 2

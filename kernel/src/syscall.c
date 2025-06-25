@@ -57,7 +57,6 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         {
             return -1;
         }
-        // Assuming f->path is stored and valid
         if (strlen(f->path) + strlen(path) + 2 > PATH_MAX)
         {
             return -1;
@@ -68,6 +67,102 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
             strcat(buf, "/");
         }
         strcat(buf, path);
+    }
+    
+    //solve the problem that can't open dir/.
+    char *components[64];
+    int n = 0;
+    char *p = buf;
+    char *start;
+    int is_abs = (buf[0] == '/');
+
+    start = p;
+    if (is_abs)
+    {
+        while (*p == '/')
+        {
+            p++;
+        }
+        start = p;
+    }
+
+    while (*p)
+    {
+        if (*p == '/')
+        {
+            *p = '\0';
+            if (*start != '\0')
+            {
+                components[n++] = start;
+            }
+            while (*(p + 1) == '/')
+            {
+                p++;
+            }
+            start = p + 1;
+        }
+        p++;
+    }
+
+    if (*start != '\0')
+    {
+        components[n++] = start;
+    }
+
+    char *new_components[64];
+    int new_n = 0;
+    int leading = 1;
+    for (int i = 0; i < n; i++)
+    {
+        if (leading && (strcmp(components[i], ".") == 0 || strcmp(components[i], "..") == 0))
+        {
+            new_components[new_n++] = components[i];
+        }
+        else if (strcmp(components[i], ".") == 0)
+        {
+            continue;
+        }
+        else if (strcmp(components[i], "..") == 0)
+        {
+            if (new_n > 0 && strcmp(new_components[new_n - 1], ".") != 0 && strcmp(new_components[new_n - 1], "..") != 0)
+            {
+                new_n--;
+            }
+            else if (!is_abs)
+            {
+                new_components[new_n++] = components[i];
+            }
+        }
+        else
+        {
+            new_components[new_n++] = components[i];
+            leading = 0;
+        }
+        if (leading && strcmp(components[i], ".") != 0 && strcmp(components[i], "..") != 0)
+        {
+            leading = 0;
+        }
+    }
+
+    p = buf;
+    if (is_abs)
+    {
+        *p++ = '/';
+    }
+    for (int i = 0; i < new_n; i++)
+    {
+        size_t len = strlen(new_components[i]);
+        memcpy(p, new_components[i], len);
+        p += len;
+        if (i < new_n - 1)
+        {
+            *p++ = '/';
+        }
+    }
+    *p = '\0';
+    if (!is_abs && new_n == 0)
+    {
+        strcpy(buf, ".");
     }
     return 0;
 }
@@ -159,7 +254,6 @@ static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
     struct file *fdarray[2];
     if (vfs->pipe(fdarray) < 0)
         return -1;
-    printf("pipe created: %p, %p\n", fdarray[0], fdarray[1]);
     if ((fd0 = fdalloc(task, fdarray[0])) < 0 || (fd1 = fdalloc(task, fdarray[1])) < 0)
     {
         if (fd0 >= 0)
@@ -168,6 +262,8 @@ static uint64_t syscall_pipe2(task_t *task, int pipefd[2], int flags)
         vfs->close(fdarray[1]);
         return -1;
     }
+    pipefd[0] = fd0;
+    pipefd[1] = fd1;
     return 0;
 }
 
@@ -251,6 +347,9 @@ static uint64_t syscall_unlinkat(task_t *task, int dirfd, const char *path, int 
     if (parse_path(full_path, task, dirfd, path) < 0)
     {
         return -1;
+    }
+    if(flags & AT_REMOVEDIR){
+        return vfs->rmdir(full_path);
     }
     return vfs->unlink(full_path);
 }

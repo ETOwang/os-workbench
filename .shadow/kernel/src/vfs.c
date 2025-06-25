@@ -287,7 +287,6 @@ int vfs_unlink(const char *path)
 		}
 	}
 	int ret = ext4_fremove(path);
-	printf("vfs_unlink %s, ret:%d\n", path, ret);
 	return (ret == EOK) ? VFS_SUCCESS : VFS_ERROR;
 }
 

@@ -348,6 +348,9 @@ static uint64_t syscall_unlinkat(task_t *task, int dirfd, const char *path, int 
     {
         return -1;
     }
+    if(flags & AT_REMOVEDIR){
+        return vfs->rmdir(full_path);
+    }
     return vfs->unlink(full_path);
 }
 

@@ -317,7 +317,10 @@ static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf, uint64_t
 	return EOK;
 }
 
-static int blockdev_lock(struct ext4_blockdev *bdev) { return EOK; }
+static int blockdev_lock(struct ext4_blockdev *bdev)
+{
+	return EOK;
+}
 static int blockdev_unlock(struct ext4_blockdev *bdev) { return EOK; }
 
 void vfs_init(void)
@@ -364,6 +367,28 @@ struct file *vfs_open(const char *pathname, int flags)
 	{
 		return NULL;
 	}
+
+	// First, try to open as a directory.
+	d = pmm->alloc(sizeof(ext4_dir));
+	if (!d)
+	{
+		fileclose(f);
+		return NULL;
+	}
+	if (ext4_dir_open(d, pathname) == EOK)
+	{
+		// It's a directory.
+		strcpy(f->path, pathname);
+		f->type = FD_DIR;
+		f->ptr = d;
+		f->readable = !(flags & O_WRONLY);
+		f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
+		f->off = 0;
+		return f;
+	}
+	pmm->free(d); // Not a directory or couldn't be opened.
+
+	// If it's not a directory, try to open it as a file.
 	const char *mode = "r";
 	if (flags & O_WRONLY)
 	{
@@ -378,43 +403,29 @@ struct file *vfs_open(const char *pathname, int flags)
 		else
 			mode = "r+";
 	}
+
 	ef = pmm->alloc(sizeof(ext4_file));
 	if (!ef)
 	{
 		fileclose(f);
 		return NULL;
 	}
-	if (ext4_fopen(ef, pathname, mode) != EOK)
+	if (ext4_fopen(ef, pathname, mode) == EOK)
 	{
-		pmm->free(ef);
-		d = pmm->alloc(sizeof(ext4_dir));
-		if (!d)
-		{
-			fileclose(f);
-			return NULL;
-		}
-		if (ext4_dir_open(d, pathname) != EOK)
-		{
-			pmm->free(d);
-			fileclose(f);
-			return NULL;
-		}
 		strcpy(f->path, pathname);
-		f->type = FD_DIR;
-		f->ptr = d;
+		f->ref = ef->refctr + 1;
+		f->type = FD_FILE;
+		f->ptr = ef;
 		f->readable = !(flags & O_WRONLY);
 		f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
 		f->off = 0;
 		return f;
 	}
-	strcpy(f->path, pathname);
-	f->ref = ef->refctr + 1;
-	f->type = FD_FILE;
-	f->ptr = ef;
-	f->readable = !(flags & O_WRONLY);
-	f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
-	f->off = 0;
-	return f;
+
+	// Both failed.
+	pmm->free(ef);
+	fileclose(f);
+	return NULL;
 }
 
 void vfs_close(struct file *f)

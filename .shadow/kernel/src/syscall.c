@@ -94,15 +94,7 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
             *p = '\0';
             if (*start != '\0')
             {
-                if (strcmp(start, "..") == 0)
-                {
-                    if (n > 0)
-                        n--;
-                }
-                else if (strcmp(start, ".") != 0)
-                {
-                    components[n++] = start;
-                }
+                components[n++] = start;
             }
             while (*(p + 1) == '/')
             {
@@ -115,14 +107,22 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
 
     if (*start != '\0')
     {
-        if (strcmp(start, "..") == 0)
+        components[n++] = start;
+    }
+
+    if (n > 0)
+    {
+        if (strcmp(components[n - 1], ".") == 0)
         {
-            if (n > 0)
-                n--;
+            n--;
         }
-        else if (strcmp(start, ".") != 0)
+        else if (strcmp(components[n - 1], "..") == 0)
         {
-            components[n++] = start;
+            n--;
+            if (n > 0)
+            {
+                n--;
+            }
         }
     }
 

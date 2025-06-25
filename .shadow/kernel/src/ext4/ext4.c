@@ -1033,7 +1033,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 			r = ENOENT;
 			break;
 		}
-
+        printf("path:%s\n",path);
 		r = ext4_dir_find_entry(&result, &ref, path, len);
 		if (r != EOK)
 		{

@@ -393,12 +393,14 @@ struct file *vfs_open(const char *pathname, int flags)
 			fileclose(f);
 			return NULL;
 		}
+		printf("VFS: Opening directory %s\n", pathname);
 		if (ext4_dir_open(d, pathname) != EOK)
 		{
 			pmm->free(d);
 			fileclose(f);
 			return NULL;
 		}
+		printf("VFS: Directory opened successfully %s\n", pathname);
 		strcpy(f->path, pathname);
 		f->type = FD_DIR;
 		f->ptr = d;

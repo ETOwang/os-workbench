@@ -84,7 +84,6 @@ static uint64_t syscall_chdir(task_t *task, const char *path)
     {
         return -1;
     }
-    printf("syscall_chdir: %s\n", full_path);
     struct file *f = vfs->open(full_path, O_DIRECTORY);
     if (f == NULL)
     {

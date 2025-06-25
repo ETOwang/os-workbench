@@ -1132,7 +1132,7 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 		if (name_off)
 			*name_off += len + 1;
 	}
-
+    printf("r val:%d\n",r);
 	if (r != EOK)
 	{
 		ext4_fs_put_inode_ref(&ref);

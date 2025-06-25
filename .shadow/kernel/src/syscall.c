@@ -110,30 +110,41 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
         components[n++] = start;
     }
 
-    // Normalize path by processing . and ..
+    // 规范化路径：只保留开头的 . 和 ..，其余都要处理
     char *new_components[64];
     int new_n = 0;
+    int leading = 1;
     for (int i = 0; i < n; i++)
     {
-        if (strcmp(components[i], ".") == 0)
+        if (leading && (strcmp(components[i], ".") == 0 || strcmp(components[i], "..") == 0))
         {
-            continue; // Ignore .
+            new_components[new_n++] = components[i];
         }
-        if (strcmp(components[i], "..") == 0)
+        else if (strcmp(components[i], ".") == 0)
         {
-            if (new_n > 0 && strcmp(new_components[new_n - 1], "..") != 0)
+            // 非开头的 . 忽略
+            continue;
+        }
+        else if (strcmp(components[i], "..") == 0)
+        {
+            if (new_n > 0 && strcmp(new_components[new_n - 1], ".") != 0 && strcmp(new_components[new_n - 1], "..") != 0)
             {
-                new_n--;
+                new_n--; // 向上一级
             }
             else if (!is_abs)
             {
                 new_components[new_n++] = components[i];
             }
-            // For absolute paths, /.. is just /, so we do nothing and effectively go up.
+            // 对于绝对路径，/.. 直接忽略
         }
         else
         {
             new_components[new_n++] = components[i];
+            leading = 0;
+        }
+        if (leading && strcmp(components[i], ".") != 0 && strcmp(components[i], "..") != 0)
+        {
+            leading = 0;
         }
     }
 
@@ -142,11 +153,11 @@ static int parse_path(char *buf, task_t *task, int dirfd, const char *path)
     {
         *p++ = '/';
     }
-
     for (int i = 0; i < new_n; i++)
     {
-        strcpy(p, new_components[i]);
-        p += strlen(new_components[i]);
+        size_t len = strlen(new_components[i]);
+        memcpy(p, new_components[i], len);
+        p += len;
         if (i < new_n - 1)
         {
             *p++ = '/';

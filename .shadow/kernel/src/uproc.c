@@ -174,8 +174,7 @@ static int uproc_fork(task_t *task)
         {
             continue;
         }
-        vfs->dup(task->open_files[i]);
-        son->open_files[i] = task->open_files[i];
+        son->open_files[i] = vfs->dup(task->open_files[i]);
     }
     kmt_add_task(son);
     return pid;

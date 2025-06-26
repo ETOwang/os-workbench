@@ -30,6 +30,28 @@ static struct file *filedup(struct file *f)
 	return f;
 }
 
+void pipeclose(struct pipe *pi, int writable)
+{
+	kmt->spin_lock(&pi->lock);
+	if (writable)
+	{
+		pi->writeopen = 0;
+		kmt->wakeup(&pi->nread);
+	}
+	else
+	{
+		pi->readopen = 0;
+		kmt->wakeup(&pi->nwrite);
+	}
+	if (pi->readopen == 0 && pi->writeopen == 0)
+	{
+		kmt->spin_unlock(&pi->lock);
+		pmm->free((void *)pi);
+	}
+	else
+		kmt->spin_unlock(&pi->lock);
+}
+
 static void fileclose(struct file *f)
 {
 	struct file ff;
@@ -45,7 +67,12 @@ static void fileclose(struct file *f)
 	f->ref = 0;
 	f->type = FD_NONE;
 	kmt->spin_unlock(&ftable.lock);
-	if (ff.type == FD_FILE)
+
+	if (ff.type == FD_PIPE)
+	{
+		pipeclose((struct pipe *)ff.ptr, ff.writable);
+	}
+	else if (ff.type == FD_FILE)
 	{
 		ext4_fclose(ff.ptr);
 		pmm->free(ff.ptr);
@@ -190,28 +217,6 @@ bad:
 	if (*f1)
 		fileclose(*f1);
 	return -1;
-}
-
-void pipeclose(struct pipe *pi, int writable)
-{
-	kmt->spin_lock(&pi->lock);
-	if (writable)
-	{
-		pi->writeopen = 0;
-		kmt->wakeup(&pi->nread);
-	}
-	else
-	{
-		pi->readopen = 0;
-		kmt->wakeup(&pi->nwrite);
-	}
-	if (pi->readopen == 0 && pi->writeopen == 0)
-	{
-		kmt->spin_unlock(&pi->lock);
-		pmm->free((void *)pi);
-	}
-	else
-		kmt->spin_unlock(&pi->lock);
 }
 
 int pipewrite(struct pipe *pi, const void *buf, int n)
@@ -424,24 +429,7 @@ struct file *vfs_open(const char *pathname, int flags)
 
 void vfs_close(struct file *f)
 {
-	switch (f->type)
-	{
-	case FD_DEVICE:
-	case FD_DIR:
-	case FD_FILE:
-		fileclose(f);
-		break;
-	case FD_PIPE:
-		f->ref--;
-		if (f->ref == 0)
-		{
-			pipeclose((struct pipe *)f->ptr, f->writable);
-		}
-		break;
-	default:
-		panic("vfs close unknown type");
-		break;
-	}
+	fileclose(f);
 }
 
 ssize_t vfs_read(struct file *f, void *buf, size_t count)

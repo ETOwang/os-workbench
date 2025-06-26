@@ -210,11 +210,10 @@ int getcmd(char *buf, int nbuf)
   simplify_path(buf);
   printf("%s$ ", buf);
   memset(buf, 0, nbuf);
-  // if (!gets(buf, nbuf))
-  // {
-  //   return -1;
-  // }
-  strcpy(buf, "ls");
+  if (!gets(buf, nbuf))
+  {
+    return -1;
+  }
   if (buf[0] == 0) // EOF
     return -1;
   return 0;

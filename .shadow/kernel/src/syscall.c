@@ -520,7 +520,7 @@ static uint64_t syscall_clone(task_t *task, int flags, void *stack, int *ptid, i
 
 static uint64_t syscall_execve(task_t *task, const char *pathname, char *const argv[], char *const envp[])
 {
-    printf("syscall_execve: %s\n", pathname);
+    printf("syscall_execve: %s,argv[0]:%s\n", pathname,argv[0]);
     if (pathname == NULL)
     {
         return -1;

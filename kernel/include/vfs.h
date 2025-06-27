@@ -19,6 +19,7 @@ struct file
     uint32_t off;
     char path[PATH_MAX]; // Add path to file struct
     void *ptr;           // Pointer to ext4_file, ext4_dir, etc.
+    spinlock_t lock; // Lock for file operations
 };
 
 // System-wide open file table

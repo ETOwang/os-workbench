@@ -252,7 +252,8 @@ int piperead(struct pipe *pi, const void *buf, int n)
 	int i;
 	kmt->spin_lock(&pi->lock);
 	while (pi->nread == pi->nwrite && pi->writeopen)
-	{									   // DOC: pipe-empty
+	{									   
+		printf("pipe is empty\n");                                   // DOC: pipe-empty
 		kmt->sleep(&pi->nread, &pi->lock); // DOC: piperead-sleep
 	}
 	for (i = 0; i < n; i++)

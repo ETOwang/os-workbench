@@ -453,18 +453,15 @@ static void kmt_sleep(void *chan, spinlock_t *lk)
     kmt->spin_lock(&p->lock);
     p->chan = chan;
     p->status = TASK_BLOCKED;
-    kmt->spin_unlock(&p->lock);
     while (p->status == TASK_BLOCKED)
     {
-        kmt->spin_lock(&p->lock);
         kmt->spin_unlock(&p->lock);
+        kmt->spin_lock(&p->lock);
     }
-
     // Tidy up.
     p->chan = 0;
-
+    kmt->spin_unlock(&p->lock);
     // Reacquire original lock.
-
     kmt->spin_lock(lk);
 }
 MODULE_DEF(kmt) = {

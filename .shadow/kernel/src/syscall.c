@@ -563,6 +563,7 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     void *entry_point;
     if (load_elf(task, elf_data, file_size, &entry_point) < 0)
     {
+        printf("Failed to load ELF file: %s\n", full_path);
         pmm->free(elf_data);
         return -1;
     }

@@ -249,6 +249,7 @@ int pipewrite(struct pipe *pi, const void *buf, int n)
 
 int piperead(struct pipe *pi, const void *buf, int n)
 {
+	printf("piperead: n=%d, pi->nread=%d, pi->nwrite=%d\n", n, pi->nread, pi->nwrite);
 	int i;
 	kmt->spin_lock(&pi->lock);
 	while (pi->nread == pi->nwrite && pi->writeopen)

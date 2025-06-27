@@ -222,6 +222,7 @@ bad:
 
 int pipewrite(struct pipe *pi, const void *buf, int n)
 {
+	printf("pipewrite: n=%d, pi->nread=%d, pi->nwrite=%d\n", n, pi->nread, pi->nwrite);
 	int i = 0;
 	kmt->spin_lock(&pi->lock);
 	while (i < n)

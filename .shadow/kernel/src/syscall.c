@@ -637,6 +637,8 @@ static uint64_t syscall_execve(task_t *task, const char *pathname, char *const a
     task->context->GPR1 = argc;
     task->context->GPR2 = (uintptr_t)argv_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
     task->context->GPR3 = (uintptr_t)envp_array - (uintptr_t)mem + UVMEND - task->pi->as.pgsize;
+    printf("execve: entry point at %p, argc=%d, argv=%p, envp=%p\n",
+           (uintptr_t)entry_point, argc, argv_array, envp_array);
     return 0;
 }
 static int load_elf(task_t *task, const char *elf_data, size_t file_size, void **entry_point)

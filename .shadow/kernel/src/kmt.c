@@ -432,6 +432,7 @@ static void kmt_wakeup(void *chan)
         }
         kmt->spin_unlock(&tasks[i]->lock);
     }
+    kmt->spin_unlock(&task_lock);
 }
 static void kmt_sleep(void *chan, spinlock_t *lk)
 {

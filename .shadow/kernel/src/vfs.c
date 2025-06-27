@@ -250,7 +250,6 @@ int pipewrite(struct pipe *pi, const void *buf, int n)
 int piperead(struct pipe *pi, const void *buf, int n)
 {
 	int i;
-	char ch;
 	kmt->spin_lock(&pi->lock);
 	while (pi->nread == pi->nwrite && pi->writeopen)
 	{									   // DOC: pipe-empty
@@ -260,8 +259,7 @@ int piperead(struct pipe *pi, const void *buf, int n)
 	{ // DOC: piperead-copy
 		if (pi->nread == pi->nwrite)
 			break;
-		ch = pi->data[pi->nread++ % PIPESIZE];
-		((char *)buf)[i] = ch;
+		((char *)buf)[i] = pi->data[pi->nread++ % PIPESIZE];
 	}
 	kmt->wakeup(&pi->nwrite); // DOC: piperead-wakeup
 	kmt->spin_unlock(&pi->lock);

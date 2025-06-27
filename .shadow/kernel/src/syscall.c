@@ -697,7 +697,6 @@ static int load_elf(task_t *task, const char *elf_data, size_t file_size, void *
         {
             if (load_elf_segment(task, elf_data, file_size, &phdr[i]) < 0)
             {
-                printf("Failed to load segment %d\n", i);
                 return -1;
             }
             brk_addr = brk_addr < phdr[i].p_vaddr + phdr[i].p_memsz ? phdr[i].p_vaddr + phdr[i].p_memsz : brk_addr;

@@ -12,6 +12,7 @@ static struct file *filealloc(void)
 		if (f->ref == 0)
 		{
 			f->ref = 1;
+			kmt->spin_init(&f->lock, "file_lock");
 			kmt->spin_unlock(&ftable.lock);
 			return f;
 		}
@@ -437,6 +438,7 @@ void vfs_close(struct file *f)
 ssize_t vfs_read(struct file *f, void *buf, size_t count)
 {
 	int nread;
+	kmt->spin_lock(&f->lock);
 	if (f->type == FD_FILE || f->type == FD_DIR || f->type == FD_DEVICE)
 	{
 		nread = fileread(f, buf, count);
@@ -449,12 +451,14 @@ ssize_t vfs_read(struct file *f, void *buf, size_t count)
 	{
 		panic("vfs read unknown type");
 	}
+	kmt->spin_unlock(&f->lock);
 	return nread;
 }
 
 ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 {
 	int nwrite;
+	kmt->spin_lock(&f->lock);
 	if (f->type == FD_FILE || f->type == FD_DIR || f->type == FD_DEVICE)
 	{
 		nwrite = filewrite(f, buf, count);
@@ -468,21 +472,27 @@ ssize_t vfs_write(struct file *f, const void *buf, size_t count)
 		printf("vfs type %d\n", f->type);
 		panic("vfs write unknown type");
 	}
+	kmt->spin_unlock(&f->lock);
 	return nwrite;
 }
 
 off_t vfs_seek(struct file *f, off_t offset, int whence)
 {
+	kmt->spin_lock(&f->lock);
 	if (f->type != FD_FILE)
 	{
+		kmt->spin_unlock(&f->lock);
 		return VFS_ERROR;
 	}
 	ext4_file *ef = (ext4_file *)f->ptr;
 	if (ext4_fseek(ef, offset, whence) != EOK)
 	{
+		kmt->spin_unlock(&f->lock);
 		return VFS_ERROR;
 	}
-	return ext4_ftell(ef);
+	int r=ext4_ftell(ef);
+	kmt->spin_unlock(&f->lock);
+	return r;
 }
 
 int vfs_stat(struct file *f, struct stat *stat)

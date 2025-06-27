@@ -436,32 +436,21 @@ static void kmt_wakeup(void *chan)
 }
 static void kmt_sleep(void *chan, spinlock_t *lk)
 {
-    // Atomically release lock and sleep on chan.
-    // Reacquires lock when awakened.
 
     task_t *p = get_current_task();
-
-    // Must acquire p->lock in order to
-    // change p->state and then call sched.
-    // Once we hold p->lock, we can be
-    // guaranteed that we won't miss any wakeup
-    // (wakeup locks p->lock),
-    // so it's okay to release lk.
-
     kmt->spin_unlock(lk);
-    // Go to sleep.
     kmt->spin_lock(&p->lock);
     p->chan = chan;
     p->status = TASK_BLOCKED;
     while (p->status == TASK_BLOCKED)
     {
         kmt->spin_unlock(&p->lock);
+        for (volatile size_t i = 0; i < 1000000; i++)
+            ;
         kmt->spin_lock(&p->lock);
     }
-    // Tidy up.
     p->chan = 0;
     kmt->spin_unlock(&p->lock);
-    // Reacquire original lock.
     kmt->spin_lock(lk);
 }
 MODULE_DEF(kmt) = {
